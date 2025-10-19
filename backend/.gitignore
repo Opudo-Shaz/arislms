@@ -1,0 +1,44 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+*.csv
+*.out
+*.pid
+*.seed
+*.pid.lock
+
+
+# Build artifacts
+dist/
+build/
+tmp/
+temp/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE/editor settings
+.vscode/
+.idea/
+*.swp
+
+# Sequelize migrations 
+migrations/
+
+
+# Cache
+.cache/
+.parcel-cache/
