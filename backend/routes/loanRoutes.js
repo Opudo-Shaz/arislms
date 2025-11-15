@@ -1,22 +1,34 @@
 const express = require('express');
-const { getLoans, getLoan, createLoan, updateLoan, deleteLoan } = require('../controllers/loanController');
+const {
+  getAllLoans,
+  getLoanById,
+  createLoan,
+  updateLoan,
+  deleteLoan,
+  getMyLoans
+} = require('../controllers/loanController');
+
 const { authenticate, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Admin can see all loans
-router.get('/', authenticate, authorize(['admin']), getLoans);
 
-// User can see their own loan
-router.get('/:id', authenticate, getLoan);
+// Get all loans (Admin only)
+router.get('/', authenticate, authorize(['admin']), getAllLoans);
 
-// Admin or user can create new loan (depending on your logic)
+// Get authenticated user's loans (User & Admin)
+router.get('/my', authenticate, getMyLoans);
+
+// Get single loan by ID (User can only access their own loan unless admin)
+router.get('/:id', authenticate, getLoanById);
+
+// Create a new loan (User or Admin)
 router.post('/', authenticate, createLoan);
 
-// Only admin can update loan status, etc.
+// Update loan (Admin only)
 router.put('/:id', authenticate, authorize(['admin']), updateLoan);
 
-// Only admin can delete loan
+// Delete loan (Admin only)
 router.delete('/:id', authenticate, authorize(['admin']), deleteLoan);
 
 module.exports = router;

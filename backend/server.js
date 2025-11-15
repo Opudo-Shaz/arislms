@@ -24,15 +24,21 @@ app.use(
 const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
 const loanRoutes = require('./routes/loanRoutes');
-
-
+const clientRoutes = require('./routes/clientRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/loans', loanRoutes);
+app.use('/api/clients', clientRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 
+
+require('./models');
 
 // Database Connection
 (async () => {
@@ -40,7 +46,7 @@ app.use('/api/loans', loanRoutes);
     await sequelize.authenticate();
     logger.info('Connected to PostgreSQL via Sequelize');
 
-    await sequelize.sync({ alter: false });
+    await sequelize.sync({ alter: true });
     logger.info('Database models synchronized');
   } catch (error) {
     logger.error(`Database connection error: ${error.message}`);
