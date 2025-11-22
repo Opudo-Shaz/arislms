@@ -25,6 +25,12 @@ const Client = sequelize.define('Client', {
   riskScore: { type: DataTypes.DECIMAL(5,2), field: 'risk_score' },
   preferredContactMethod: { type: DataTypes.STRING(16), field: 'preferred_contact_method' },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true, field: 'is_active' },
+  status: {
+    type: DataTypes.ENUM('active', 'inactive', 'suspended', 'blacklisted'),
+    defaultValue: 'active',
+    allowNull: false
+  },
+
   notes: { type: DataTypes.TEXT },
 }, {
   tableName: 'clients',

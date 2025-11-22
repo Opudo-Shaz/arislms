@@ -3,53 +3,120 @@ const logger = require('../config/logger');
 
 const clientController = {
   async createClient(req, res) {
-    console.log('Current user details:', req.user);
     try {
-      const client = await clientService.createClient(req.body, req.user);
-      res.status(201).json(client);
+      const user = req.user;
+
+      logger.info(`User ${user.id} creating client`);
+
+      const client = await clientService.createClient(req.body, user);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Client created successfully',
+        data: client
+      });
     } catch (error) {
-      logger.error(`Controller Error: ${error.message}`);
-      res.status(500).json({ error: error.message });
+      logger.error(`Create Client Error: ${error.message}`);
+
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
     }
   },
 
   async getClients(req, res) {
     try {
+      logger.info(`User ${req.user.id} fetching all clients`);
+
       const clients = await clientService.getAllClients();
-      res.json(clients);
+
+      return res.status(200).json({
+        success: true,
+        data: clients
+      });
     } catch (error) {
-      logger.error(`Controller Error: ${error.message}`);
-      res.status(500).json({ error: error.message });
+      logger.error(`Get Clients Error: ${error.message}`);
+
+      return res.status(500).json({
+        success: false,
+        message: 'Unable to fetch clients'
+      });
     }
   },
 
   async getClient(req, res) {
     try {
-      const client = await clientService.getClientById(req.params.id);
-      res.json(client);
+      const id = req.params.id;
+
+      logger.info(`User ${req.user.id} fetching client ${id}`);
+
+      const client = await clientService.getClientById(id);
+
+      if (!client) {
+        return res.status(404).json({
+          success: false,
+          message: 'Client not found'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: client
+      });
     } catch (error) {
-      logger.error(`Controller Error: ${error.message}`);
-      res.status(404).json({ error: error.message });
+      logger.error(`Get Client Error: ${error.message}`);
+
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
     }
   },
 
   async updateClient(req, res) {
     try {
-      const client = await clientService.updateClient(req.params.id, req.body);
-      res.json(client);
+      const id = req.params.id;
+
+      logger.info(`User ${req.user.id} updating client ${id}`);
+
+      const updated = await clientService.updateClient(id, req.body);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Client updated successfully',
+        data: updated
+      });
     } catch (error) {
-      logger.error(`Controller Error: ${error.message}`);
-      res.status(500).json({ error: error.message });
+      logger.error(`Update Client Error: ${error.message}`);
+
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
     }
   },
 
   async deleteClient(req, res) {
     try {
-      const result = await clientService.deleteClient(req.params.id);
-      res.json(result);
+      const id = req.params.id;
+
+      logger.warn(`User ${req.user.id} deleting client ${id}`);
+
+      const result = await clientService.deleteClient(id);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Client deleted successfully',
+        data: result
+      });
     } catch (error) {
-      logger.error(`Controller Error: ${error.message}`);
-      res.status(500).json({ error: error.message });
+      logger.error(`Delete Client Error: ${error.message}`);
+
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
     }
   },
 };

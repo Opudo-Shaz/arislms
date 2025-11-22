@@ -1,6 +1,8 @@
 const Loan = require('../models/loanModel');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../config/logger');
+const LoanProduct = require('../models/loanProductModel');
+
 
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
   const P = parseFloat(principal);
@@ -62,41 +64,67 @@ const loanService = {
   },
 
   async createLoan(data, createdByUser) {
-    try {
-      const creatorId = createdByUser?.id || null;
-      logger.info(`loanService.createLoan called by user ${creatorId}`);
+  try {
+    const creatorId = createdByUser?.id || null;
+    logger.info(`loanService.createLoan called by user ${creatorId}`);
 
-      // Auto-generate reference code
-      data.referenceCode = `LN-${uuidv4().split('-')[0].toUpperCase()}`;
-      data.createdBy = creatorId;
-      data.clientId = data.clientId || creatorId;
-
-      // Monthly installment calculation
-      data.installmentAmount = calculateMonthlyPayment(
-        data.principalAmount,
-        data.interestRate,
-        data.termMonths,
-        data.interestType
-      );
-
-      // Initial outstanding balance
-      data.outstandingBalance = data.principalAmount;
-
-      // Auto-generate payment schedule 
-      data.paymentSchedule = {
-        type: data.interestType,
-        termMonths: data.termMonths,
-        monthlyPayment: data.installmentAmount,
-      };
-
-      const newLoan = await Loan.create(data);
-      logger.info(`Loan created: id=${newLoan.id} reference=${newLoan.referenceCode} by user ${creatorId}`);
-      return newLoan;
-    } catch (error) {
-      logger.error(`Error in createLoan: ${error.message}`);
-      throw error;
+    if (!data.loanProductId) {
+      throw new Error("loanProductId is required");
     }
-  },
+
+    // Load loan product
+    const product = await LoanProduct.findByPk(data.loanProductId);
+    if (!product) {
+      throw new Error("Invalid loan product selected");
+    }
+
+    // Apply product rules
+    const interestRate = product.interestRate;
+    const interestType = product.interestType;
+    const termMonths = product.termMonths;
+    const penalties = product.penalties || 0;
+    const fees = product.fees || 0;
+
+    // Override loan fields with product values
+    data.interestRate = interestRate;
+    data.interestType = interestType;
+    data.termMonths = termMonths;
+    data.penalties = penalties;
+    data.fees = fees;
+
+    // Auto-generate reference code
+    data.referenceCode = `LN-${uuidv4().split('-')[0].toUpperCase()}`;
+    data.createdBy = creatorId;
+    data.clientId = data.clientId || creatorId;
+
+    // Monthly installment calculation
+    data.installmentAmount = calculateMonthlyPayment(
+      data.principalAmount,
+      interestRate,
+      termMonths,
+      interestType
+    );
+
+    // Initial outstanding balance
+    data.outstandingBalance = data.principalAmount;
+
+    // Auto-generate payment schedule 
+    data.paymentSchedule = {
+      type: interestType,
+      termMonths: termMonths,
+      monthlyPayment: data.installmentAmount,
+    };
+
+    const newLoan = await Loan.create(data);
+
+    logger.info(`Loan created: id=${newLoan.id} reference=${newLoan.referenceCode} by user ${creatorId}`);
+    return newLoan;
+
+  } catch (error) {
+    logger.error(`Error in createLoan: ${error.message}`);
+    throw error;
+  }
+},
 
   async updateLoan(id, data) {
     try {
