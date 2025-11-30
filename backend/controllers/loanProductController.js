@@ -1,41 +1,78 @@
 const loanProductService = require('../services/loanProductService');
+const logger = require('../config/logger');
+const { getUserId } = require('../utils/helpers');
 
 module.exports = {
-
   async create(req, res) {
     try {
-      const user = req.user;
-      const product = await loanProductService.createProduct(req.body,user);
+      const userId = getUserId(req);
+      const payload = { ...req.body, createdBy: userId };
+
+      const product = await loanProductService.createProduct(payload, req.user);
+
+      logger.info(`Loan product created by user ${userId}`);
       res.status(201).json({ success: true, data: product });
     } catch (err) {
+      logger.error(`LoanProductController.create Error: ${err.message}`);
       res.status(400).json({ success: false, message: err.message });
     }
   },
 
   async getAll(req, res) {
-    const products = await loanProductService.getProducts();
-    res.json({ success: true, data: products });
+    try {
+      const products = await loanProductService.getProducts();
+      res.json({ success: true, data: products });
+    } catch (err) {
+      logger.error(`LoanProductController.getAll Error: ${err.message}`);
+      res.status(500).json({ success: false, message: 'Failed to fetch loan products' });
+    }
   },
 
   async getOne(req, res) {
-    const product = await loanProductService.getProduct(req.params.id);
-    if (!product) return res.status(404).json({ success: false, message: "Not found" });
+    try {
+      const product = await loanProductService.getProduct(req.params.id);
 
-    res.json({ success: true, data: product });
+      if (!product) {
+        logger.warn(`Loan product not found: ${req.params.id}`);
+        return res.status(404).json({ success: false, message: 'Not found' });
+      }
+
+      res.json({ success: true, data: product });
+    } catch (err) {
+      logger.error(`LoanProductController.getOne Error: ${err.message}`);
+      res.status(500).json({ success: false, message: 'Error fetching product' });
+    }
   },
 
   async update(req, res) {
-    const product = await loanProductService.updateProduct(req.params.id, req.body);
-    if (!product) return res.status(404).json({ success: false, message: "Not found" });
+    try {
+      const product = await loanProductService.updateProduct(req.params.id, req.body);
 
-    res.json({ success: true, data: product });
+      if (!product) {
+        logger.warn(`Loan product update failed. Not found: ${req.params.id}`);
+        return res.status(404).json({ success: false, message: 'Not found' });
+      }
+
+      res.json({ success: true, data: product });
+    } catch (err) {
+      logger.error(`LoanProductController.update Error: ${err.message}`);
+      res.status(400).json({ success: false, message: err.message });
+    }
   },
 
   async delete(req, res) {
-    const deleted = await loanProductService.deleteProduct(req.params.id);
-    if (!deleted) return res.status(404).json({ success: false, message: "Not found" });
+    try {
+      const deleted = await loanProductService.deleteProduct(req.params.id);
 
-    res.json({ success: true, message: "Deleted" });
+      if (!deleted) {
+        logger.warn(`Loan product delete failed. Not found: ${req.params.id}`);
+        return res.status(404).json({ success: false, message: 'Not found' });
+      }
+
+      res.json({ success: true, message: 'Deleted' });
+    } catch (err) {
+      logger.error(`LoanProductController.delete Error: ${err.message}`);
+      res.status(500).json({ success: false, message: 'Error deleting product' });
+    }
   }
-
 };

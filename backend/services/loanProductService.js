@@ -1,38 +1,62 @@
 const LoanProduct = require('../models/loanProductModel');
-
+const logger = require('../config/logger');
 const { formatDateWithOffset } = require('../utils/helpers');
+const { formatDateWithOffset, getUserId } = require('../utils/helpers');
 
 module.exports = {
-  
   async createProduct(data, user) {
-    data.createdBy = user.id;
-    return await LoanProduct.create(data);
+    try {
+      data.createdBy = getUserId({ user });
+      return await LoanProduct.create(data);
+    } catch (error) {
+      logger.error(`LoanProductService.createProduct Error: ${error.message}`);
+      throw error;
+    }
   },
 
   async getProducts() {
-    return await LoanProduct.findAll();
+    try {
+      return await LoanProduct.findAll();
+    } catch (error) {
+      logger.error(`LoanProductService.getProducts Error: ${error.message}`);
+      throw error;
+    }
   },
 
   async getProduct(id) {
-    return await LoanProduct.findByPk(id);
+    try {
+      const product = await LoanProduct.findByPk(id);
+      return product;
+    } catch (error) {
+      logger.error(`LoanProductService.getProduct Error: ${error.message}`);
+      throw error;
+    }
   },
 
   async updateProduct(id, data) {
-    const product = await LoanProduct.findByPk(id);
-    if (!product) return null;
+    try {
+      const product = await LoanProduct.findByPk(id);
+      if (!product) return null;
 
-  // set updatedAt to formatted string like `2025-11-21 11:52:55.984 +0300`
-  product.updated_at = formatDateWithOffset(new Date());
-  await product.update(data);
-    return product;
+      product.updated_at = formatDateWithOffset(new Date());
+      await product.update(data);
+      return product;
+    } catch (error) {
+      logger.error(`LoanProductService.updateProduct Error: ${error.message}`);
+      throw error;
+    }
   },
 
   async deleteProduct(id) {
-    const product = await LoanProduct.findByPk(id);
-    if (!product) return null;
+    try {
+      const product = await LoanProduct.findByPk(id);
+      if (!product) return null;
 
-    await product.destroy();
-    return true;
+      await product.destroy();
+      return true;
+    } catch (error) {
+      logger.error(`LoanProductService.deleteProduct Error: ${error.message}`);
+      throw error;
+    }
   }
-
 };

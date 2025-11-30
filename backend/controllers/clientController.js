@@ -1,14 +1,15 @@
 const clientService = require('../services/clientService');
 const logger = require('../config/logger');
+const { getUserId } = require('../utils/helpers');
 
 const clientController = {
   async createClient(req, res) {
     try {
-      const user = req.user;
+      const userId = getUserId(req);
 
-      logger.info(`User ${user.id} creating client`);
+      logger.info(`User ${userId} creating client`);
 
-      const client = await clientService.createClient(req.body, user);
+      const client = await clientService.createClient(req.body, req.user);
 
       return res.status(201).json({
         success: true,
@@ -27,7 +28,8 @@ const clientController = {
 
   async getClients(req, res) {
     try {
-      logger.info(`User ${req.user.id} fetching all clients`);
+      const userId = getUserId(req);
+      logger.info(`User ${userId} fetching all clients`);
 
       const clients = await clientService.getAllClients();
 
@@ -47,13 +49,15 @@ const clientController = {
 
   async getClient(req, res) {
     try {
+      const userId = getUserId(req);
       const id = req.params.id;
 
-      logger.info(`User ${req.user.id} fetching client ${id}`);
+      logger.info(`User ${userId} fetching client ${id}`);
 
       const client = await clientService.getClientById(id);
 
       if (!client) {
+        logger.warn(`Client not found: ${id}`);
         return res.status(404).json({
           success: false,
           message: 'Client not found'
@@ -67,18 +71,19 @@ const clientController = {
     } catch (error) {
       logger.error(`Get Client Error: ${error.message}`);
 
-      return res.status(404).json({
+      return res.status(500).json({
         success: false,
-        message: error.message
+        message: 'Error fetching client'
       });
     }
   },
 
   async updateClient(req, res) {
     try {
+      const userId = getUserId(req);
       const id = req.params.id;
 
-      logger.info(`User ${req.user.id} updating client ${id}`);
+      logger.info(`User ${userId} updating client ${id}`);
 
       const updated = await clientService.updateClient(id, req.body);
 
@@ -99,9 +104,10 @@ const clientController = {
 
   async deleteClient(req, res) {
     try {
+      const userId = getUserId(req);
       const id = req.params.id;
 
-      logger.warn(`User ${req.user.id} deleting client ${id}`);
+      logger.warn(`User ${userId} deleting client ${id}`);
 
       const result = await clientService.deleteClient(id);
 

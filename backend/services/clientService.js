@@ -4,10 +4,10 @@ const { v4: uuidv4 } = require('uuid');
 
 const clientService = {
   // ✅ Create client 
-  async createClient(data, adminUser) {
+  async createClient(data, user) {
     try {
       data.referenceCode = `CL-${uuidv4().split('-')[0].toUpperCase()}`;
-      data.createdBy = adminUser.id;
+      data.createdBy = getUserId({ user });
 
       const client = await Client.create(data);
       logger.info(`Client created: ${client.referenceCode} by Admin ID ${adminUser.id}`);

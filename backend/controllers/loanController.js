@@ -1,74 +1,144 @@
 const loanService = require('../services/loanService');
 const logger = require('../config/logger');
+const { getUserId } = require('../utils/helpers');
 
 exports.getAllLoans = async (req, res) => {
   try {
-    const loans = await loanService.getAllLoans(req.user.role, req.user.id);
-    logger.info(`User ${req.user.id} fetched loans`);
-    res.status(200).json({ success: true, data: loans });
+    const userId = getUserId(req);
+
+    logger.info(`User ${userId} fetching all loans`);
+
+    const loans = await loanService.getAllLoans(req.user.role, userId);
+
+    return res.status(200).json({
+      success: true,
+      data: loans
+    });
   } catch (error) {
-    logger.error(`Error fetching loans: ${error.message}`);
-    res.status(500).json({ success: false, message: 'Server error fetching loans' });
+    logger.error(`GetAllLoans Error: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error fetching loans'
+    });
   }
 };
 
 exports.getMyLoans = async (req, res) => {
   try {
-    const loans = await loanService.getAllLoans('user', req.user.id);
-    res.status(200).json({ success: true, data: loans });
+    const userId = getUserId(req);
+
+    logger.info(`User ${userId} fetching own loans`);
+
+    const loans = await loanService.getAllLoans('user', userId);
+
+    return res.status(200).json({
+      success: true,
+      data: loans
+    });
   } catch (error) {
-    logger.error(`Error fetching user loans: ${error.message}`);
-    res.status(500).json({ success: false, message: 'Error fetching your loans' });
+    logger.error(`GetMyLoans Error: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching your loans'
+    });
   }
 };
 
 exports.getLoanById = async (req, res) => {
   try {
+    const userId = getUserId(req);
+    const loanId = req.params.id;
+
+    logger.info(`User ${userId} fetching loan ${loanId}`);
+
     const loan = await loanService.getLoanById(
-      req.params.id,
+      loanId,
       req.user.role,
-      req.user.id
+      userId
     );
 
-    res.status(200).json({ success: true, data: loan });
+    return res.status(200).json({
+      success: true,
+      data: loan
+    });
   } catch (error) {
-    logger.error(`Error fetching loan ${req.params.id}: ${error.message}`);
-    res.status(404).json({ success: false, message: error.message });
+    logger.error(`GetLoanById Error (${req.params.id}): ${error.message}`);
+
+    return res.status(404).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
 exports.createLoan = async (req, res) => {
   try {
+    const userId = getUserId(req);
+
+    logger.info(`User ${userId} creating a new loan`);
+
     const payload = { ...req.body };
+
     const newLoan = await loanService.createLoan(payload, req.user);
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Loan created successfully',
       data: newLoan
     });
   } catch (error) {
-    logger.error(`Error creating loan: ${error.message}`);
-    res.status(400).json({ success: false, message: error.message });
+    logger.error(`CreateLoan Error: ${error.message}`);
+
+    return res.status(400).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
 exports.updateLoan = async (req, res) => {
   try {
-    const updatedLoan = await loanService.updateLoan(req.params.id, req.body);
-    res.status(200).json({ success: true, data: updatedLoan });
+    const userId = getUserId(req);
+    const loanId = req.params.id;
+
+    logger.info(`User ${userId} updating loan ${loanId}`);
+
+    const updatedLoan = await loanService.updateLoan(loanId, req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Loan updated successfully',
+      data: updatedLoan
+    });
   } catch (error) {
-    logger.error(`Error updating loan: ${error.message}`);
-    res.status(400).json({ success: false, message: error.message });
+    logger.error(`UpdateLoan Error (${req.params.id}): ${error.message}`);
+
+    return res.status(400).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
 exports.deleteLoan = async (req, res) => {
   try {
-    await loanService.deleteLoan(req.params.id);
-    res.status(200).json({ success: true, message: 'Loan deleted successfully' });
+    const userId = getUserId(req);
+    const loanId = req.params.id;
+
+    logger.warn(`User ${userId} deleting loan ${loanId}`);
+
+    await loanService.deleteLoan(loanId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Loan deleted successfully'
+    });
   } catch (error) {
-    logger.error(`Error deleting loan: ${error.message}`);
-    res.status(404).json({ success: false, message: error.message });
+    logger.error(`DeleteLoan Error (${req.params.id}): ${error.message}`);
+
+    return res.status(404).json({
+      success: false,
+      message: error.message
+    });
   }
 };
