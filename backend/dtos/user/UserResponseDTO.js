@@ -1,4 +1,5 @@
-class AdminUserDTO {
+// dtos/user/UserResponseDTO.js
+class UserResponseDTO {
   constructor(user) {
     this.id = user.id;
     this.name = user.name;
@@ -6,9 +7,8 @@ class AdminUserDTO {
     this.phone = user.phone;
     this.role = user.role;
     this.group_code = user.group_code;
-    this.id_number = user.id_number;
     this.created_at = user.created_at;
   }
 }
 
-module.exports = AdminUserDTO;
+module.exports = UserResponseDTO;

@@ -1,7 +1,7 @@
 const LoanProduct = require('../models/loanProductModel');
 const logger = require('../config/logger');
 const { formatDateWithOffset } = require('../utils/helpers');
-const { formatDateWithOffset, getUserId } = require('../utils/helpers');
+// const { formatDateWithOffset, getUserId } = require('../utils/helpers');
 
 module.exports = {
   async createProduct(data, user) {

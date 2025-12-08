@@ -1,6 +1,9 @@
 const paymentService = require('../services/paymentService');
 const logger = require('../config/logger');
 const { getUserId } = require('../utils/helpers');
+const { validateSync } = require('../utils/validationMiddleware');
+const PaymentResponseDTO = require('../dtos/payment/PaymentResponseDTO');
+const PaymentRequestDTO = require('../dtos/payment/PaymentRequestDTO');
 
 const paymentController = {
   async getAll(req, res) {
@@ -9,11 +12,16 @@ const paymentController = {
 
       logger.info(`User ${userId} fetching all payments`);
 
-      const payments = await paymentService.getAllPayments(req.user.role, userId);
+      const payments = await paymentService.getAllPayments(
+        req.user.role,
+        userId
+      );
+
+      const result = payments.map(p => new PaymentResponseDTO(p));
 
       return res.status(200).json({
         success: true,
-        data: payments
+        data: result
       });
     } catch (error) {
       logger.error(`GetAllPayments Error: ${error.message}`);
@@ -34,12 +42,16 @@ const paymentController = {
 
       const payments = await paymentService.getPaymentsByLoan(loanId);
 
+      const result = payments.map(p => new PaymentResponseDTO(p));
+
       return res.status(200).json({
         success: true,
-        data: payments
+        data: result
       });
     } catch (error) {
-      logger.error(`GetPaymentsByLoan Error (Loan ${req.params.loanId}): ${error.message}`);
+      logger.error(
+        `GetPaymentsByLoan Error (Loan ${req.params.loanId}): ${error.message}`
+      );
 
       return res.status(400).json({
         success: false,
@@ -54,12 +66,23 @@ const paymentController = {
 
       logger.info(`User ${userId} creating a new payment`);
 
-      const payment = await paymentService.createPayment(req.body, req.user);
+      // Validate request payload with Joi schema
+      const validation = validateSync(req.body, PaymentRequestDTO.createSchema);
+      if (!validation.valid) {
+        logger.warn(`Payment creation validation failed: ${JSON.stringify(validation.errors)}`);
+        return res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          errors: validation.errors
+        });
+      }
+
+      const payment = await paymentService.createPayment(validation.value, req.user);
 
       return res.status(201).json({
         success: true,
         message: 'Payment created successfully',
-        data: payment
+        data: new PaymentResponseDTO(payment)
       });
     } catch (error) {
       logger.error(`CreatePayment Error: ${error.message}`);

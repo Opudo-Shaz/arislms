@@ -6,11 +6,11 @@ const clientService = {
   // ✅ Create client 
   async createClient(data, user) {
     try {
-      data.referenceCode = `CL-${uuidv4().split('-')[0].toUpperCase()}`;
+      data.accountNumber = `CL-${uuidv4().split('-')[0].toUpperCase()}`;
       data.createdBy = getUserId({ user });
 
       const client = await Client.create(data);
-      logger.info(`Client created: ${client.referenceCode} by Admin ID ${adminUser.id}`);
+      logger.info(`Client created: ${client.accountNumber} by Admin ID ${adminUser.id}`);
       return client;
     } catch (error) {
       logger.error(`Error creating client: ${error.message}`);

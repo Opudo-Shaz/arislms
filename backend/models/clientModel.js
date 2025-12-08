@@ -3,7 +3,7 @@ const sequelize = require('../config/sequalize_db');
 
 const Client = sequelize.define('Client', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  referenceCode: { type: DataTypes.STRING(64), unique: true, field: 'reference_code' },
+  accountNumber: { type: DataTypes.STRING(64), unique: true, field: 'account_number' },
   firstName: { type: DataTypes.STRING(100), allowNull: false, field: 'first_name' },
   lastName: { type: DataTypes.STRING(100), allowNull: false, field: 'last_name' },
   email: { type: DataTypes.STRING(255), unique: true },

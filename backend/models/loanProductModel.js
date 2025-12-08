@@ -18,6 +18,26 @@ const LoanProduct = sequelize.define('LoanProduct', {
   currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'KES' },
   createdBy: { type: DataTypes.INTEGER, allowNull: false, field: 'created_by' },
 
+  interestType: {
+    type: DataTypes.STRING(20),
+    allowNull: true
+  },
+
+  termMonths: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+
+  penalties: {
+    type: DataTypes.DECIMAL(14,2),
+    defaultValue: 0
+  },
+
+  fees: {
+    type: DataTypes.DECIMAL(14,2),
+    defaultValue: 0
+  },
+
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true },
 
 }, {
