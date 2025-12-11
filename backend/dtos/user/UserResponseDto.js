@@ -1,4 +1,4 @@
-class UserDTO {
+class UserResponseDto {
   constructor(user) {
     this.id = user.id;
     this.name = user.name;
@@ -10,4 +10,4 @@ class UserDTO {
   }
 }
 
-module.exports = UserDTO;
+module.exports = UserResponseDto;

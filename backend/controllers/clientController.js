@@ -2,8 +2,8 @@ const clientService = require('../services/clientService');
 const logger = require('../config/logger');
 const { getUserId } = require('../utils/helpers');
 const { validateSync } = require('../utils/validationMiddleware');
-const ClientResponseDTO = require('../dtos/client/ClientResponseDTO');
-const ClientRequestDTO = require('../dtos/client/ClientRequestDTO');
+const ClientResponseDto = require('../dtos/client/ClientResponseDto');
+const ClientRequestDto = require('../dtos/client/ClientRequestDto');
 
 const clientController = {
   async createClient(req, res) {
@@ -12,7 +12,7 @@ const clientController = {
       logger.info(`User ${userId} creating client`);
 
       // Validate request payload with Joi schema
-      const validation = validateSync(req.body, ClientRequestDTO.createSchema);
+      const validation = validateSync(req.body, ClientRequestDto.createSchema);
       if (!validation.valid) {
         logger.warn(`Client creation validation failed: ${JSON.stringify(validation.errors)}`);
         return res.status(400).json({
@@ -27,7 +27,7 @@ const clientController = {
       return res.status(201).json({
         success: true,
         message: 'Client created successfully',
-        data: new ClientResponseDTO(client)
+        data: new ClientResponseDto(client)
       });
     } catch (error) {
       logger.error(`Create Client Error: ${error.message}`);
@@ -45,7 +45,7 @@ const clientController = {
       logger.info(`User ${userId} fetching all clients`);
 
       const clients = await clientService.getAllClients();
-      const result = clients.map(c => new ClientResponseDTO(c));
+      const result = clients.map(c => new ClientResponseDto(c));
 
       return res.status(200).json({
         success: true,
@@ -80,7 +80,7 @@ const clientController = {
 
       return res.status(200).json({
         success: true,
-        data: new ClientResponseDTO(client)
+        data: new ClientResponseDto(client)
       });
     } catch (error) {
       logger.error(`Get Client Error: ${error.message}`);
@@ -100,7 +100,7 @@ const clientController = {
       logger.info(`User ${userId} updating client ${id}`);
 
       // Validate request payload with Joi schema
-      const validation = validateSync(req.body, ClientRequestDTO.updateSchema);
+      const validation = validateSync(req.body, ClientRequestDto.updateSchema);
       if (!validation.valid) {
         logger.warn(`Client update validation failed: ${JSON.stringify(validation.errors)}`);
         return res.status(400).json({
@@ -115,7 +115,7 @@ const clientController = {
       return res.status(200).json({
         success: true,
         message: 'Client updated successfully',
-        data: new ClientResponseDTO(updated)
+        data: new ClientResponseDto(updated)
       });
     } catch (error) {
       logger.error(`Update Client Error: ${error.message}`);
@@ -139,7 +139,7 @@ const clientController = {
       return res.status(200).json({
         success: true,
         message: 'Client deleted successfully',
-        data: new ClientResponseDTO(result)
+        data: new ClientResponseDto(result)
       });
     } catch (error) {
       logger.error(`Delete Client Error: ${error.message}`);

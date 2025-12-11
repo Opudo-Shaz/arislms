@@ -1,5 +1,5 @@
-// dtos/ClientDTO.js
-class ClientDTO {
+// dtos/client/ClientResponseDTO.js
+class ClientResponseDto {
   constructor(client) {
     this.id = client.id;
     this.accountNumber = client.accountNumber;
@@ -22,4 +22,4 @@ class ClientDTO {
   }
 }
 
-module.exports = ClientDTO;
+module.exports = ClientResponseDto;

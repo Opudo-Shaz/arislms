@@ -1,7 +1,7 @@
 // dtos/payment/PaymentRequestDTO.js
 const Joi = require('joi');
 
-class PaymentRequestDTO {
+class PaymentRequestDto {
   constructor(data) {
     this.loanId = data.loanId;
     this.amount = data.amount;
@@ -49,4 +49,4 @@ class PaymentRequestDTO {
   });
 }
 
-module.exports = PaymentRequestDTO;
+module.exports = PaymentRequestDto;

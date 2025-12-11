@@ -79,11 +79,11 @@ const loanService = {
     }
 
     // Apply product rules
-    const interestRate = product.interestRate;
-    const interestType = product.interestType;
-    const termMonths = product.termMonths;
-    const penalties = product.penalties || 0;
-    const fees = product.fees || 0;
+   const interestRate = product.interestRate;
+   const interestType = product.interestType; 
+   const termMonths = product.repaymentPeriodMonths; 
+   const penalties = product.penaltyRate || 0; 
+   const fees = product.fees || 0;
 
     // Override loan fields with product values
     data.interestRate = interestRate;

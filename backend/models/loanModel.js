@@ -11,7 +11,7 @@ const Loan = sequelize.define('Loan', {
 
   loanProductId: { 
     type: DataTypes.INTEGER, 
-    allowNull: true, 
+    allowNull: false, 
     field: 'loan_product_id' 
   },
 
@@ -19,7 +19,7 @@ const Loan = sequelize.define('Loan', {
   currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'USD' },
 
   interestRate: { type: DataTypes.DECIMAL(6,4), allowNull: false, field: 'interest_rate' },
-  interestType: { type: DataTypes.STRING, allowNull: false, defaultValue: 'reducing', field: 'interest_type' },
+  interestType: { type: DataTypes.STRING, allowNull: true, defaultValue: 'reducing', field: 'interest_type' },
 
   termMonths: { type: DataTypes.INTEGER, allowNull: false, field: 'term_months' },
 

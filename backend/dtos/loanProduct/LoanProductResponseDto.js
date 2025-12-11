@@ -1,5 +1,5 @@
 // dtos/loanProduct/LoanProductResponseDTO.js
-class LoanProductResponseDTO {
+class LoanProductResponseDto {
   constructor(product) {
     this.id = product.id;
     this.name = product.name;
@@ -18,4 +18,4 @@ class LoanProductResponseDTO {
   }
 }
 
-module.exports = LoanProductResponseDTO;
+module.exports = LoanProductResponseDto;

@@ -1,7 +1,7 @@
 // dtos/loan/LoanRequestDTO.js
 const Joi = require('joi');
 
-class LoanRequestDTO {
+class LoanRequestDto {
   constructor(data) {
     this.clientId = data.clientId;
     this.loanProductId = data.loanProductId;
@@ -92,4 +92,4 @@ class LoanRequestDTO {
   });
 }
 
-module.exports = LoanRequestDTO;
+module.exports = LoanRequestDto;

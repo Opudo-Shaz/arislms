@@ -2,8 +2,8 @@ const paymentService = require('../services/paymentService');
 const logger = require('../config/logger');
 const { getUserId } = require('../utils/helpers');
 const { validateSync } = require('../utils/validationMiddleware');
-const PaymentResponseDTO = require('../dtos/payment/PaymentResponseDTO');
-const PaymentRequestDTO = require('../dtos/payment/PaymentRequestDTO');
+const PaymentResponseDto = require('../dtos/payment/PaymentResponseDto');
+const PaymentRequestDto = require('../dtos/payment/PaymentRequestDto');
 
 const paymentController = {
   async getAll(req, res) {
@@ -17,7 +17,7 @@ const paymentController = {
         userId
       );
 
-      const result = payments.map(p => new PaymentResponseDTO(p));
+      const result = payments.map(p => new PaymentResponseDto(p));
 
       return res.status(200).json({
         success: true,
@@ -42,7 +42,7 @@ const paymentController = {
 
       const payments = await paymentService.getPaymentsByLoan(loanId);
 
-      const result = payments.map(p => new PaymentResponseDTO(p));
+      const result = payments.map(p => new PaymentResponseDto(p));
 
       return res.status(200).json({
         success: true,
@@ -67,7 +67,7 @@ const paymentController = {
       logger.info(`User ${userId} creating a new payment`);
 
       // Validate request payload with Joi schema
-      const validation = validateSync(req.body, PaymentRequestDTO.createSchema);
+      const validation = validateSync(req.body, PaymentRequestDto.createSchema);
       if (!validation.valid) {
         logger.warn(`Payment creation validation failed: ${JSON.stringify(validation.errors)}`);
         return res.status(400).json({
@@ -82,7 +82,7 @@ const paymentController = {
       return res.status(201).json({
         success: true,
         message: 'Payment created successfully',
-        data: new PaymentResponseDTO(payment)
+        data: new PaymentResponseDto(payment)
       });
     } catch (error) {
       logger.error(`CreatePayment Error: ${error.message}`);

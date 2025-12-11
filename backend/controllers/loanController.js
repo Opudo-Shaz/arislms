@@ -2,8 +2,8 @@ const loanService = require('../services/loanService');
 const logger = require('../config/logger');
 const { getUserId } = require('../utils/helpers');
 const { validateSync } = require('../utils/validationMiddleware');
-const LoanResponseDTO = require('../dtos/loan/LoanResponseDTO');
-const LoanRequestDTO = require('../dtos/loan/LoanRequestDTO');
+const LoanResponseDto = require('../dtos/loan/LoanResponseDto');
+const LoanRequestDto = require('../dtos/loan/LoanRequestDto');
 
 exports.getAllLoans = async (req, res) => {
   try {
@@ -12,7 +12,7 @@ exports.getAllLoans = async (req, res) => {
     logger.info(`User ${userId} fetching all loans`);
 
     const loans = await loanService.getAllLoans(req.user.role, userId);
-    const result = loans.map(l => new LoanResponseDTO(l));
+    const result = loans.map(l => new LoanResponseDto(l));
 
     return res.status(200).json({
       success: true,
@@ -34,7 +34,7 @@ exports.getMyLoans = async (req, res) => {
     logger.info(`User ${userId} fetching own loans`);
 
     const loans = await loanService.getAllLoans('user', userId);
-    const result = loans.map(l => new LoanResponseDTO(l));
+    const result = loans.map(l => new LoanResponseDto(l));
 
     return res.status(200).json({
       success: true,
@@ -64,7 +64,7 @@ exports.getLoanById = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: new LoanResponseDTO(loan)
+      data: new LoanResponseDto(loan)
     });
   } catch (error) {
     logger.error(`GetLoanById Error (${req.params.id}): ${error.message}`);
@@ -83,7 +83,7 @@ exports.createLoan = async (req, res) => {
     logger.info(`User ${userId} creating a new loan`);
 
     // Validate request payload with Joi schema
-    const validation = validateSync(req.body, LoanRequestDTO.createSchema);
+    const validation = validateSync(req.body, LoanRequestDto.createSchema);
     if (!validation.valid) {
       logger.warn(`Loan creation validation failed: ${JSON.stringify(validation.errors)}`);
       return res.status(400).json({
@@ -98,12 +98,12 @@ exports.createLoan = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: 'Loan created successfully',
-      data: new LoanResponseDTO(newLoan)
+      data: new LoanResponseDto(newLoan)
     });
   } catch (error) {
     logger.error(`CreateLoan Error: ${error.message}`);
 
-    return res.status(400).json({
+    return res.status(500).json({
       success: false,
       message: error.message
     });
@@ -118,7 +118,7 @@ exports.updateLoan = async (req, res) => {
     logger.info(`User ${userId} updating loan ${loanId}`);
 
     // Validate request payload with Joi schema
-    const validation = validateSync(req.body, LoanRequestDTO.updateSchema);
+    const validation = validateSync(req.body, LoanRequestDto.updateSchema);
     if (!validation.valid) {
       logger.warn(`Loan update validation failed: ${JSON.stringify(validation.errors)}`);
       return res.status(400).json({
@@ -133,7 +133,7 @@ exports.updateLoan = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: 'Loan updated successfully',
-      data: new LoanResponseDTO(updatedLoan)
+      data: new LoanResponseDto(updatedLoan)
     });
   } catch (error) {
     logger.error(`UpdateLoan Error (${req.params.id}): ${error.message}`);

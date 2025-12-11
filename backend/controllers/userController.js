@@ -1,8 +1,8 @@
 const userService = require('../services/userService');
 const logger = require('../config/logger');
 const { validateSync } = require('../utils/validationMiddleware');
-const UserResponseDTO = require('../dtos/user/UserResponseDTO');
-const UserRequestDTO = require('../dtos/user/UserRequestDTO');
+const UserResponseDto = require('../dtos/user/UserResponseDto');
+const UserRequestDto = require('../dtos/user/UserRequestDto');
 
 // Get all users
 const getUsers = async (req, res) => {
@@ -10,7 +10,7 @@ const getUsers = async (req, res) => {
     const users = await userService.getAllUsers();
     logger.info(`Fetched ${users.length} users`);
 
-    const result = users.map(u => new UserResponseDTO(u));
+    const result = users.map(u => new UserResponseDto(u));
     res.json(result);
 
   } catch (err) {
@@ -30,7 +30,7 @@ const getUser = async (req, res) => {
     }
 
     logger.info(`Fetched user with ID ${req.params.id}`);
-    res.json(new UserResponseDTO(user));
+    res.json(new UserResponseDto(user));
 
   } catch (err) {
     logger.error(`Error fetching user ${req.params.id}: ${err.message}`);
@@ -42,7 +42,7 @@ const getUser = async (req, res) => {
 const createUser = async (req, res) => {
   try {
     // Validate request payload with Joi schema
-    const validation = validateSync(req.body, UserRequestDTO.createSchema);
+    const validation = validateSync(req.body, UserRequestDto.createSchema);
     if (!validation.valid) {
       logger.warn(`User creation validation failed: ${JSON.stringify(validation.errors)}`);
       return res.status(400).json({
@@ -55,7 +55,7 @@ const createUser = async (req, res) => {
     const newUser = await userService.createUser(validation.value);
     logger.info(`Created new user: ${newUser.name} (ID: ${newUser.id})`);
 
-    res.status(201).json(new UserResponseDTO(newUser));
+    res.status(201).json(new UserResponseDto(newUser));
 
   } catch (err) {
     logger.error(`Error creating user: ${err.message}`);
@@ -67,7 +67,7 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     // Validate request payload with Joi schema
-    const validation = validateSync(req.body, UserRequestDTO.updateSchema);
+    const validation = validateSync(req.body, UserRequestDto.updateSchema);
     if (!validation.valid) {
       logger.warn(`User update validation failed: ${JSON.stringify(validation.errors)}`);
       return res.status(400).json({
@@ -85,7 +85,7 @@ const updateUser = async (req, res) => {
     }
 
     logger.info(`Updated user with ID ${req.params.id}`);
-    res.json(new UserResponseDTO(updated));
+    res.json(new UserResponseDto(updated));
 
   } catch (err) {
     logger.error(`Error updating user ${req.params.id}: ${err.message}`);
@@ -106,7 +106,7 @@ const deleteUser = async (req, res) => {
     logger.info(`Deleted user with ID ${req.params.id}`);
     res.json({
       message: 'User deleted',
-      user: new UserResponseDTO(deleted)
+      user: new UserResponseDto(deleted)
     });
 
   } catch (err) {

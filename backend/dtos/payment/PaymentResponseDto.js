@@ -1,5 +1,5 @@
 // dtos/payment/PaymentResponseDTO.js
-class PaymentResponseDTO {
+class PaymentResponseDto {
   constructor(model) {
     this.id = model.id;
     this.loanId = model.loan_id;
@@ -11,4 +11,4 @@ class PaymentResponseDTO {
   }
 }
 
-module.exports = PaymentResponseDTO;
+module.exports = PaymentResponseDto;

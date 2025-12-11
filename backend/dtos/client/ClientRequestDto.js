@@ -1,6 +1,6 @@
 const Joi = require('joi');
 
-class ClientRequestDTO {
+class ClientRequestDto {
   constructor(data) {
     this.firstName = data.firstName;
     this.lastName = data.lastName;
@@ -85,10 +85,10 @@ class ClientRequestDTO {
   });
 
   // Joi validation schema for updating clients
-  static updateSchema = ClientRequestDTO.createSchema.fork(
+  static updateSchema = ClientRequestDto.createSchema.fork(
     ['firstName', 'lastName', 'email', 'phone'],
     (schema) => schema.optional()
   );
 }
 
-module.exports = ClientRequestDTO;
+module.exports = ClientRequestDto;

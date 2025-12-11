@@ -2,8 +2,8 @@ const loanProductService = require('../services/loanProductService');
 const logger = require('../config/logger');
 const { getUserId } = require('../utils/helpers');
 const { validateSync } = require('../utils/validationMiddleware');
-const LoanProductResponseDTO = require('../dtos/loanProduct/LoanProductResponseDTO');
-const LoanProductRequestDTO = require('../dtos/loanProduct/LoanProductRequestDTO');
+const LoanProductResponseDto = require('../dtos/loanProduct/LoanProductResponseDto');
+const LoanProductRequestDto = require('../dtos/loanProduct/LoanProductRequestDto');
 
 module.exports = {
   async create(req, res) {
@@ -11,7 +11,7 @@ module.exports = {
       const userId = getUserId(req);
       
       // Validate request payload with Joi schema
-      const validation = validateSync(req.body, LoanProductRequestDTO.createSchema);
+      const validation = validateSync(req.body, LoanProductRequestDto.createSchema);
       if (!validation.valid) {
         logger.warn(`Loan product creation validation failed: ${JSON.stringify(validation.errors)}`);
         return res.status(400).json({
@@ -27,7 +27,7 @@ module.exports = {
       logger.info(`Loan product created by user ${userId}`);
       res.status(201).json({
         success: true,
-        data: new LoanProductResponseDTO(product)
+        data: new LoanProductResponseDto(product)
       });
     } catch (err) {
       logger.error(`LoanProductController.create Error: ${err.message}`);
@@ -38,7 +38,7 @@ module.exports = {
   async getAll(req, res) {
     try {
       const products = await loanProductService.getProducts();
-      const result = products.map(p => new LoanProductResponseDTO(p));
+      const result = products.map(p => new LoanProductResponseDto(p));
 
       res.json({
         success: true,
@@ -64,7 +64,7 @@ module.exports = {
 
       res.json({
         success: true,
-        data: new LoanProductResponseDTO(product)
+        data: new LoanProductResponseDto(product)
       });
     } catch (err) {
       logger.error(`LoanProductController.getOne Error: ${err.message}`);
@@ -78,7 +78,7 @@ module.exports = {
   async update(req, res) {
     try {
       // Validate request payload with Joi schema
-      const validation = validateSync(req.body, LoanProductRequestDTO.updateSchema);
+      const validation = validateSync(req.body, LoanProductRequestDto.updateSchema);
       if (!validation.valid) {
         logger.warn(`Loan product update validation failed: ${JSON.stringify(validation.errors)}`);
         return res.status(400).json({
@@ -97,7 +97,7 @@ module.exports = {
 
       res.json({
         success: true,
-        data: new LoanProductResponseDTO(product)
+        data: new LoanProductResponseDto(product)
       });
     } catch (err) {
       logger.error(`LoanProductController.update Error: ${err.message}`);
