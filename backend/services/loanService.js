@@ -63,7 +63,7 @@ const loanService = {
     }
   },
 
-  async createLoan(data, createdByUser) {
+  async createLoan(data, createdByUser, userAgent) {
     try {
       const creatorId = createdByUser?.id || null;
       logger.info(`loanService.createLoan called by user ${creatorId}`);
@@ -141,7 +141,7 @@ const loanService = {
         creatorId.toString(),
         {
           actorType: 'USER',
-          source: 'loan-creation'
+          source: userAgent || 'unknown'
         }
       );
 

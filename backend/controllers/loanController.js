@@ -79,6 +79,8 @@ exports.getLoanById = async (req, res) => {
 exports.createLoan = async (req, res) => {
   try {
     const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+
 
     logger.info(`User ${userId} creating a new loan`);
 
@@ -93,7 +95,7 @@ exports.createLoan = async (req, res) => {
       });
     }
 
-    const newLoan = await loanService.createLoan(validation.value, req.user);
+    const newLoan = await loanService.createLoan(validation.value, req.user, userAgent);
 
     return res.status(201).json({
       success: true,
