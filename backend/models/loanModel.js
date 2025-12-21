@@ -2,6 +2,8 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/sequalize_db');
 const User = require('./userModel');
 const LoanProduct = require('./loanProductModel');
+const Client = require('./clientModel');
+const InterestType = require('../enums/interestType');
 
 const Loan = sequelize.define('Loan', {
 
@@ -19,7 +21,7 @@ const Loan = sequelize.define('Loan', {
   currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'USD' },
 
   interestRate: { type: DataTypes.DECIMAL(6,4), allowNull: false, field: 'interest_rate' },
-  interestType: { type: DataTypes.STRING, allowNull: true, defaultValue: 'reducing', field: 'interest_type' },
+  interestType: { type: DataTypes.STRING, allowNull: true, defaultValue: InterestType.FIXED, field: 'interest_type' },
 
   termMonths: { type: DataTypes.INTEGER, allowNull: false, field: 'term_months' },
 
@@ -31,8 +33,8 @@ const Loan = sequelize.define('Loan', {
 
   outstandingBalance: { type: DataTypes.DECIMAL(14,2), allowNull: false, field: 'outstanding_balance' },
 
-  totalPayments: { type: DataTypes.INTEGER, field: 'total_payments' },
-  paymentsMade: { type: DataTypes.INTEGER, defaultValue: 0, field: 'payments_made' },
+  amountRepaid: { type: DataTypes.DOUBLE, field: 'amount_repaid', defaultValue: 0 },
+  noOfRepayments: { type: DataTypes.INTEGER, defaultValue: 0, field: 'no_of_repayments' },
 
   fees: { type: DataTypes.DECIMAL(14,2), defaultValue: 0, field: 'fees' },
   penalties: { type: DataTypes.DECIMAL(14,2), defaultValue: 0, field: 'penalties' },
@@ -45,12 +47,7 @@ const Loan = sequelize.define('Loan', {
   referenceCode: { type: DataTypes.STRING, unique: true, field: 'reference_code' },
   notes: { type: DataTypes.TEXT },
 
-  paidAt: { type: DataTypes.DATE, field: 'paid_at' },
-
   createdBy: { type: DataTypes.INTEGER, allowNull: true, field: 'created_by' },
-
-  defaultedAt: { type: DataTypes.DATE, field: 'defaulted_at' },
-  cancelledAt: { type: DataTypes.DATE, field: 'cancelled_at' },
 
 }, {
   tableName: 'loans',
@@ -61,8 +58,11 @@ const Loan = sequelize.define('Loan', {
 });
 
 // Associations
-User.hasMany(Loan, { foreignKey: 'user_id' });
-Loan.belongsTo(User, { foreignKey: 'user_id' });
+User.hasMany(Loan, { foreignKey: 'created_by' });
+Loan.belongsTo(User, { foreignKey: 'created_by' });
+
+Client.hasMany(Loan, { foreignKey: 'client_id' });
+Loan.belongsTo(User, { foreignKey: 'client_id' });
 
 LoanProduct.hasMany(Loan, { foreignKey: 'loan_product_id' });
 Loan.belongsTo(LoanProduct, { foreignKey: 'loan_product_id' });

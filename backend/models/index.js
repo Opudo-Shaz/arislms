@@ -5,6 +5,7 @@ const User = require('./userModel');
 const Loan = require('./loanModel');
 const Client = require('./clientModel');
 const Payment = require('./paymentModel');
+const AuditLog = require('./auditLogModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
@@ -35,4 +36,5 @@ module.exports = {
   Loan,
   Client,
   Payment,
+  AuditLog,
 };

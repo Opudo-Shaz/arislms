@@ -28,9 +28,9 @@ class UserRequestDto {
       .messages({
         'string.pattern.base': 'Phone must contain at least 7 digits'
       }),
-    role: Joi.string().valid('admin', 'user', 'officer').required()
+    role: Joi.string().valid('admin', 'user', 'member').required()
       .messages({
-        'any.only': 'Role must be admin, user, or officer',
+        'any.only': 'Role must be admin, user, or member',
         'any.required': 'Role is required'
       }),
     group_code: Joi.string().max(50).allow(null, '')

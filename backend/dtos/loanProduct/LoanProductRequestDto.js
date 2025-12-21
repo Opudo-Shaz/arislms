@@ -1,98 +1,110 @@
-// dtos/loanProduct/LoanProductRequestDTO.js
 const Joi = require('joi');
 
 class LoanProductRequestDto {
   constructor(data) {
     this.name = data.name;
     this.description = data.description;
-    this.currency = data.currency;
-    this.minAmount = data.minAmount;
-    this.maxAmount = data.maxAmount;
     this.interestRate = data.interestRate;
-    this.interestType = data.interestType;
-    this.termMonths = data.termMonths;
-    this.repaymentFrequency = data.repaymentFrequency;
-    this.fees = data.fees;
-    this.status = data.status || 'active';
+    this.interestType = data.interestType || 'reducing';
+    this.penaltyRate = data.penaltyRate || 0;
+    this.minimumDownPayment = data.minimumDownPayment || 0;
+    this.repaymentPeriodMonths = data.repaymentPeriodMonths;
+    this.maxLoanAmount = data.maxLoanAmount;
+    this.minLoanAmount = data.minLoanAmount;
+    this.fees = data.fees || 0;
+    this.currency = data.currency || 'KES';
+    this.isActive = data.isActive !== undefined ? data.isActive : true;
+    this.createdBy = data.createdBy;
   }
 
-  // Joi validation schema for creating loan products
+  // Joi schema for creating a loan product
   static createSchema = Joi.object({
-    name: Joi.string().trim().min(2).max(128).required()
+    name: Joi.string().trim().min(3).max(100).required()
       .messages({
-        'string.empty': 'Product name is required',
-        'string.min': 'Product name must be at least 2 characters',
-        'string.max': 'Product name cannot exceed 128 characters',
-        'any.required': 'Product name is required'
+        'string.empty': 'Loan product name is required',
+        'string.min': 'Loan product name must be at least 3 characters',
+        'string.max': 'Loan product name cannot exceed 100 characters',
+        'any.required': 'Loan product name is required'
       }),
-    description: Joi.string().max(500).allow(null, '')
+
+    description: Joi.string().allow(null, '')
       .messages({
-        'string.max': 'Description cannot exceed 500 characters'
+        'string.base': 'Description must be a string'
       }),
-    currency: Joi.string().length(3).required()
-      .messages({
-        'string.length': 'Currency code must be 3 characters (e.g., USD, KES)',
-        'any.required': 'Currency is required'
-      }),
-    minAmount: Joi.number().min(0).required()
-      .messages({
-        'number.base': 'Minimum amount must be a number',
-        'number.min': 'Minimum amount cannot be negative',
-        'any.required': 'Minimum amount is required'
-      }),
-    maxAmount: Joi.number().min(Joi.ref('minAmount')).required()
-      .messages({
-        'number.base': 'Maximum amount must be a number',
-        'number.min': 'Maximum amount must be greater than or equal to minimum amount',
-        'any.required': 'Maximum amount is required'
-      }),
-    interestRate: Joi.number().min(0).max(100).required()
+
+    interestRate: Joi.number().min(0).required()
       .messages({
         'number.base': 'Interest rate must be a number',
-        'number.min': 'Interest rate cannot be negative',
-        'number.max': 'Interest rate cannot exceed 100',
         'any.required': 'Interest rate is required'
       }),
-    interestType: Joi.string().valid('fixed', 'variable', 'compound').required()
+
+    interestType: Joi.string().valid('flat', 'reducing').default('reducing')
       .messages({
-        'any.only': 'Interest type must be fixed, variable, or compound',
-        'any.required': 'Interest type is required'
+        'any.only': 'Interest type must be flat or reducing'
       }),
-    termMonths: Joi.number().integer().min(1).required()
+
+    penaltyRate: Joi.number().min(0).default(0)
       .messages({
-        'number.base': 'Term must be a number',
-        'number.min': 'Term must be at least 1 month',
-        'any.required': 'Term (months) is required'
+        'number.min': 'Penalty rate cannot be negative'
       }),
-    repaymentFrequency: Joi.string().valid('monthly', 'quarterly', 'semi-annual', 'annual').required()
+
+    minimumDownPayment: Joi.number().min(0).default(0)
       .messages({
-        'any.only': 'Repayment frequency must be monthly, quarterly, semi-annual, or annual',
-        'any.required': 'Repayment frequency is required'
+        'number.min': 'Minimum down payment cannot be negative'
       }),
-    fees: Joi.object().allow(null, '')
+
+    repaymentPeriodMonths: Joi.number().integer().positive().required()
       .messages({
-        'object.base': 'Fees must be an object'
+        'number.base': 'Repayment period must be a number',
+        'number.positive': 'Repayment period must be greater than zero',
+        'any.required': 'Repayment period is required'
       }),
-    status: Joi.string().valid('active', 'inactive').default('active')
+
+    maxLoanAmount: Joi.number().positive().allow(null)
       .messages({
-        'any.only': 'Status must be active or inactive'
+        'number.base': 'Max loan amount must be a number'
+      }),
+
+    minLoanAmount: Joi.number().positive().allow(null)
+      .messages({
+        'number.base': 'Min loan amount must be a number'
+      }),
+
+    fees: Joi.number().min(0).default(0)
+      .messages({
+        'number.min': 'Fees cannot be negative'
+      }),
+
+    currency: Joi.string().length(3).default('KES')
+      .messages({
+        'string.length': 'Currency must be a 3-letter code'
+      }),
+
+    isActive: Joi.boolean().default(true),
+
+    createdBy: Joi.number().integer().required()
+      .messages({
+        'number.base': 'Created by must be a number',
+        'any.required': 'Created by is required'
       })
+  }).custom((value, helpers) => {
+    if (
+      value.maxLoanAmount !== null &&
+      value.minLoanAmount !== null &&
+      value.minLoanAmount > value.maxLoanAmount
+    ) {
+      return helpers.error('any.invalid', {
+        message: 'Minimum loan amount cannot exceed maximum loan amount'
+      });
+    }
+    return value;
   });
 
-  // Joi validation schema for updating loan products
-  static updateSchema = Joi.object({
-    name: Joi.string().trim().min(2).max(128),
-    description: Joi.string().max(500).allow(null, ''),
-    currency: Joi.string().length(3),
-    minAmount: Joi.number().min(0),
-    maxAmount: Joi.number().min(Joi.ref('minAmount')),
-    interestRate: Joi.number().min(0).max(100),
-    interestType: Joi.string().valid('fixed', 'variable', 'compound'),
-    termMonths: Joi.number().integer().min(1),
-    repaymentFrequency: Joi.string().valid('monthly', 'quarterly', 'semi-annual', 'annual'),
-    fees: Joi.object().allow(null, ''),
-    status: Joi.string().valid('active', 'inactive')
-  });
+  // Joi schema for updating a loan product
+  static updateSchema = LoanProductRequestDto.createSchema.fork(
+    ['name', 'interestRate', 'repaymentPeriodMonths', 'createdBy'],
+    (schema) => schema.optional()
+  );
 }
 
 module.exports = LoanProductRequestDto;

@@ -97,9 +97,22 @@ const validateClientPayload = (payload) => {
   };
 };
 
+function calculateEndDate(startDate, termMonths) {
+  const start = new Date(startDate);
+  if (isNaN(start)) {
+    throw new Error('Invalid start date');
+  }
+
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + termMonths);
+  return end;
+}
+
+
 module.exports = {
   formatDateWithOffset,
   getUserId,
   getUser,
-  validateClientPayload
+  validateClientPayload,
+  calculateEndDate
 };

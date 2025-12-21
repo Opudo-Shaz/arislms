@@ -1,16 +1,20 @@
 const Loan = require('../models/loanModel');
+const LoanProduct = require('../models/loanProductModel');
+const User = require('../models/userModel');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../config/logger');
-const LoanProduct = require('../models/loanProductModel');
+const { calculateEndDate } = require('../utils/helpers'); 
+const LoanStatus = require('../enums/loanStatus');
+const AuditLogger = require('../utils/auditLogger');
 
-
+// Calculates monthly payment
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
   const P = parseFloat(principal);
   const r = parseFloat(interestRate) / 100 / 12;
   const n = parseInt(termMonths, 10);
 
   if (!P || !n) return null;
-  // if interestRate is 0 or NaN, treat as zero-interest
+
   if (!r) return (P / n).toFixed(2);
 
   if (interestType === 'flat') {
@@ -23,6 +27,7 @@ function calculateMonthlyPayment(principal, interestRate, termMonths, interestTy
 }
 
 const loanService = {
+
   // Admin: get all loans, User: get own loans
   async getAllLoans(role, userId) {
     try {
@@ -45,17 +50,12 @@ const loanService = {
     try {
       logger.info(`loanService.getLoanById called for loan ${id} by user ${userId} role ${role}`);
       const loan = await Loan.findByPk(id);
-      if (!loan) {
-        logger.warn(`Loan ${id} not found`);
-        throw new Error('Loan not found');
-      }
+      if (!loan) throw new Error('Loan not found');
 
       if (role !== 'admin' && loan.clientId !== userId) {
-        logger.warn(`Access denied: user ${userId} attempted to access loan ${id}`);
         throw new Error('Access denied: You can only access your own loans');
       }
 
-      logger.info(`Loan ${id} retrieved by user ${userId}`);
       return loan;
     } catch (error) {
       logger.error(`Error in getLoanById (${id}): ${error.message}`);
@@ -64,76 +64,106 @@ const loanService = {
   },
 
   async createLoan(data, createdByUser) {
-  try {
-    const creatorId = createdByUser?.id || null;
-    logger.info(`loanService.createLoan called by user ${creatorId}`);
+    try {
+      const creatorId = createdByUser?.id || null;
+      logger.info(`loanService.createLoan called by user ${creatorId}`);
 
-    if (!data.loanProductId) {
-      throw new Error("loanProductId is required");
+      if (!data.loanProductId) throw new Error('loanProductId is required');
+
+      // Load loan product
+      const product = await LoanProduct.findByPk(data.loanProductId);
+      if (!product) throw new Error('Invalid loan product selected');
+
+      // Apply product rules
+      const interestRate = product.interestRate;
+      const interestType = product.interestType;
+      const termMonths = product.repaymentPeriodMonths;
+      const loanCurrency = product.currency || 'KES';
+      const fees = product.fees || 0;
+
+      // Validate co-signer exists if provided
+      if (data.coSignerId) {
+        const coSigner = await User.findByPk(data.coSignerId);
+        if (!coSigner) throw new Error('Co-signer user not found');
+      }
+
+      // Calculate derived values
+      const endDate = calculateEndDate(data.startDate, termMonths);
+      const installmentAmount = calculateMonthlyPayment(
+        data.principalAmount,
+        interestRate,
+        termMonths,
+        interestType
+      );
+
+      // Build loan payload explicitly
+      const loanPayload = {
+        clientId: data.clientId,
+        loanProductId: data.loanProductId,
+        principalAmount: data.principalAmount,
+        currency: loanCurrency,
+
+        interestRate,
+        interestType,
+        termMonths,
+
+        startDate: data.startDate,
+        endDate,
+        installmentAmount,
+        outstandingBalance: data.principalAmount,
+
+        fees,
+        penalties: 0.00,
+
+        collateral: data.collateral,
+        coSignerId: data.coSignerId,
+        notes: data.notes,
+
+        status: LoanStatus.PENDING,
+
+        referenceCode: `LN-${uuidv4().split('-')[0].toUpperCase()}`,
+        createdBy: creatorId,
+
+        paymentSchedule: {
+          type: interestType,
+          termMonths,
+          monthlyPayment: installmentAmount
+        }
+      };
+
+      const newLoan = await Loan.create(loanPayload);
+
+      // Log to audit table after successful creation
+      await AuditLogger.logCreate(
+        'LOAN',
+        newLoan.id.toString(),
+        loanPayload,
+        creatorId.toString(),
+        {
+          actorType: 'USER',
+          source: 'loan-creation'
+        }
+      );
+
+      logger.info(
+        `Loan created: id=${newLoan.id} reference=${newLoan.referenceCode} by user ${creatorId}`
+      );
+
+      return newLoan;
+
+    } catch (error) {
+      logger.error(`Error in createLoan: ${error.message}`);
+      throw error;
     }
-
-    // Load loan product
-    const product = await LoanProduct.findByPk(data.loanProductId);
-    if (!product) {
-      throw new Error("Invalid loan product selected");
-    }
-
-    // Apply product rules
-   const interestRate = product.interestRate;
-   const interestType = product.interestType; 
-   const termMonths = product.repaymentPeriodMonths; 
-   const penalties = product.penaltyRate || 0; 
-   const fees = product.fees || 0;
-
-    // Override loan fields with product values
-    data.interestRate = interestRate;
-    data.interestType = interestType;
-    data.termMonths = termMonths;
-    data.penalties = penalties;
-    data.fees = fees;
-
-    // Auto-generate reference code
-    data.referenceCode = `LN-${uuidv4().split('-')[0].toUpperCase()}`;
-    data.createdBy = creatorId;
-    data.clientId = data.clientId || creatorId;
-
-    // Monthly installment calculation
-    data.installmentAmount = calculateMonthlyPayment(
-      data.principalAmount,
-      interestRate,
-      termMonths,
-      interestType
-    );
-
-    // Initial outstanding balance
-    data.outstandingBalance = data.principalAmount;
-
-    // Auto-generate payment schedule 
-    data.paymentSchedule = {
-      type: interestType,
-      termMonths: termMonths,
-      monthlyPayment: data.installmentAmount,
-    };
-
-    const newLoan = await Loan.create(data);
-
-    logger.info(`Loan created: id=${newLoan.id} reference=${newLoan.referenceCode} by user ${creatorId}`);
-    return newLoan;
-
-  } catch (error) {
-    logger.error(`Error in createLoan: ${error.message}`);
-    throw error;
-  }
-},
+  },
 
   async updateLoan(id, data) {
     try {
       logger.info(`loanService.updateLoan called for loan ${id}`);
       const loan = await Loan.findByPk(id);
-      if (!loan) {
-        logger.warn(`Loan ${id} not found for update`);
-        throw new Error('Loan not found');
-      }
+      if (!loan) throw new Error('Loan not found');
+
+      const oldStatus = loan.status;
 
       // Recalculate if key fields changed
       if (data.principalAmount || data.interestRate || data.termMonths || data.interestType) {
@@ -143,7 +173,6 @@ const loanService = {
         const type = data.interestType || loan.interestType;
 
         data.installmentAmount = calculateMonthlyPayment(principal, rate, term, type);
-        // Optionally update paymentSchedule as well
         data.paymentSchedule = {
           type,
           termMonths: term,
@@ -152,6 +181,27 @@ const loanService = {
       }
 
       await loan.update(data);
+
+      // Log status change to audit table if status was updated
+      if (data.status && data.status !== oldStatus) {
+        await AuditLogger.logUpdate(
+          'LOAN',
+          id.toString(),
+          {
+            statusChange: {
+              from: oldStatus,
+              to: data.status,
+              timestamp: new Date()
+            }
+          },
+          data.updatedBy ? data.updatedBy.toString() : 'system',
+          {
+            actorType: 'USER',
+            source: 'status-update'
+          }
+        );
+      }
+
       logger.info(`Loan ${id} updated successfully`);
       return loan;
     } catch (error) {
@@ -164,11 +214,23 @@ const loanService = {
     try {
       logger.info(`loanService.deleteLoan called for loan ${id}`);
       const loan = await Loan.findByPk(id);
-      if (!loan) {
-        logger.warn(`Loan ${id} not found for deletion`);
-        throw new Error('Loan not found');
-      }
+      if (!loan) throw new Error('Loan not found');
+
+      const deletedData = loan.toJSON();
       await loan.destroy();
+
+      // Log deletion to audit table
+      await AuditLogger.logDelete(
+        'LOAN',
+        id.toString(),
+        deletedData,
+        'system',
+        {
+          actorType: 'SYSTEM',
+          source: 'loan-deletion'
+        }
+      );
+
       logger.warn(`Loan ${id} deleted`);
       return { message: 'Loan deleted successfully', id };
     } catch (error) {
@@ -176,6 +238,7 @@ const loanService = {
       throw error;
     }
   },
+
 };
 
 module.exports = loanService;

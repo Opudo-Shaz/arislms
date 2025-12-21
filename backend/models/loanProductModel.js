@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/sequalize_db');
+const InterestType = require('../enums/interestType');
 
 const LoanProduct = sequelize.define('LoanProduct', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -12,7 +13,7 @@ const LoanProduct = sequelize.define('LoanProduct', {
   interestType: {
     type: DataTypes.STRING(20),
     allowNull: true,
-    defaultValue: 'reducing'
+    defaultValue: InterestType.FIXED
   },
 
   penaltyRate: { type: DataTypes.DECIMAL(5,2), defaultValue: 0 },
