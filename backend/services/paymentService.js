@@ -4,6 +4,7 @@ const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
 const sequelize = require('../config/sequalize_db');
 const logger = require('../config/logger');
+const AuditLogger = require('../utils/auditLogger');
 
 const paymentService = {
 async getAllPayments(role, userId) {
@@ -37,10 +38,11 @@ async getPaymentsByLoan(loanId) {
   }
 },
 
-async createPayment(data, user) {
+async createPayment(data, user, userAgent = 'unknown') {
   const t = await sequelize.transaction();
   try {
-    logger.info(`Creating payment for loan ${data.loanId} by user ${user?.id}`);
+    const creatorId = user?.id || null;
+    logger.info(`Creating payment for loan ${data.loanId} by user ${creatorId}`);
 
     // Fetch loan and associated loan product
     const loan = await Loan.findByPk(data.loanId, { include: [{ model: LoanProduct }] });
@@ -76,7 +78,7 @@ async createPayment(data, user) {
       appliedToInterest,
       fees: data.fees || 0,
       penalties: data.penalties || 0,
-      processedBy: user?.id || null,
+      processedBy: creatorId,
       notes: data.notes || null,
     }, { transaction: t });
 
@@ -84,6 +86,24 @@ async createPayment(data, user) {
     const newBalanceRaw = outstanding - appliedToPrincipal;
     const newBalance = newBalanceRaw < 0 ? 0 : Number(newBalanceRaw.toFixed(2));
     await loan.update({ outstandingBalance: newBalance }, { transaction: t });
+
+    // Log to audit table after successful creation
+    await AuditLogger.logCreate(
+      'PAYMENT',
+      payment.id.toString(),
+      {
+        loanId: data.loanId,
+        amount: paymentAmount,
+        appliedToPrincipal,
+        appliedToInterest,
+        externalRef: payment.externalRef
+      },
+      creatorId ? creatorId.toString() : 'system',
+      {
+        actorType: 'USER',
+        source: userAgent
+      }
+    );
 
     await t.commit();
 
@@ -96,14 +116,28 @@ async createPayment(data, user) {
   }
 },
 
-async deletePayment(id) {
+async deletePayment(id, deletorId = null, userAgent = 'unknown') {
   try {
     logger.warn(`Attempting to delete payment ${id}`);
     const payment = await Payment.findByPk(id);
     if (!payment) throw new Error('Payment not found');
 
+    const deletedData = payment.toJSON();
     await payment.destroy();
-    logger.info(`Payment ${id} deleted`);
+
+    // Log to audit table after successful deletion
+    await AuditLogger.logDelete(
+      'PAYMENT',
+      id.toString(),
+      deletedData,
+      deletorId ? deletorId.toString() : 'system',
+      {
+        actorType: 'USER',
+        source: userAgent
+      }
+    );
+
+    logger.info(`Payment ${id} deleted by user ${deletorId}`);
     return { message: 'Payment deleted successfully' };
   } catch (err) {
     logger.error(`Error deleting payment ${id}: ${err.message}`);

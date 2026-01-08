@@ -63,6 +63,7 @@ const paymentController = {
   async create(req, res) {
     try {
       const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
 
       logger.info(`User ${userId} creating a new payment`);
 
@@ -77,7 +78,7 @@ const paymentController = {
         });
       }
 
-      const payment = await paymentService.createPayment(validation.value, req.user);
+      const payment = await paymentService.createPayment(validation.value, req.user, userAgent);
 
       return res.status(201).json({
         success: true,
@@ -97,11 +98,12 @@ const paymentController = {
   async delete(req, res) {
     try {
       const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
       const paymentId = req.params.id;
 
       logger.warn(`User ${userId} deleting payment ${paymentId}`);
 
-      const result = await paymentService.deletePayment(paymentId);
+      const result = await paymentService.deletePayment(paymentId, userId, userAgent);
 
       return res.status(200).json({
         success: true,

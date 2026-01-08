@@ -1,6 +1,7 @@
 const userService = require('../services/userService');
 const logger = require('../config/logger');
 const { validateSync } = require('../utils/validationMiddleware');
+const { getUserId } = require('../utils/helpers');
 const UserResponseDto = require('../dtos/user/UserResponseDto');
 const UserRequestDto = require('../dtos/user/UserRequestDto');
 
@@ -41,6 +42,9 @@ const getUser = async (req, res) => {
 // Create new user
 const createUser = async (req, res) => {
   try {
+    const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+
     // Validate request payload with Joi schema
     const validation = validateSync(req.body, UserRequestDto.createSchema);
     if (!validation.valid) {
@@ -52,7 +56,7 @@ const createUser = async (req, res) => {
       });
     }
 
-    const newUser = await userService.createUser(validation.value);
+    const newUser = await userService.createUser(validation.value, userId, userAgent);
     logger.info(`Created new user: ${newUser.name} (ID: ${newUser.id})`);
 
     res.status(201).json(new UserResponseDto(newUser));
@@ -66,6 +70,9 @@ const createUser = async (req, res) => {
 // Update existing user
 const updateUser = async (req, res) => {
   try {
+    const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+
     // Validate request payload with Joi schema
     const validation = validateSync(req.body, UserRequestDto.updateSchema);
     if (!validation.valid) {
@@ -77,7 +84,7 @@ const updateUser = async (req, res) => {
       });
     }
 
-    const updated = await userService.updateUser(req.params.id, validation.value);
+    const updated = await userService.updateUser(req.params.id, validation.value, userId, userAgent);
 
     if (!updated) {
       logger.warn(`User with ID ${req.params.id} not found`);
@@ -96,7 +103,10 @@ const updateUser = async (req, res) => {
 // Delete user
 const deleteUser = async (req, res) => {
   try {
-    const deleted = await userService.deleteUser(req.params.id);
+    const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+
+    const deleted = await userService.deleteUser(req.params.id, userId, userAgent);
 
     if (!deleted) {
       logger.warn(`User with ID ${req.params.id} not found`);

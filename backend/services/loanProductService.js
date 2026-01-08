@@ -1,13 +1,35 @@
 const LoanProduct = require('../models/loanProductModel');
 const logger = require('../config/logger');
 const { formatDateWithOffset } = require('../utils/helpers');
+const AuditLogger = require('../utils/auditLogger');
 // const { formatDateWithOffset, getUserId } = require('../utils/helpers');
 
 module.exports = {
-  async createProduct(data, user) {
+  async createProduct(data, creatorId = null, userAgent = 'unknown') {
     try {
-      data.createdBy = getUserId({ user });
-      return await LoanProduct.create(data);
+      data.createdBy = creatorId;
+      const newProduct = await LoanProduct.create(data);
+
+      // Validate the created product before logging
+      if (!newProduct || !newProduct.id) {
+        logger.error('Loan product creation returned invalid result', { newProduct });
+        throw new Error('Loan product creation failed: invalid product object returned');
+      }
+
+      // Log to audit table after successful creation
+      await AuditLogger.logCreate(
+        'LOAN_PRODUCT',
+        newProduct.id.toString(),
+        data,
+        creatorId ? creatorId.toString() : 'system',
+        {
+          actorType: 'USER',
+          source: userAgent
+        }
+      );
+
+      logger.info(`Loan product created: id=${newProduct.id} name=${newProduct.name} by user ${creatorId}`);
+      return newProduct;
     } catch (error) {
       logger.error(`LoanProductService.createProduct Error: ${error.message}`);
       throw error;
@@ -33,13 +55,27 @@ module.exports = {
     }
   },
 
-  async updateProduct(id, data) {
+  async updateProduct(id, data, updatorId = null, userAgent = 'unknown') {
     try {
       const product = await LoanProduct.findByPk(id);
       if (!product) return null;
 
       product.updated_at = formatDateWithOffset(new Date());
       await product.update(data);
+
+      // Log to audit table after successful update
+      await AuditLogger.logUpdate(
+        'LOAN_PRODUCT',
+        id.toString(),
+        { changes: data },
+        updatorId ? updatorId.toString() : 'system',
+        {
+          actorType: 'USER',
+          source: userAgent
+        }
+      );
+
+      logger.info(`Loan product updated: id=${id} by user ${updatorId}`);
       return product;
     } catch (error) {
       logger.error(`LoanProductService.updateProduct Error: ${error.message}`);
@@ -47,12 +83,27 @@ module.exports = {
     }
   },
 
-  async deleteProduct(id) {
+  async deleteProduct(id, deletorId = null, userAgent = 'unknown') {
     try {
       const product = await LoanProduct.findByPk(id);
       if (!product) return null;
 
+      const deletedData = product.toJSON();
       await product.destroy();
+
+      // Log to audit table after successful deletion
+      await AuditLogger.logDelete(
+        'LOAN_PRODUCT',
+        id.toString(),
+        deletedData,
+        deletorId ? deletorId.toString() : 'system',
+        {
+          actorType: 'USER',
+          source: userAgent
+        }
+      );
+
+      logger.warn(`Loan product deleted: id=${id} by user ${deletorId}`);
       return true;
     } catch (error) {
       logger.error(`LoanProductService.deleteProduct Error: ${error.message}`);

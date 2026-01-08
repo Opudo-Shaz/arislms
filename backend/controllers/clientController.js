@@ -9,6 +9,7 @@ const clientController = {
   async createClient(req, res) {
     try {
       const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
       logger.info(`User ${userId} creating client`);
 
       // Validate request payload with Joi schema
@@ -22,7 +23,7 @@ const clientController = {
         });
       }
 
-      const client = await clientService.createClient(validation.value, req.user);
+      const client = await clientService.createClient(validation.value, req.user, userAgent);
 
       return res.status(201).json({
         success: true,
@@ -95,6 +96,7 @@ const clientController = {
   async updateClient(req, res) {
     try {
       const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
       const id = req.params.id;
 
       logger.info(`User ${userId} updating client ${id}`);
@@ -110,7 +112,7 @@ const clientController = {
         });
       }
 
-      const updated = await clientService.updateClient(id, validation.value);
+      const updated = await clientService.updateClient(id, validation.value, userId, userAgent);
 
       return res.status(200).json({
         success: true,
@@ -130,11 +132,12 @@ const clientController = {
   async deleteClient(req, res) {
     try {
       const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
       const id = req.params.id;
 
       logger.warn(`User ${userId} deleting client ${id}`);
 
-      const result = await clientService.deleteClient(id);
+      const result = await clientService.deleteClient(id, userId, userAgent);
 
       return res.status(200).json({
         success: true,

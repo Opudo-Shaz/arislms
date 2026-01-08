@@ -115,6 +115,7 @@ exports.createLoan = async (req, res) => {
 exports.updateLoan = async (req, res) => {
   try {
     const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
     const loanId = req.params.id;
 
     logger.info(`User ${userId} updating loan ${loanId}`);
@@ -130,7 +131,7 @@ exports.updateLoan = async (req, res) => {
       });
     }
 
-    const updatedLoan = await loanService.updateLoan(loanId, validation.value);
+    const updatedLoan = await loanService.updateLoan(loanId, validation.value, userId, userAgent);
 
     return res.status(200).json({
       success: true,
@@ -150,11 +151,12 @@ exports.updateLoan = async (req, res) => {
 exports.deleteLoan = async (req, res) => {
   try {
     const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
     const loanId = req.params.id;
 
     logger.warn(`User ${userId} deleting loan ${loanId}`);
 
-    await loanService.deleteLoan(loanId);
+    await loanService.deleteLoan(loanId, userId, userAgent);
 
     return res.status(200).json({
       success: true,

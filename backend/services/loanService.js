@@ -133,6 +133,12 @@ const loanService = {
 
       const newLoan = await Loan.create(loanPayload);
 
+      // Validate the created loan before logging
+      if (!newLoan || !newLoan.id) {
+        logger.error('Loan creation returned invalid result', { newLoan });
+        throw new Error('Loan creation failed: invalid loan object returned');
+      }
+
       // Log to audit table after successful creation
       await AuditLogger.logCreate(
         'LOAN',
@@ -157,7 +163,7 @@ const loanService = {
     }
   },
 
-  async updateLoan(id, data) {
+  async updateLoan(id, data, updatorId = null, userAgent = 'unknown') {
     try {
       logger.info(`loanService.updateLoan called for loan ${id}`);
       const loan = await Loan.findByPk(id);
@@ -194,15 +200,27 @@ const loanService = {
               timestamp: new Date()
             }
           },
-          data.updatedBy ? data.updatedBy.toString() : 'system',
+          updatorId ? updatorId.toString() : 'system',
           {
             actorType: 'USER',
-            source: 'status-update'
+            source: userAgent
+          }
+        );
+      } else {
+        // Log general update even if status didn't change
+        await AuditLogger.logUpdate(
+          'LOAN',
+          id.toString(),
+          { changes: data },
+          updatorId ? updatorId.toString() : 'system',
+          {
+            actorType: 'USER',
+            source: userAgent
           }
         );
       }
 
-      logger.info(`Loan ${id} updated successfully`);
+      logger.info(`Loan ${id} updated successfully by user ${updatorId}`);
       return loan;
     } catch (error) {
       logger.error(`Error in updateLoan (${id}): ${error.message}`);
@@ -210,7 +228,7 @@ const loanService = {
     }
   },
 
-  async deleteLoan(id) {
+  async deleteLoan(id, deletorId = null, userAgent = 'unknown') {
     try {
       logger.info(`loanService.deleteLoan called for loan ${id}`);
       const loan = await Loan.findByPk(id);
@@ -224,10 +242,10 @@ const loanService = {
         'LOAN',
         id.toString(),
         deletedData,
-        'system',
+        deletorId ? deletorId.toString() : 'system',
         {
-          actorType: 'SYSTEM',
-          source: 'loan-deletion'
+          actorType: 'USER',
+          source: userAgent
         }
       );
 

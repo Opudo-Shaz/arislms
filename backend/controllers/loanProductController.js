@@ -9,6 +9,7 @@ module.exports = {
   async create(req, res) {
     try {
       const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
       
       // Validate request payload with Joi schema
       const validation = validateSync(req.body, LoanProductRequestDto.createSchema);
@@ -21,8 +22,7 @@ module.exports = {
         });
       }
 
-      const payload = { ...validation.value, createdBy: userId };
-      const product = await loanProductService.createProduct(payload, req.user);
+      const product = await loanProductService.createProduct(validation.value, userId, userAgent);
 
       logger.info(`Loan product created by user ${userId}`);
       res.status(201).json({
@@ -77,6 +77,9 @@ module.exports = {
 
   async update(req, res) {
     try {
+      const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
+
       // Validate request payload with Joi schema
       const validation = validateSync(req.body, LoanProductRequestDto.updateSchema);
       if (!validation.valid) {
@@ -88,7 +91,7 @@ module.exports = {
         });
       }
 
-      const product = await loanProductService.updateProduct(req.params.id, validation.value);
+      const product = await loanProductService.updateProduct(req.params.id, validation.value, userId, userAgent);
 
       if (!product) {
         logger.warn(`Loan product update failed. Not found: ${req.params.id}`);
@@ -107,7 +110,10 @@ module.exports = {
 
   async delete(req, res) {
     try {
-      const deleted = await loanProductService.deleteProduct(req.params.id);
+      const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
+
+      const deleted = await loanProductService.deleteProduct(req.params.id, userId, userAgent);
 
       if (!deleted) {
         logger.warn(`Loan product delete failed. Not found: ${req.params.id}`);

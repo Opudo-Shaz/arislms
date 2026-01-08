@@ -4,13 +4,14 @@ const logger = require('../config/logger');
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const userAgent = req.headers['user-agent'];
 
     if (!email || !password) {
       logger.warn('Login failed: Missing email or password');
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const result = await authService.login(email, password);
+    const result = await authService.login(email, password, userAgent);
 
     // Successful login
     logger.info(`User ${email} logged in successfully`);
