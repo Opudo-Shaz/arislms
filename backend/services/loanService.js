@@ -140,16 +140,17 @@ const loanService = {
       }
 
       // Log to audit table after successful creation
-      await AuditLogger.logCreate(
-        'LOAN',
-        newLoan.id.toString(),
-        loanPayload,
-        creatorId.toString(),
-        {
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: newLoan.id,
+        action: 'CREATE',
+        data: loanPayload,
+        actorId: creatorId,
+        options: {
           actorType: 'USER',
           source: userAgent || 'unknown'
         }
-      );
+      });
 
       logger.info(
         `Loan created: id=${newLoan.id} reference=${newLoan.referenceCode} by user ${creatorId}`
@@ -189,36 +190,27 @@ const loanService = {
       await loan.update(data);
 
       // Log status change to audit table if status was updated
-      if (data.status && data.status !== oldStatus) {
-        await AuditLogger.logUpdate(
-          'LOAN',
-          id.toString(),
-          {
+      const auditData = data.status && data.status !== oldStatus
+        ? {
             statusChange: {
               from: oldStatus,
               to: data.status,
               timestamp: new Date()
             }
-          },
-          updatorId ? updatorId.toString() : 'system',
-          {
-            actorType: 'USER',
-            source: userAgent
           }
-        );
-      } else {
-        // Log general update even if status didn't change
-        await AuditLogger.logUpdate(
-          'LOAN',
-          id.toString(),
-          { changes: data },
-          updatorId ? updatorId.toString() : 'system',
-          {
-            actorType: 'USER',
-            source: userAgent
-          }
-        );
-      }
+        : { changes: data };
+
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: id,
+        action: 'UPDATE',
+        data: auditData,
+        actorId: updatorId || 'system',
+        options: {
+          actorType: 'USER',
+          source: userAgent
+        }
+      });
 
       logger.info(`Loan ${id} updated successfully by user ${updatorId}`);
       return loan;
@@ -238,16 +230,17 @@ const loanService = {
       await loan.destroy();
 
       // Log deletion to audit table
-      await AuditLogger.logDelete(
-        'LOAN',
-        id.toString(),
-        deletedData,
-        deletorId ? deletorId.toString() : 'system',
-        {
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: id,
+        action: 'DELETE',
+        data: deletedData,
+        actorId: deletorId || 'system',
+        options: {
           actorType: 'USER',
           source: userAgent
         }
-      );
+      });
 
       logger.warn(`Loan ${id} deleted`);
       return { message: 'Loan deleted successfully', id };

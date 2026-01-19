@@ -17,16 +17,17 @@ module.exports = {
       }
 
       // Log to audit table after successful creation
-      await AuditLogger.logCreate(
-        'LOAN_PRODUCT',
-        newProduct.id.toString(),
+      await AuditLogger.log({
+        entityType: 'LOAN_PRODUCT',
+        entityId: newProduct.id,
+        action: 'CREATE',
         data,
-        creatorId ? creatorId.toString() : 'system',
-        {
+        actorId: creatorId || 'system',
+        options: {
           actorType: 'USER',
           source: userAgent
         }
-      );
+      });
 
       logger.info(`Loan product created: id=${newProduct.id} name=${newProduct.name} by user ${creatorId}`);
       return newProduct;
@@ -64,16 +65,17 @@ module.exports = {
       await product.update(data);
 
       // Log to audit table after successful update
-      await AuditLogger.logUpdate(
-        'LOAN_PRODUCT',
-        id.toString(),
-        { changes: data },
-        updatorId ? updatorId.toString() : 'system',
-        {
+      await AuditLogger.log({
+        entityType: 'LOAN_PRODUCT',
+        entityId: id,
+        action: 'UPDATE',
+        data: { changes: data },
+        actorId: updatorId || 'system',
+        options: {
           actorType: 'USER',
           source: userAgent
         }
-      );
+      });
 
       logger.info(`Loan product updated: id=${id} by user ${updatorId}`);
       return product;
@@ -92,16 +94,17 @@ module.exports = {
       await product.destroy();
 
       // Log to audit table after successful deletion
-      await AuditLogger.logDelete(
-        'LOAN_PRODUCT',
-        id.toString(),
-        deletedData,
-        deletorId ? deletorId.toString() : 'system',
-        {
+      await AuditLogger.log({
+        entityType: 'LOAN_PRODUCT',
+        entityId: id,
+        action: 'DELETE',
+        data: deletedData,
+        actorId: deletorId || 'system',
+        options: {
           actorType: 'USER',
           source: userAgent
         }
-      );
+      });
 
       logger.warn(`Loan product deleted: id=${id} by user ${deletorId}`);
       return true;

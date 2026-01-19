@@ -23,6 +23,7 @@ app.use(
 // routes
 const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
+const roleRoutes = require('./routes/roleRoutes');
 const loanRoutes = require('./routes/loanRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
@@ -33,6 +34,7 @@ const loanProductRoutes = require('./routes/loanProductRoutes');
 
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/roles', roleRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/payments', paymentRoutes);

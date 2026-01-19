@@ -88,22 +88,23 @@ async createPayment(data, user, userAgent = 'unknown') {
     await loan.update({ outstandingBalance: newBalance }, { transaction: t });
 
     // Log to audit table after successful creation
-    await AuditLogger.logCreate(
-      'PAYMENT',
-      payment.id.toString(),
-      {
+    await AuditLogger.log({
+      entityType: 'PAYMENT',
+      entityId: payment.id,
+      action: 'CREATE',
+      data: {
         loanId: data.loanId,
         amount: paymentAmount,
         appliedToPrincipal,
         appliedToInterest,
         externalRef: payment.externalRef
       },
-      creatorId ? creatorId.toString() : 'system',
-      {
+      actorId: creatorId || 'system',
+      options: {
         actorType: 'USER',
         source: userAgent
       }
-    );
+    });
 
     await t.commit();
 
@@ -126,16 +127,17 @@ async deletePayment(id, deletorId = null, userAgent = 'unknown') {
     await payment.destroy();
 
     // Log to audit table after successful deletion
-    await AuditLogger.logDelete(
-      'PAYMENT',
-      id.toString(),
-      deletedData,
-      deletorId ? deletorId.toString() : 'system',
-      {
+    await AuditLogger.log({
+      entityType: 'PAYMENT',
+      entityId: id,
+      action: 'DELETE',
+      data: deletedData,
+      actorId: deletorId || 'system',
+      options: {
         actorType: 'USER',
         source: userAgent
       }
-    );
+    });
 
     logger.info(`Payment ${id} deleted by user ${deletorId}`);
     return { message: 'Payment deleted successfully' };

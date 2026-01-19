@@ -8,16 +8,17 @@ const notificationService = {
       const notification = await Notification.create(data);
 
       // Log to audit table after successful creation
-      await AuditLogger.logCreate(
-        'NOTIFICATION',
-        notification.id.toString(),
+      await AuditLogger.log({
+        entityType: 'NOTIFICATION',
+        entityId: notification.id,
+        action: 'CREATE',
         data,
-        creatorId ? creatorId.toString() : 'system',
-        {
+        actorId: creatorId || 'system',
+        options: {
           actorType: 'USER',
           source: userAgent
         }
-      );
+      });
 
       logger.info(`Notification created for user ${data.userId}: ${data.title}`);
       return notification;
@@ -48,16 +49,17 @@ const notificationService = {
       await notification.save();
 
       // Log to audit table after successful update
-      await AuditLogger.logUpdate(
-        'NOTIFICATION',
-        id.toString(),
-        { isRead: true },
-        updatorId ? updatorId.toString() : 'system',
-        {
+      await AuditLogger.log({
+        entityType: 'NOTIFICATION',
+        entityId: id,
+        action: 'UPDATE',
+        data: { isRead: true },
+        actorId: updatorId || 'system',
+        options: {
           actorType: 'USER',
           source: userAgent
         }
-      );
+      });
 
       return notification;
     } catch (error) {
@@ -75,16 +77,17 @@ const notificationService = {
       await notification.destroy();
 
       // Log to audit table after successful deletion
-      await AuditLogger.logDelete(
-        'NOTIFICATION',
-        id.toString(),
-        deletedData,
-        deletorId ? deletorId.toString() : 'system',
-        {
+      await AuditLogger.log({
+        entityType: 'NOTIFICATION',
+        entityId: id,
+        action: 'DELETE',
+        data: deletedData,
+        actorId: deletorId || 'system',
+        options: {
           actorType: 'USER',
           source: userAgent
         }
-      );
+      });
 
       logger.info(`Notification ${id} deleted by user ${deletorId}`);
       return { message: 'Notification deleted successfully' };

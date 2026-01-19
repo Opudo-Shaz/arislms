@@ -1,47 +1,79 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/sequalize_db');
+const Role = require('./roleModel');
 
-const User = sequelize.define('User', {
-  id: {
+const User = sequelize.define(
+  'User',
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+
+    name: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+
+    email: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+
+    phone: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+    },
+
+    id_number: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+    },
+
+    // ✅ Single source of truth for role
+    role_id: {
     type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
-  name: {
+    allowNull: false,
+    defaultValue: 1,
+    onUpdate: 'CASCADE',
+    onDelete: 'RESTRICT',
+    },
+
+    password: {
     type: DataTypes.STRING(255),
-    allowNull: false,
+    },
+
+    createdBy: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'created_by',
+    },
+
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'updated_at',
+    },
   },
-  email: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
-  },
-  phone: {
-    type: DataTypes.STRING(20),
-    allowNull: false,
-  },
-  id_number: {
-    type: DataTypes.STRING(50),
-    allowNull: false,
-  },
-  role: {
-    type: DataTypes.STRING(20),
-    defaultValue: 'member',
-  },
-  group_code: {
-    type: DataTypes.STRING(10),
-  },
-  password: {
-    type: DataTypes.STRING(255),
-  },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-    allowNull :true,
-  },
-}, {
-  tableName: 'users',   
-  timestamps: false,    
-  freezeTableName: true 
+  {
+    tableName: 'users',
+    underscored: true,
+    timestamps: true,
+    createdAt: 'created_at',
+    freezeTableName: true,
+  }
+);
+
+// ✅ Associations
+User.belongsTo(Role, {
+  foreignKey: 'role_id',
+  as: 'role',
+});
+
+Role.hasMany(User, {
+  foreignKey: 'role_id',
+  as: 'users',
 });
 
 module.exports = User;

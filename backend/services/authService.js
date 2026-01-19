@@ -30,16 +30,17 @@ const login = async (email, password, userAgent = 'unknown') => {
     );
 
     // Log successful login to audit table
-    await AuditLogger.logCreate(
-      'LOGIN',
-      user.id.toString(),
-      { email, role: user.role },
-      user.id.toString(),
-      {
+    await AuditLogger.log({
+      entityType: 'LOGIN',
+      entityId: user.id,
+      action: 'CREATE',
+      data: { email, role: user.role },
+      actorId: user.id,
+      options: {
         actorType: 'USER',
         source: userAgent
       }
-    );
+    });
 
     logger.info(`User ${user.id} (${email}) successfully logged in`);
 

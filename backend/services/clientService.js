@@ -20,16 +20,17 @@ const clientService = {
       }
 
       // Log to audit table after successful creation
-      await AuditLogger.logCreate(
-        'CLIENT',
-        client.id.toString(),
+      await AuditLogger.log({
+        entityType: 'CLIENT',
+        entityId: client.id,
+        action: 'CREATE',
         data,
-        creatorId ? creatorId.toString() : 'system',
-        {
+        actorId: creatorId || 'system',
+        options: {
           actorType: 'USER',
           source: userAgent
         }
-      );
+      });
 
       logger.info(`Client created: ${client.accountNumber} by user ID ${creatorId}`);
       return client;
@@ -74,16 +75,17 @@ const clientService = {
       await client.update(data);
 
       // Log to audit table after successful update
-      await AuditLogger.logUpdate(
-        'CLIENT',
-        id.toString(),
-        { changes: data },
-        updatorId ? updatorId.toString() : 'system',
-        {
+      await AuditLogger.log({
+        entityType: 'CLIENT',
+        entityId: id,
+        action: 'UPDATE',
+        data: { changes: data },
+        actorId: updatorId || 'system',
+        options: {
           actorType: 'USER',
           source: userAgent
         }
-      );
+      });
 
       logger.info(`Client ID ${id} was updated by user ${updatorId}`);
       return client;
@@ -103,16 +105,17 @@ const clientService = {
       await client.destroy();
 
       // Log to audit table after successful deletion
-      await AuditLogger.logDelete(
-        'CLIENT',
-        id.toString(),
-        deletedData,
-        deletorId ? deletorId.toString() : 'system',
-        {
+      await AuditLogger.log({
+        entityType: 'CLIENT',
+        entityId: id,
+        action: 'DELETE',
+        data: deletedData,
+        actorId: deletorId || 'system',
+        options: {
           actorType: 'USER',
           source: userAgent
         }
-      );
+      });
 
       logger.info(`Client ID ${id} was deleted by user ${deletorId}`);
       return { message: 'Client deleted successfully', id };

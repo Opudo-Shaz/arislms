@@ -32,16 +32,17 @@ const createUser = async (data, creatorId = null, userAgent = 'unknown') => {
     }
 
     // Log to audit table after successful creation
-    await AuditLogger.logCreate(
-      'USER',
-      newUser.id.toString(),
+    await AuditLogger.log({
+      entityType: 'USER',
+      entityId: newUser.id,
+      action: 'CREATE',
       data,
-      creatorId ? creatorId.toString() : 'system',
-      {
+      actorId: creatorId || 'system',
+      options: {
         actorType: 'USER',
         source: userAgent
       }
-    );
+    });
 
     logger.info(`User created: id=${newUser.id} email=${newUser.email} by user ${creatorId}`);
     return newUser;
@@ -60,16 +61,17 @@ const updateUser = async (id, data, updatorId = null, userAgent = 'unknown') => 
     await user.update(data);
 
     // Log to audit table after successful update
-    await AuditLogger.logUpdate(
-      'USER',
-      id.toString(),
-      { changes: data },
-      updatorId ? updatorId.toString() : 'system',
-      {
+    await AuditLogger.log({
+      entityType: 'USER',
+      entityId: id,
+      action: 'UPDATE',
+      data: { changes: data },
+      actorId: updatorId || 'system',
+      options: {
         actorType: 'USER',
         source: userAgent
       }
-    );
+    });
 
     logger.info(`User updated: id=${id} by user ${updatorId}`);
     return user;
@@ -90,16 +92,17 @@ const deleteUser = async (id, deletorId = null, userAgent = 'unknown') => {
     await user.destroy();
 
     // Log to audit table after successful deletion
-    await AuditLogger.logDelete(
-      'USER',
-      id.toString(),
-      deletedData,
-      deletorId ? deletorId.toString() : 'system',
-      {
+    await AuditLogger.log({
+      entityType: 'USER',
+      entityId: id,
+      action: 'DELETE',
+      data: deletedData,
+      actorId: deletorId || 'system',
+      options: {
         actorType: 'USER',
         source: userAgent
       }
-    );
+    });
 
     logger.warn(`User deleted: id=${id} by user ${deletorId}`);
     return user;

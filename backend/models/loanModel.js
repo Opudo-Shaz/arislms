@@ -49,12 +49,13 @@ const Loan = sequelize.define('Loan', {
 
   createdBy: { type: DataTypes.INTEGER, allowNull: true, field: 'created_by' },
 
+  updatedAt: { type: DataTypes.DATE, allowNull: true, field: 'updated_at' },
+
 }, {
   tableName: 'loans',
   underscored: true,
   timestamps: true,
   createdAt: 'created_at',
-  updatedAt: 'updated_at'
 });
 
 // Associations
