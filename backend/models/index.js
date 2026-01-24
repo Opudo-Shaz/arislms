@@ -1,8 +1,8 @@
 const sequelize = require('../config/sequalize_db');
 
 // Import models so they are registered with Sequelize
-const User = require('./userModel');
 const Role = require('./roleModel');
+const User = require('./userModel');
 const Loan = require('./loanModel');
 const Client = require('./clientModel');
 const Payment = require('./paymentModel');
@@ -10,12 +10,6 @@ const AuditLog = require('./auditLogModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
-
-// Role associations (One-to-One with User)
-if (typeof User !== 'undefined' && typeof Role !== 'undefined') {
-  Role.hasOne(User, { foreignKey: 'role_id', sourceKey: 'id' });
-  User.belongsTo(Role, { foreignKey: 'role_id', targetKey: 'id' });
-}
 
 if (typeof Client !== 'undefined' && typeof Loan !== 'undefined') {
   Client.hasMany(Loan, { foreignKey: 'client_id', sourceKey: 'id' });

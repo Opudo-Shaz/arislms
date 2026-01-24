@@ -24,7 +24,7 @@ const login = async (email, password, userAgent = 'unknown') => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, role: user.role },
+      { id: user.id, role: user.role_id },
       process.env.JWT_SECRET || 'secretkey',
       { expiresIn: '14d' }
     );

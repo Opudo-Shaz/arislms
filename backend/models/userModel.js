@@ -31,17 +31,15 @@ const User = sequelize.define(
       allowNull: false,
     },
 
-    // ✅ Single source of truth for role
     role_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 1,
-    onUpdate: 'CASCADE',
-    onDelete: 'RESTRICT',
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
     },
 
     password: {
     type: DataTypes.STRING(255),
+    allowNull: false,
     },
 
     createdBy: {
@@ -64,16 +62,5 @@ const User = sequelize.define(
     freezeTableName: true,
   }
 );
-
-// ✅ Associations
-User.belongsTo(Role, {
-  foreignKey: 'role_id',
-  as: 'role',
-});
-
-Role.hasMany(User, {
-  foreignKey: 'role_id',
-  as: 'users',
-});
 
 module.exports = User;
