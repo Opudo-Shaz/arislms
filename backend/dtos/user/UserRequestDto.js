@@ -7,6 +7,7 @@ class UserRequestDto {
     this.phone = data.phone;
     this.roleId = data.roleId;
     this.group_code = data.group_code;
+    this.id_number = data.id_number;
     this.password = data.password;   
   }
 
@@ -40,6 +41,15 @@ class UserRequestDto {
     group_code: Joi.string().max(50).allow(null, '')
       .messages({
         'string.max': 'Group code cannot exceed 50 characters'
+      }),
+    id_number: Joi.string()
+      .trim()
+      .min(4)
+      .max(50)
+      .required()
+      .messages({
+        'string.empty': 'ID number is required',
+        'any.required': 'ID number is required'
       }),
 
     // ✅ Password validation, should include characters, numbers, etc., special chars
