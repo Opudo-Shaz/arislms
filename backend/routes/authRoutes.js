@@ -15,8 +15,8 @@ const router = express.Router();
  *       content:
  *         application/json:
  *           example:
- *             email: admin@test.com
- *             password: Password123
+ *               "email": "ethan@example.com",
+ *               "password": "password12345"
  *     responses:
  *       200:
  *         description: Login successful, returns JWT token

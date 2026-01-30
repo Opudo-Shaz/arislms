@@ -11,9 +11,19 @@ const User = sequelize.define(
       autoIncrement: true,
     },
 
-    name: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
+    first_name: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+
+    middle_name: {
+      type: DataTypes.STRING(100),
+      allowNull: true, // optional
+    },
+
+    last_name: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
     },
 
     email: {
@@ -34,12 +44,12 @@ const User = sequelize.define(
     role_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      defaultValue: 1,
+      field: 'role_id',
     },
 
     password: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
+      type: DataTypes.STRING(255),
+      allowNull: false,
     },
 
     createdBy: {

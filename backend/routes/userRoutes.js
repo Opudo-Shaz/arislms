@@ -78,11 +78,9 @@ router.get('/:id', authenticate, getUser);
  *       required: true
  *       content:
  *         application/json:
- *           example:
- *             name: Alice
- *             email: alice@test.com
- *             password: Password123
- *             role: admin
+ *           schema:
+ *             $ref: '#/components/schemas/UserCreate'
+ * 
  *     responses:
  *       201:
  *         description: User created successfully
@@ -116,9 +114,8 @@ router.post('/', authenticate, authorize([1,2]), createUser);
  *       required: true
  *       content:
  *         application/json:
- *           example:
- *             name: Updated Name
- *             role: user
+ *           schema:
+ *             $ref: '#/components/schemas/UserUpdate'
  *     responses:
  *       200:
  *         description: User updated successfully

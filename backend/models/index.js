@@ -30,6 +30,16 @@ if (typeof Loan !== 'undefined' && typeof Payment !== 'undefined') {
 if (typeof User !== 'undefined' && typeof Payment !== 'undefined') {
   User.hasMany(Payment, { foreignKey: 'processed_by' });
   Payment.belongsTo(User, { foreignKey: 'processed_by' });
+
+}
+//user and role association
+if (typeof User !== 'undefined' && typeof Role !== 'undefined') {
+  User.belongsTo(Role, { foreignKey: 'role_id', targetKey: 'id' });
+}
+
+if (typeof User !== 'undefined' && typeof AuditLog !== 'undefined') {
+  Role.hasMany(User, { foreignKey: 'role_id', sourceKey: 'id' });
+  User.belongsTo(Role, { foreignKey: 'role_id', targetKey: 'id' });
 }
 
 module.exports = {

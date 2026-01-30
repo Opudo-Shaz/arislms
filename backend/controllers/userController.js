@@ -45,8 +45,9 @@ const createUser = async (req, res) => {
     const userId = getUserId(req);
     const userAgent = req.headers['user-agent'];
 
-    // Validate request payload with Joi schema
     const validation = validateSync(req.body, UserRequestDto.createSchema);
+    console.log('CREATE USER PAYLOAD:', req.body);
+
     if (!validation.valid) {
       logger.warn(`User creation validation failed: ${JSON.stringify(validation.errors)}`);
       return res.status(400).json({
@@ -57,7 +58,12 @@ const createUser = async (req, res) => {
     }
 
     const newUser = await userService.createUser(validation.value, userId, userAgent);
-    logger.info(`Created new user: ${newUser.name} (ID: ${newUser.id})`);
+
+    const fullName = [newUser.first_name, newUser.middle_name, newUser.last_name]
+      .filter(Boolean)
+      .join(' ');
+
+    logger.info(`Created new user: ${fullName} (ID: ${newUser.id})`);
 
     res.status(201).json(new UserResponseDto(newUser));
 
@@ -66,6 +72,7 @@ const createUser = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
+
 
 // Update existing user
 const updateUser = async (req, res) => {
