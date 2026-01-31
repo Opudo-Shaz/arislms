@@ -4,6 +4,13 @@ const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
 
 
+const buildFullName = (user) =>
+  [user.first_name, user.middle_name, user.last_name]
+    .filter(Boolean)
+    .join(' ');
+
+
+
 const getAllUsers = async () => {
   return await User.findAll();
 };
@@ -57,8 +64,14 @@ const updateUser = async (id, data, updatorId = null, userAgent = 'unknown') => 
     const user = await User.findByPk(id);
     if (!user) throw new Error('User not found');
 
-    const oldData = user.toJSON();
-    await user.update(data);
+  // Hash password if being updated
+    if (data.password) {
+      const salt = await bcrypt.genSalt(10);
+      data.password = await bcrypt.hash(data.password, salt);
+    }
+
+await user.update(data);
+
 
     // Log to audit table after successful update
     await AuditLogger.log({
@@ -73,7 +86,9 @@ const updateUser = async (id, data, updatorId = null, userAgent = 'unknown') => 
       }
     });
 
-    logger.info(`User updated: id=${id} by user ${updatorId}`);
+  logger.info(
+    `User created: id=${newUser.id} name=${buildFullName(newUser)} by user ${creatorId}`
+  );
     return user;
   } catch (error) {
     logger.error(`Error in updateUser (${id}): ${error.message}`);
@@ -104,7 +119,9 @@ const deleteUser = async (id, deletorId = null, userAgent = 'unknown') => {
       }
     });
 
-    logger.warn(`User deleted: id=${id} by user ${deletorId}`);
+  logger.warn(
+    `User deleted: id=${id} name=${buildFullName(user)} by user ${deletorId}`
+  );
     return user;
   } catch (error) {
     logger.error(`Error in deleteUser (${id}): ${error.message}`);

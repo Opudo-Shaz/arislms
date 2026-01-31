@@ -108,11 +108,18 @@ function calculateEndDate(startDate, termMonths) {
   return end;
 }
 
+function getUserFullName(first_name, middle_name, last_name){
+  return [first_name, middle_name,last_name]
+      .filter(Boolean)
+      .join(' ');
+}
+
 
 module.exports = {
   formatDateWithOffset,
   getUserId,
   getUser,
   validateClientPayload,
-  calculateEndDate
+  calculateEndDate,
+  getUserFullName
 };

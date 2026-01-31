@@ -12,23 +12,165 @@ const { authenticate, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
+/**
+ * @openapi
+ * /api/loans:
+ *   get:
+ *     summary: Get all loans (admin only)
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all loans
+ *         content:
+ *           application/json:
+ *             example:
+ *               - id: 1
+ *                 clientId: 5
+ *                 amount: 10000
+ *                 status: active
+ *                 interestRate: 10
+ *               - id: 2
+ *                 clientId: 8
+ *                 amount: 5000
+ *                 status: closed
+ */
+router.get('/', authenticate, authorize([1,2]), getAllLoans);
 
-// Get all loans (Admin only)
-router.get('/', authenticate, authorize(['admin']), getAllLoans);
-
-// Get authenticated user's loans (User & Admin)
+/**
+ * @openapi
+ * /api/loans/my:
+ *   get:
+ *     summary: Get my loans (authenticated user)
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Loans belonging to logged-in user
+ *         content:
+ *           application/json:
+ *             example:
+ *               - id: 10
+ *                 amount: 7000
+ *                 status: active
+ *                 balance: 4200
+ */
 router.get('/my', authenticate, getMyLoans);
 
-// Get single loan by ID (User can only access their own loan unless admin)
+/**
+ * @openapi
+ * /api/loans/{id}:
+ *   get:
+ *     summary: Get loan by ID (user can only access own loan unless admin)
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 10
+ *     responses:
+ *       200:
+ *         description: Loan details
+ *         content:
+ *           application/json:
+ *             example:
+ *               id: 10
+ *               amount: 7000
+ *               interestRate: 8
+ *               status: active
+ *               balance: 4200
+ */
 router.get('/:id', authenticate, getLoanById);
 
-// Create a new loan (User or Admin)
+/**
+ * @openapi
+ * /api/loans:
+ *   post:
+ *     summary: Create a new loan
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             clientId: 5
+ *             amount: 15000
+ *             interestRate: 12
+ *             durationMonths: 24
+ *     responses:
+ *       201:
+ *         description: Loan created successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               id: 25
+ *               clientId: 5
+ *               amount: 15000
+ *               status: pending
+ */
 router.post('/', authenticate, createLoan);
 
-// Update loan (Admin only)
-router.put('/:id', authenticate, authorize(['admin']), updateLoan);
+/**
+ * @openapi
+ * /api/loans/{id}:
+ *   put:
+ *     summary: Update loan (admin only)
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 25
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             status: approved
+ *             interestRate: 10
+ *     responses:
+ *       200:
+ *         description: Loan updated successfully
+ */
+router.put('/:id', authenticate, authorize([1,2]), updateLoan);
 
-// Delete loan (Admin only)
-router.delete('/:id', authenticate, authorize(['admin']), deleteLoan);
+/**
+ * @openapi
+ * /api/loans/{id}:
+ *   delete:
+ *     summary: Delete loan (admin only)
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 25
+ *     responses:
+ *       200:
+ *         description: Loan deleted successfully
+ */
+router.delete('/:id', authenticate, authorize([1,2]), deleteLoan);
 
 module.exports = router;

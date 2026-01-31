@@ -4,12 +4,16 @@ const path = require('path');
 const sequelize = require('./config/sequalize_db');
 const logger = require('./config/logger'); 
 const morgan = require('morgan'); 
+const { swaggerUi, swaggerSpec } = require("./swagger");
 
 const app = express();
 
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 
 //Integrating Morgan to pipe HTTP logs into Winston
 app.use(
