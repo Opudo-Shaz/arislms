@@ -47,7 +47,7 @@ const AuditLog = sequelize.define('AuditLog', {
     allowNull: true,
   },
   source: {
-    type: DataTypes.STRING(64),
+    type: DataTypes.STRING(255),
     allowNull: true,
   },
 }, {

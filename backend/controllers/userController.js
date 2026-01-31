@@ -1,7 +1,7 @@
 const userService = require('../services/userService');
 const logger = require('../config/logger');
 const { validateSync } = require('../utils/validationMiddleware');
-const { getUserId } = require('../utils/helpers');
+const { getUserId,getUserFullName } = require('../utils/helpers');
 const UserResponseDto = require('../dtos/user/UserResponseDto');
 const UserRequestDto = require('../dtos/user/UserRequestDto');
 
@@ -59,9 +59,7 @@ const createUser = async (req, res) => {
 
     const newUser = await userService.createUser(validation.value, userId, userAgent);
 
-    const fullName = [newUser.first_name, newUser.middle_name, newUser.last_name]
-      .filter(Boolean)
-      .join(' ');
+    const fullName = getUserFullName(newUser.first_name, newUser.middle_name, newUser.last_name);
 
     logger.info(`Created new user: ${fullName} (ID: ${newUser.id})`);
 
