@@ -15,7 +15,7 @@ const router = express.Router();
  *       content:
  *         application/json:
  *           example:
- *             email: ethan@example.com,
+ *             email: ethan@example.com
  *             password: password12345
  *     responses:
  *       200:

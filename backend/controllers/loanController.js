@@ -62,6 +62,20 @@ exports.getLoanById = async (req, res) => {
       userId
     );
 
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Loan not found'
+      });
+    }
+
+    if (loan === 403) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You can only access your own loans'
+      });
+    }
+
     return res.status(200).json({
       success: true,
       data: new LoanResponseDto(loan)
@@ -69,9 +83,15 @@ exports.getLoanById = async (req, res) => {
   } catch (error) {
     logger.error(`GetLoanById Error (${req.params.id}): ${error.message}`);
 
-    return res.status(404).json({
+    // Map known service errors to appropriate HTTP status codes
+    const msg = (error && error.message) ? error.message : 'Server error fetching loan';
+    let status = 500;
+    if (/not found/i.test(msg)) status = 404;
+    else if (/access denied/i.test(msg)) status = 403;
+
+    return res.status(status).json({
       success: false,
-      message: error.message
+      message: msg
     });
   }
 };
@@ -141,7 +161,7 @@ exports.updateLoan = async (req, res) => {
   } catch (error) {
     logger.error(`UpdateLoan Error (${req.params.id}): ${error.message}`);
 
-    return res.status(400).json({
+    return res.status(500).json({
       success: false,
       message: error.message
     });

@@ -50,10 +50,10 @@ const loanService = {
     try {
       logger.info(`loanService.getLoanById called for loan ${id} by user ${userId} role ${role}`);
       const loan = await Loan.findByPk(id);
-      if (!loan) throw new Error('Loan not found');
+      if (!loan) return null;
 
-      if (role !== 'admin' && loan.clientId !== userId) {
-        throw new Error('Access denied: You can only access your own loans');
+      if (role !== 1 && loan.clientId !== userId) {
+        return 403; // Access denied
       }
 
       return loan;
