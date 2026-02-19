@@ -27,6 +27,7 @@ const Loan = sequelize.define('Loan', {
 
   startDate: { type: DataTypes.DATEONLY, allowNull: false, field: 'start_date' },
   endDate: { type: DataTypes.DATEONLY, field: 'end_date' },
+  actualFullRepaymentDate: { type: DataTypes.DATEONLY, field: 'actual_full_repayment_date' },
 
   paymentSchedule: { type: DataTypes.JSONB, field: 'payment_schedule' },
   installmentAmount: { type: DataTypes.DECIMAL(14,2), field: 'installment_amount' },

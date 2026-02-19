@@ -5,6 +5,7 @@ const LoanProduct = require('../models/loanProductModel');
 const sequelize = require('../config/sequalize_db');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
+const LoanStatus = require('../enums/loanStatus');
 
 const paymentService = {
 async getAllPayments(role, userId) {
@@ -86,6 +87,12 @@ async createPayment(data, user, userAgent = 'unknown') {
     const newBalanceRaw = outstanding - appliedToPrincipal;
     const newBalance = newBalanceRaw < 0 ? 0 : Number(newBalanceRaw.toFixed(2));
     await loan.update({ outstandingBalance: newBalance }, { transaction: t });
+
+    // If loan fully repaid, set status and actual full repayment date
+    if (newBalance === 0) {
+      const repaymentDate = payment.paymentDate || new Date();
+      await loan.update({ status: LoanStatus.CLOSED, actualFullRepaymentDate: repaymentDate }, { transaction: t });
+    }
 
     // Log to audit table after successful creation
     await AuditLogger.log({

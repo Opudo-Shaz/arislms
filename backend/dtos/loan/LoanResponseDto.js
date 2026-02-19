@@ -11,6 +11,7 @@ class LoanResponseDto {
     this.termMonths = loan.termMonths;
     this.startDate = loan.startDate;
     this.endDate = loan.endDate;
+    this.actualFullRepaymentDate = loan.actualFullRepaymentDate;
     this.installmentAmount = loan.installmentAmount;
     this.outstandingBalance = loan.outstandingBalance;
     this.totalPayments = loan.totalPayments;

@@ -97,6 +97,7 @@ const validateClientPayload = (payload) => {
   };
 };
 
+// Calculate loan end date based on start date and term in months
 function calculateEndDate(startDate, termMonths) {
   const start = new Date(startDate);
   if (isNaN(start)) {
