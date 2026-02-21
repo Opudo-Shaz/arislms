@@ -1,5 +1,3 @@
-// utils/loanCalculator.js
-
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
   const P = Number(principal);
   const r = Number(interestRate) / 100 / 12;
