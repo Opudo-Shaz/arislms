@@ -45,7 +45,7 @@ if (typeof User !== 'undefined' && typeof AuditLog !== 'undefined') {
 
 // Repayment Schedule associations
 if (typeof Loan !== 'undefined' && typeof RepaymentSchedule !== 'undefined') {
-  Loan.hasMany(RepaymentSchedule, { foreignKey: 'loan_id', as: 'repaymentSchedules' });
+  Loan.hasMany(RepaymentSchedule, { foreignKey: 'loan_id' });
   RepaymentSchedule.belongsTo(Loan, { foreignKey: 'loan_id' });
 }
 

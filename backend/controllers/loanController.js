@@ -1,6 +1,6 @@
 const loanService = require('../services/loanService');
 const logger = require('../config/logger');
-const { getUserId } = require('../utils/helpers');
+const { getUserId, isAdmin } = require('../utils/helpers');
 const { validateSync } = require('../utils/validationMiddleware');
 const LoanResponseDto = require('../dtos/loan/LoanResponseDto');
 const LoanRequestDto = require('../dtos/loan/LoanRequestDto');
@@ -164,6 +164,81 @@ exports.updateLoan = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message
+    });
+  }
+};
+
+exports.approveLoan = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+    const loanId = req.params.id;
+    const { approvalDate } = req.body;
+    logger.info(JSON.stringify(req.user));
+
+    if(!isAdmin(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'User not authorized to approve loans'
+      });
+    }
+
+    logger.info(`User ${userId} approving loan ${loanId}`);
+
+    // Validate approval date is provided
+    if (!approvalDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Approval date is required'
+      });
+    }
+
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(approvalDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format. Expected YYYY-MM-DD'
+      });
+    }
+
+    // Validate it's a valid date
+    const parsedDate = new Date(approvalDate);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid approval date'
+      });
+    }
+
+    const approvedLoan = await loanService.approveLoan(
+      loanId,
+      approvalDate,
+      userId,
+      userAgent
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Loan approved successfully',
+      data: new LoanResponseDto(approvedLoan)
+    });
+  } catch (error) {
+    logger.error(`ApproveLoan Error (${req.params.id}): ${error.message}`);
+
+    // Map known errors to appropriate status codes
+    let status = 500;
+    const msg = error.message;
+
+    if (/not found/i.test(msg)) {
+      status = 404;
+    } else if (/cannot be approved/i.test(msg)) {
+      status = 400;
+    }
+
+    return res.status(status).json({
+      success: false,
+      message: msg
     });
   }
 };

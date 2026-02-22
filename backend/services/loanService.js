@@ -4,7 +4,7 @@ const User = require('../models/userModel');
 const RepaymentSchedule = require('../models/repaymentScheduleModel');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../config/logger');
-const { calculateEndDate } = require('../utils/helpers'); 
+const { calculateEndDate,isAdmin } = require('../utils/helpers'); 
 const LoanStatus = require('../enums/loanStatus');
 const AuditLogger = require('../utils/auditLogger');
 const { generateAmortizationSchedule } = require('../utils/loanCalculator');
@@ -34,12 +34,17 @@ const loanService = {
   async getAllLoans(role, userId) {
     try {
       logger.info(`loanService.getAllLoans called by user ${userId} with role ${role}`);
-      if (role === 'admin') {
-        const loans = await Loan.findAll();
+      if (isAdmin(role)) {
+        const loans = await Loan.findAll({
+          include: [{ association: 'repaymentSchedules', required: false }]
+        });
         logger.info(`Retrieved ${loans.length} loans (admin)`);
         return loans;
       }
-      const loans = await Loan.findAll({ where: { clientId: userId } });
+      const loans = await Loan.findAll({ 
+        where: { clientId: userId },
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
       logger.info(`Retrieved ${loans.length} loans for user ${userId}`);
       return loans;
     } catch (error) {
@@ -51,10 +56,12 @@ const loanService = {
   async getLoanById(id, role, userId) {
     try {
       logger.info(`loanService.getLoanById called for loan ${id} by user ${userId} role ${role}`);
-      const loan = await Loan.findByPk(id);
+      const loan = await Loan.findByPk(id, {
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
       if (!loan) return null;
 
-      if (role !== 1 && loan.clientId !== userId) {
+      if (!isAdmin(role) && loan.clientId !== userId) {
         return 403; // Access denied
       }
 
@@ -68,6 +75,9 @@ const loanService = {
   async createLoan(data, createdByUser, userAgent) {
     try {
       const creatorId = createdByUser?.id || null;
+      if(!isAdmin(createdByUser?.role_id)) {
+        throw new Error('User not authorized to create loans');
+      }
       logger.info(`loanService.createLoan called by user ${creatorId}`);
 
       if (!data.loanProductId) throw new Error('loanProductId is required');
@@ -141,6 +151,11 @@ const loanService = {
         throw new Error('Loan creation failed: invalid loan object returned');
       }
 
+      // Reload loan with associations
+      await newLoan.reload({
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
+
       // Log to audit table after successful creation
       await AuditLogger.log({
         entityType: 'LOAN',
@@ -169,7 +184,9 @@ const loanService = {
   async updateLoan(id, data, updatorId = null, userAgent = 'unknown') {
     try {
       logger.info(`loanService.updateLoan called for loan ${id}`);
-      const loan = await Loan.findByPk(id);
+      const loan = await Loan.findByPk(id, {
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
       if (!loan) throw new Error('Loan not found');
 
       const oldStatus = loan.status;
@@ -214,6 +231,11 @@ const loanService = {
         }
       });
 
+      // Reload with associations
+      await loan.reload({
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
+
       logger.info(`Loan ${id} updated successfully by user ${updatorId}`);
       return loan;
     } catch (error) {
@@ -222,10 +244,67 @@ const loanService = {
     }
   },
 
+  async approveLoan(id, approvalDate, approverId = null, userAgent = 'unknown') {
+    try {
+      logger.info(`loanService.approveLoan called for loan ${id}`);
+      const loan = await Loan.findByPk(id, {
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
+      if (!loan) throw new Error('Loan not found');
+
+      // Validate loan can be approved
+      if (loan.status !== LoanStatus.PENDING && loan.status !== LoanStatus.IN_REVIEW) {
+        throw new Error(`Loan cannot be approved. Current status: ${loan.status}. Loan must be pending or in review.`);
+      }
+
+      // Parse and validate approval date
+      const approval = new Date(approvalDate);
+      if (isNaN(approval.getTime())) {
+        throw new Error('Invalid approval date');
+      }
+
+      // Update loan with approval info
+      await loan.update({
+        approvalDate: approval.toISOString().split('T')[0],
+        status: LoanStatus.APPROVED
+      });
+
+      // Reload with associations
+      await loan.reload({
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
+
+      // Log to audit
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: id,
+        action: 'APPROVE',
+        data: {
+          approvalDate: approval.toISOString().split('T')[0],
+          status: LoanStatus.APPROVED
+        },
+        actorId: approverId || 'system',
+        options: {
+          actorType: 'USER',
+          source: userAgent
+        }
+      });
+
+      logger.info(`Loan ${id} approved on ${approval.toISOString().split('T')[0]} by user ${approverId}`);
+      return loan;
+
+    } catch (error) {
+      logger.error(`Error in approveLoan (${id}): ${error.message}`);
+      throw error;
+    }
+  },
+
   async deleteLoan(id, deletorId = null, userAgent = 'unknown') {
     try {
       logger.info(`loanService.deleteLoan called for loan ${id}`);
-      const loan = await Loan.findByPk(id);
+      const loan = await Loan.findByPk(id, {
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
       if (!loan) throw new Error('Loan not found');
 
       const deletedData = loan.toJSON();
@@ -264,7 +343,9 @@ const loanService = {
     try {
       logger.info(`Disbursing loan ${loanId} on ${disbursementDate}`);
 
-      const loan = await Loan.findByPk(loanId);
+      const loan = await Loan.findByPk(loanId, {
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
       if (!loan) {
         throw new Error('Loan not found');
       }
@@ -329,7 +410,9 @@ const loanService = {
       }
 
       // Reload loan to get updated data
-      await loan.reload();
+      await loan.reload({
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
 
       // Log to audit
       await AuditLogger.log({
@@ -374,7 +457,9 @@ const loanService = {
     try {
       logger.info(`Generating repayment schedule for loan ${loanId}`);
 
-      const loan = await Loan.findByPk(loanId);
+      const loan = await Loan.findByPk(loanId, {
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
       if (!loan) {
         throw new Error('Loan not found');
       }
@@ -471,7 +556,9 @@ const loanService = {
     try {
       logger.info(`Recalculating repayment schedule for loan ${loanId}`);
 
-      const loan = await Loan.findByPk(loanId);
+      const loan = await Loan.findByPk(loanId, {
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
       if (!loan) {
         throw new Error('Loan not found');
       }
@@ -504,7 +591,9 @@ const loanService = {
 
       if (Object.keys(updates).length > 0) {
         await loan.update(updates);
-        await loan.reload();
+        await loan.reload({
+          include: [{ association: 'repaymentSchedules', required: false }]
+        });
       }
 
       // Validate disbursement date
@@ -542,6 +631,11 @@ const loanService = {
         await loan.update({
           nextPaymentDate: scheduleData[0].dueDate,
           installmentAmount: scheduleData[0].totalAmount
+        });
+
+        // Reload with associations
+        await loan.reload({
+          include: [{ association: 'repaymentSchedules', required: false }]
         });
       }
 

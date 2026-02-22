@@ -43,6 +43,12 @@ const Loan = sequelize.define('Loan', {
     comment: 'Date when loan was actually disbursed to client'
   },
   
+  approvalDate: { 
+    type: DataTypes.DATEONLY, 
+    field: 'approval_date',
+    comment: 'Date when loan was approved'
+  },
+  
   nextPaymentDate: { 
     type: DataTypes.DATEONLY, 
     field: 'next_payment_date',
