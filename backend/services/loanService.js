@@ -1,11 +1,13 @@
 const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
 const User = require('../models/userModel');
+const RepaymentSchedule = require('../models/repaymentScheduleModel');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../config/logger');
 const { calculateEndDate } = require('../utils/helpers'); 
 const LoanStatus = require('../enums/loanStatus');
 const AuditLogger = require('../utils/auditLogger');
+const { generateAmortizationSchedule } = require('../utils/loanCalculator');
 
 // Calculates monthly payment
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
@@ -246,6 +248,345 @@ const loanService = {
       return { message: 'Loan deleted successfully', id };
     } catch (error) {
       logger.error(`Error in deleteLoan (${id}): ${error.message}`);
+      throw error;
+    }
+  },
+
+  /**
+   * Disburse a loan and generate its repayment schedule
+   * @param {number} loanId - The loan ID
+   * @param {Date|string} disbursementDate - Date when loan was disbursed
+   * @param {number} actorId - User ID performing the action
+   * @param {string} userAgent - Source of the action
+   * @returns {Promise<Object>} Updated loan and generated schedule
+   */
+  async disburseLoan(loanId, disbursementDate, actorId = null, userAgent = 'system') {
+    try {
+      logger.info(`Disbursing loan ${loanId} on ${disbursementDate}`);
+
+      const loan = await Loan.findByPk(loanId);
+      if (!loan) {
+        throw new Error('Loan not found');
+      }
+
+      // Validate loan can be disbursed
+      if (loan.status !== LoanStatus.APPROVED) {
+        throw new Error(`Loan cannot be disbursed. Current status: ${loan.status}. Loan must be approved first.`);
+      }
+
+      if (loan.disbursementDate) {
+        throw new Error('Loan has already been disbursed');
+      }
+
+      // Check if schedule already exists
+      const existingSchedule = await RepaymentSchedule.findAll({ 
+        where: { loanId },
+        limit: 1 
+      });
+
+      if (existingSchedule.length > 0) {
+        throw new Error('Repayment schedule already exists for this loan');
+      }
+
+      const disbursement = new Date(disbursementDate);
+
+      // Update loan with disbursement info
+      await loan.update({
+        disbursementDate: disbursement.toISOString().split('T')[0],
+        status: LoanStatus.DISBURSED
+      });
+
+      // Generate repayment schedule
+      const scheduleData = generateAmortizationSchedule({
+        principal: loan.principalAmount,
+        interestRate: loan.interestRate,
+        termMonths: loan.termMonths,
+        interestType: loan.interestType,
+        startDate: disbursement,
+        paymentFrequency: loan.paymentFrequency || 'monthly'
+      });
+
+      // Create schedule entries in database
+      const scheduleEntries = scheduleData.map(entry => ({
+        loanId: loan.id,
+        installmentNumber: entry.installmentNumber,
+        dueDate: entry.dueDate,
+        principalAmount: entry.principalAmount,
+        interestAmount: entry.interestAmount,
+        totalAmount: entry.totalAmount,
+        paidAmount: 0,
+        status: 'pending',
+        remainingBalance: entry.remainingBalance
+      }));
+
+      const createdSchedule = await RepaymentSchedule.bulkCreate(scheduleEntries);
+
+      // Update loan with next payment date (first installment)
+      if (scheduleData.length > 0) {
+        await loan.update({
+          nextPaymentDate: scheduleData[0].dueDate
+        });
+      }
+
+      // Reload loan to get updated data
+      await loan.reload();
+
+      // Log to audit
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: loanId,
+        action: 'DISBURSE',
+        data: {
+          disbursementDate: disbursement.toISOString().split('T')[0],
+          installmentsCount: scheduleEntries.length,
+          status: loan.status
+        },
+        actorId: actorId || 'system',
+        options: {
+          actorType: 'USER',
+          source: userAgent
+        }
+      });
+
+      logger.info(`Loan ${loanId} disbursed successfully with ${createdSchedule.length} installments`);
+      
+      return {
+        loan,
+        schedule: createdSchedule,
+        installmentsCount: createdSchedule.length
+      };
+
+    } catch (error) {
+      logger.error(`Error disbursing loan ${loanId}: ${error.message}`);
+      throw error;
+    }
+  },
+
+  /**
+   * Generate repayment schedule for a loan after disbursement
+   * @param {number} loanId - The loan ID
+   * @param {Date|string} disbursementDate - Date when loan was disbursed
+   * @param {number} actorId - User ID performing the action
+   * @param {string} userAgent - Source of the action
+   * @returns {Promise<Array>} Generated schedule entries
+   */
+  async generateRepaymentSchedule(loanId, disbursementDate, actorId = null, userAgent = 'system') {
+    try {
+      logger.info(`Generating repayment schedule for loan ${loanId}`);
+
+      const loan = await Loan.findByPk(loanId);
+      if (!loan) {
+        throw new Error('Loan not found');
+      }
+
+      // Check if schedule already exists
+      const existingSchedule = await RepaymentSchedule.findAll({ 
+        where: { loanId },
+        limit: 1 
+      });
+
+      if (existingSchedule.length > 0) {
+        logger.warn(`Repayment schedule already exists for loan ${loanId}`);
+        throw new Error('Repayment schedule already exists. Use recalculateRepaymentSchedule to update.');
+      }
+
+      // Update loan with disbursement date
+      const disbursement = new Date(disbursementDate);
+      await loan.update({
+        disbursementDate: disbursement.toISOString().split('T')[0],
+        status: LoanStatus.DISBURSED
+      });
+
+      // Generate schedule using loan calculator
+      const scheduleData = generateAmortizationSchedule({
+        principal: loan.principalAmount,
+        interestRate: loan.interestRate,
+        termMonths: loan.termMonths,
+        interestType: loan.interestType,
+        startDate: disbursement,
+        paymentFrequency: loan.paymentFrequency || 'monthly'
+      });
+
+      // Create schedule entries in database
+      const scheduleEntries = scheduleData.map(entry => ({
+        loanId: loan.id,
+        installmentNumber: entry.installmentNumber,
+        dueDate: entry.dueDate,
+        principalAmount: entry.principalAmount,
+        interestAmount: entry.interestAmount,
+        totalAmount: entry.totalAmount,
+        paidAmount: 0,
+        status: 'pending',
+        remainingBalance: entry.remainingBalance
+      }));
+
+      const createdSchedule = await RepaymentSchedule.bulkCreate(scheduleEntries);
+
+      // Update loan with next payment date (first installment)
+      if (scheduleData.length > 0) {
+        await loan.update({
+          nextPaymentDate: scheduleData[0].dueDate
+        });
+      }
+
+      // Log to audit
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: loanId,
+        action: 'GENERATE_SCHEDULE',
+        data: {
+          disbursementDate,
+          installmentsCount: scheduleEntries.length
+        },
+        actorId: actorId || 'system',
+        options: {
+          actorType: 'USER',
+          source: userAgent
+        }
+      });
+
+      logger.info(`Generated ${createdSchedule.length} installments for loan ${loanId}`);
+      return createdSchedule;
+
+    } catch (error) {
+      logger.error(`Error generating repayment schedule for loan ${loanId}: ${error.message}`);
+      throw error;
+    }
+  },
+
+  /**
+   * Recalculate repayment schedule for a loan (e.g., after restructuring)
+   * Deletes existing schedule and creates new one
+   * @param {number} loanId - The loan ID
+   * @param {Object} options - Optional parameters for recalculation
+   * @param {Date|string} options.newDisbursementDate - New disbursement date (optional)
+   * @param {number} options.newPrincipal - New principal amount (optional)
+   * @param {number} options.newInterestRate - New interest rate (optional)
+   * @param {number} options.newTermMonths - New term in months (optional)
+   * @param {number} actorId - User ID performing the action
+   * @param {string} userAgent - Source of the action
+   * @returns {Promise<Array>} Recalculated schedule entries
+   */
+  async recalculateRepaymentSchedule(loanId, options = {}, actorId = null, userAgent = 'system') {
+    try {
+      logger.info(`Recalculating repayment schedule for loan ${loanId}`);
+
+      const loan = await Loan.findByPk(loanId);
+      if (!loan) {
+        throw new Error('Loan not found');
+      }
+
+      // Delete existing schedule
+      const deletedCount = await RepaymentSchedule.destroy({ 
+        where: { loanId } 
+      });
+      logger.info(`Deleted ${deletedCount} existing schedule entries for loan ${loanId}`);
+
+      // Update loan parameters if provided
+      const updates = {};
+      if (options.newDisbursementDate) {
+        updates.disbursementDate = new Date(options.newDisbursementDate).toISOString().split('T')[0];
+      }
+      if (options.newPrincipal) {
+        updates.principalAmount = options.newPrincipal;
+        updates.outstandingBalance = options.newPrincipal;
+      }
+      if (options.newInterestRate) {
+        updates.interestRate = options.newInterestRate;
+      }
+      if (options.newTermMonths) {
+        updates.termMonths = options.newTermMonths;
+        updates.endDate = calculateEndDate(
+          updates.disbursementDate || loan.disbursementDate,
+          options.newTermMonths
+        );
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await loan.update(updates);
+        await loan.reload();
+      }
+
+      // Validate disbursement date
+      if (!loan.disbursementDate) {
+        throw new Error('Cannot recalculate schedule: loan has no disbursement date');
+      }
+
+      // Generate new schedule
+      const scheduleData = generateAmortizationSchedule({
+        principal: loan.principalAmount,
+        interestRate: loan.interestRate,
+        termMonths: loan.termMonths,
+        interestType: loan.interestType,
+        startDate: loan.disbursementDate,
+        paymentFrequency: loan.paymentFrequency || 'monthly'
+      });
+
+      // Create new schedule entries
+      const scheduleEntries = scheduleData.map(entry => ({
+        loanId: loan.id,
+        installmentNumber: entry.installmentNumber,
+        dueDate: entry.dueDate,
+        principalAmount: entry.principalAmount,
+        interestAmount: entry.interestAmount,
+        totalAmount: entry.totalAmount,
+        paidAmount: 0,
+        status: 'pending',
+        remainingBalance: entry.remainingBalance
+      }));
+
+      const createdSchedule = await RepaymentSchedule.bulkCreate(scheduleEntries);
+
+      // Update loan with next payment date
+      if (scheduleData.length > 0) {
+        await loan.update({
+          nextPaymentDate: scheduleData[0].dueDate,
+          installmentAmount: scheduleData[0].totalAmount
+        });
+      }
+
+      // Log to audit
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: loanId,
+        action: 'RECALCULATE_SCHEDULE',
+        data: {
+          changes: options,
+          installmentsCount: scheduleEntries.length
+        },
+        actorId: actorId || 'system',
+        options: {
+          actorType: 'USER',
+          source: userAgent
+        }
+      });
+
+      logger.info(`Recalculated ${createdSchedule.length} installments for loan ${loanId}`);
+      return createdSchedule;
+
+    } catch (error) {
+      logger.error(`Error recalculating repayment schedule for loan ${loanId}: ${error.message}`);
+      throw error;
+    }
+  },
+
+  /**
+   * Get repayment schedule for a loan
+   * @param {number} loanId - The loan ID
+   * @returns {Promise<Array>} Schedule entries
+   */
+  async getRepaymentSchedule(loanId) {
+    try {
+      logger.info(`Fetching repayment schedule for loan ${loanId}`);
+      
+      const schedule = await RepaymentSchedule.findAll({
+        where: { loanId },
+        order: [['installmentNumber', 'ASC']]
+      });
+
+      return schedule;
+    } catch (error) {
+      logger.error(`Error fetching repayment schedule for loan ${loanId}: ${error.message}`);
       throw error;
     }
   },

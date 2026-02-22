@@ -7,6 +7,7 @@ const Loan = require('./loanModel');
 const Client = require('./clientModel');
 const Payment = require('./paymentModel');
 const AuditLog = require('./auditLogModel');
+const RepaymentSchedule = require('./repaymentScheduleModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
@@ -42,6 +43,12 @@ if (typeof User !== 'undefined' && typeof AuditLog !== 'undefined') {
   User.belongsTo(Role, { foreignKey: 'role_id', targetKey: 'id' });
 }
 
+// Repayment Schedule associations
+if (typeof Loan !== 'undefined' && typeof RepaymentSchedule !== 'undefined') {
+  Loan.hasMany(RepaymentSchedule, { foreignKey: 'loan_id', as: 'repaymentSchedules' });
+  RepaymentSchedule.belongsTo(Loan, { foreignKey: 'loan_id' });
+}
+
 module.exports = {
   sequelize,
   Role,
@@ -50,4 +57,5 @@ module.exports = {
   Client,
   Payment,
   AuditLog,
+  RepaymentSchedule,
 };

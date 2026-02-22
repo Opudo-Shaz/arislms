@@ -191,3 +191,75 @@ exports.deleteLoan = async (req, res) => {
     });
   }
 };
+
+exports.disburseLoan = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+    const loanId = req.params.id;
+    const { disbursementDate } = req.body;
+
+    logger.info(`User ${userId} disbursing loan ${loanId}`);
+
+    // Validate disbursement date is provided
+    if (!disbursementDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Disbursement date is required'
+      });
+    }
+
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(disbursementDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format. Expected YYYY-MM-DD'
+      });
+    }
+
+    // Validate it's a valid date
+    const parsedDate = new Date(disbursementDate);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid disbursement date'
+      });
+    }
+
+    const result = await loanService.disburseLoan(
+      loanId,
+      disbursementDate,
+      userId,
+      userAgent
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Loan disbursed successfully',
+      data: {
+        loan: new LoanResponseDto(result.loan),
+        installmentsCount: result.installmentsCount,
+        disbursementDate: result.loan.disbursementDate,
+        nextPaymentDate: result.loan.nextPaymentDate
+      }
+    });
+  } catch (error) {
+    logger.error(`DisburseLoan Error (${req.params.id}): ${error.message}`);
+
+    // Map known errors to appropriate status codes
+    let status = 500;
+    const msg = error.message;
+
+    if (/not found/i.test(msg)) {
+      status = 404;
+    } else if (/cannot be disbursed|already been disbursed|already exists/i.test(msg)) {
+      status = 400;
+    }
+
+    return res.status(status).json({
+      success: false,
+      message: msg
+    });
+  }
+};
