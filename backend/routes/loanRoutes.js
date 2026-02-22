@@ -5,7 +5,9 @@ const {
   createLoan,
   updateLoan,
   deleteLoan,
-  getMyLoans
+  getMyLoans,
+  approveLoan,
+  disburseLoan
 } = require('../controllers/loanController');
 
 const { authenticate, authorize } = require('../middleware/authMiddleware');
@@ -172,5 +174,119 @@ router.put('/:id', authenticate, authorize([1,2]), updateLoan);
  *         description: Loan deleted successfully
  */
 router.delete('/:id', authenticate, authorize([1,2]), deleteLoan);
+
+/**
+ * @openapi
+ * /api/loans/{id}/disburse:
+ *   post:
+ *     summary: Disburse an approved loan and generate repayment schedule (admin only)
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 25
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - disbursementDate
+ *             properties:
+ *               disbursementDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Date when loan is disbursed (YYYY-MM-DD)
+ *                 example: "2026-03-01"
+ *     responses:
+ *       200:
+ *         description: Loan disbursed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     loan:
+ *                       type: object
+ *                     installmentsCount:
+ *                       type: integer
+ *                     disbursementDate:
+ *                       type: string
+ *                       format: date
+ *                     nextPaymentDate:
+ *                       type: string
+ *                       format: date
+ *       400:
+ *         description: Invalid request or loan cannot be disbursed
+ *       404:
+ *         description: Loan not found
+ */
+router.post('/:id/disburse', authenticate, authorize([1,2]), disburseLoan);
+
+/**
+ * @openapi
+ * /api/loans/{id}/approve:
+ *   post:
+ *     summary: Approve a pending loan (admin only)
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 25
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - approvalDate
+ *             properties:
+ *               approvalDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Date when loan is approved (YYYY-MM-DD)
+ *                 example: "2026-02-22"
+ *     responses:
+ *       200:
+ *         description: Loan approved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: Invalid request or loan cannot be approved
+ *       404:
+ *         description: Loan not found
+ */
+router.post('/:id/approve', authenticate, authorize([1,2]), approveLoan);
+
 
 module.exports = router;

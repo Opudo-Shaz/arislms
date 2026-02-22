@@ -114,6 +114,10 @@ function getUserFullName(first_name, middle_name, last_name){
       .join(' ');
 }
 
+function isAdmin(role) {
+  return role === 2 || role === 1; // Assuming role_id 2 is admin
+}
+
 
 module.exports = {
   formatDateWithOffset,
@@ -121,5 +125,6 @@ module.exports = {
   getUser,
   validateClientPayload,
   calculateEndDate,
-  getUserFullName
+  getUserFullName,
+  isAdmin
 };
