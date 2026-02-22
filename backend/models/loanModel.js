@@ -4,6 +4,7 @@ const User = require('./userModel');
 const LoanProduct = require('./loanProductModel');
 const Client = require('./clientModel');
 const InterestType = require('../enums/interestType');
+const RepaymentSchedule = require('./repaymentScheduleModel');
 
 const Loan = sequelize.define('Loan', {
 
@@ -25,10 +26,40 @@ const Loan = sequelize.define('Loan', {
 
   termMonths: { type: DataTypes.INTEGER, allowNull: false, field: 'term_months' },
 
+  paymentFrequency: { 
+    type: DataTypes.STRING(20), 
+    allowNull: false, 
+    defaultValue: 'monthly', 
+    field: 'payment_frequency',
+    comment: 'Payment frequency: monthly, bi-weekly, weekly, quarterly'
+  },
+
   startDate: { type: DataTypes.DATEONLY, allowNull: false, field: 'start_date' },
   endDate: { type: DataTypes.DATEONLY, field: 'end_date' },
 
-  paymentSchedule: { type: DataTypes.JSONB, field: 'payment_schedule' },
+  disbursementDate: { 
+    type: DataTypes.DATEONLY, 
+    field: 'disbursement_date',
+    comment: 'Date when loan was actually disbursed to client'
+  },
+  
+  approvalDate: { 
+    type: DataTypes.DATEONLY, 
+    field: 'approval_date',
+    comment: 'Date when loan was approved'
+  },
+  
+  nextPaymentDate: { 
+    type: DataTypes.DATEONLY, 
+    field: 'next_payment_date',
+    comment: 'Next expected payment date'
+  },
+
+  paymentSchedule: { 
+    type: DataTypes.JSONB, 
+    field: 'payment_schedule',
+    comment: 'Deprecated: Use RepaymentSchedule model instead'
+  },
   installmentAmount: { type: DataTypes.DECIMAL(14,2), field: 'installment_amount' },
 
   outstandingBalance: { type: DataTypes.DECIMAL(14,2), allowNull: false, field: 'outstanding_balance' },
@@ -67,5 +98,8 @@ Loan.belongsTo(User, { foreignKey: 'client_id' });
 
 LoanProduct.hasMany(Loan, { foreignKey: 'loan_product_id' });
 Loan.belongsTo(LoanProduct, { foreignKey: 'loan_product_id' });
+
+Loan.hasMany(RepaymentSchedule, { foreignKey: 'loan_id', as: 'repaymentSchedules' });
+RepaymentSchedule.belongsTo(Loan, { foreignKey: 'loan_id' });
 
 module.exports = Loan;
