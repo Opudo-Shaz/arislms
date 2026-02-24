@@ -1,11 +1,9 @@
-// creditScorer.js
+// services/creditScorer.js
 
-// Clamp helper
 function clamp(value, min = 0, max = 5) {
   return Math.max(min, Math.min(max, value));
 }
 
-// Calculate age safely
 function calculateAge(dateOfBirth) {
   if (!dateOfBirth) return null;
   const dob = new Date(dateOfBirth);
@@ -15,7 +13,6 @@ function calculateAge(dateOfBirth) {
   return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
 }
 
-// Core scoring engine
 function calculateCreditScore(client = {}, loans = [], options = {}) {
   const breakdown = {
     base: 2.5,
@@ -33,18 +30,14 @@ function calculateCreditScore(client = {}, loans = [], options = {}) {
   const income = Number(client.monthlyIncome) || 0;
   const requestedTenure = Number(options.requestedTenure) || 12;
 
-  // -------------------------
-  // 1. Income Strength (0 - 1)
-  // -------------------------
+  // 1. Income strength
   if (income >= 10000) breakdown.income = 1.0;
   else if (income >= 5000) breakdown.income = 0.6;
   else if (income >= 2000) breakdown.income = 0.3;
 
   score += breakdown.income;
 
-  // -------------------------
-  // 2. Debt Burden (DTI)
-  // -------------------------
+  // 2. Debt burden (DTI)
   const totalOutstanding = loans.reduce(
     (sum, l) => sum + Number(l.outstandingBalance || 0),
     0
@@ -63,9 +56,7 @@ function calculateCreditScore(client = {}, loans = [], options = {}) {
 
   score += breakdown.debt;
 
-  // -------------------------
-  // 3. Repayment History
-  // -------------------------
+  // 3. Repayment history
   const missedPayments = loans.reduce(
     (sum, l) => sum + Number(l.missedPayments || 0),
     0
@@ -79,9 +70,7 @@ function calculateCreditScore(client = {}, loans = [], options = {}) {
 
   score += breakdown.repaymentHistory;
 
-  // -------------------------
-  // 4. KYC Verification
-  // -------------------------
+  // 4. KYC
   if (
     client.kycStatus &&
     String(client.kycStatus).toLowerCase().includes("verified")
@@ -91,9 +80,7 @@ function calculateCreditScore(client = {}, loans = [], options = {}) {
 
   score += breakdown.kyc;
 
-  // -------------------------
-  // 5. Age Stability
-  // -------------------------
+  // 5. Age stability
   const age = calculateAge(client.dateOfBirth);
 
   if (age !== null) {
@@ -103,18 +90,13 @@ function calculateCreditScore(client = {}, loans = [], options = {}) {
 
   score += breakdown.age;
 
-  // -------------------------
-  // 6. Tenure Risk Adjustment
-  // -------------------------
-  // Longer tenure = longer exposure risk
+  // 6. Tenure risk
   if (requestedTenure <= 6) breakdown.tenure = 0.3;
   else if (requestedTenure > 18) breakdown.tenure = -0.5;
 
   score += breakdown.tenure;
 
-  // -------------------------
-  // 7. Blend Previous Risk Score
-  // -------------------------
+  // 7. Blend previous stored risk score
   const previousScore = Number(client.riskScore);
 
   if (
@@ -126,7 +108,6 @@ function calculateCreditScore(client = {}, loans = [], options = {}) {
     score = score * 0.7 + previousScore * 0.3;
   }
 
-  // Final clamp + round
   score = clamp(Math.round(score), 0, 5);
 
   return {

@@ -3,6 +3,7 @@ const {
   getAllLoans,
   getLoanById,
   createLoan,
+  createLoanWithCreditScoring,
   updateLoan,
   deleteLoan,
   getMyLoans,
@@ -123,6 +124,57 @@ router.get('/:id', authenticate, getLoanById);
  *               status: pending
  */
 router.post('/', authenticate, createLoan);
+
+/**
+ * @openapi
+ * /api/loans/with-scoring:
+ *   post:
+ *     summary: Create a new loan with integrated credit scoring and risk policy evaluation
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           description: Loan application with client and product details
+ *           example:
+ *             clientId: 5
+ *             loanProductId: 1
+ *             principalAmount: 15000
+ *             startDate: "2026-02-23"
+ *             termMonths: 12
+ *             collateral: { type: "vehicle", value: 20000 }
+ *     responses:
+ *       201:
+ *         description: Loan created successfully with credit scoring results
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: Loan created successfully with credit scoring
+ *               data:
+ *                 id: 25
+ *                 clientId: 5
+ *                 referenceCode: "LN-ABC123DE"
+ *                 status: pending
+ *                 riskScore: 4
+ *                 riskGrade: B
+ *                 riskDti: 0.35
+ *       422:
+ *         description: Loan application rejected by risk policy
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Loan application rejected by risk policy. Risk Grade: E, Score: 1/5"
+ *       400:
+ *         description: Validation error in request
+ *       500:
+ *         description: Server error
+ */
+router.post('/with-scoring', authenticate, createLoanWithCreditScoring);
 
 /**
  * @openapi

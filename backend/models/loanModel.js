@@ -80,6 +80,32 @@ const Loan = sequelize.define('Loan', {
 
   createdBy: { type: DataTypes.INTEGER, allowNull: true, field: 'created_by' },
 
+  riskScore: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'risk_score'
+  },
+  riskGrade: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'risk_grade'
+  },
+  riskDti: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+    field: 'risk_dti'
+  },
+  scoringBreakdown: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    field: 'scoring_breakdown'
+  },
+  scoringModelVersion: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'scoring_model_version'
+  },
+
   updatedAt: { type: DataTypes.DATE, allowNull: true, field: 'updated_at' },
 
 }, {

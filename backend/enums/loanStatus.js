@@ -4,6 +4,7 @@
 module.exports = Object.freeze({
   PENDING: 'pending',
   IN_REVIEW: 'in_review',
+  UNDER_REVIEW: 'under_review',
   APPROVED: 'approved',
   REJECTED: 'rejected',
   DISBURSED: 'disbursed',

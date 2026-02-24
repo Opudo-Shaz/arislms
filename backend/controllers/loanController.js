@@ -132,6 +132,48 @@ exports.createLoan = async (req, res) => {
   }
 };
 
+/**
+ * Create a new loan with integrated credit scoring and risk policy evaluation
+ * POST /loans/with-scoring
+ */
+exports.createLoanWithCreditScoring = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+
+    logger.info(`User ${userId} creating a new loan with credit scoring`);
+
+    // Validate request payload with Joi schema
+    const validation = validateSync(req.body, LoanRequestDto.createSchema);
+    if (!validation.valid) {
+      logger.warn(`Loan creation validation failed: ${JSON.stringify(validation.errors)}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: validation.errors
+      });
+    }
+
+    const newLoan = await loanService.createLoanWithCreditScoring(validation.value, req.user, userAgent);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Loan created successfully with credit scoring',
+      data: new LoanResponseDto(newLoan)
+    });
+  } catch (error) {
+    logger.error(`CreateLoanWithCreditScoring Error: ${error.message}`);
+
+    // Return 422 for policy rejection (unprocessable entity)
+    const status = error.message.includes('rejected by risk policy') ? 422 : 500;
+
+    return res.status(status).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 exports.updateLoan = async (req, res) => {
   try {
     const userId = getUserId(req);

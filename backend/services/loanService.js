@@ -1,6 +1,7 @@
 const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
 const User = require('../models/userModel');
+const Client = require('../models/clientModel');
 const RepaymentSchedule = require('../models/repaymentScheduleModel');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../config/logger');
@@ -8,6 +9,8 @@ const { calculateEndDate,isAdmin } = require('../utils/helpers');
 const LoanStatus = require('../enums/loanStatus');
 const AuditLogger = require('../utils/auditLogger');
 const { generateAmortizationSchedule } = require('../utils/loanCalculator');
+const { calculateCreditScore } = require('./creditScorerService');
+const { getRiskGrade, getDecisionFromScore } = require('./riskPolicyService');
 
 // Calculates monthly payment
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
@@ -181,6 +184,181 @@ const loanService = {
     }
   },
 
+  /**
+   * Create a loan with integrated credit scoring and risk policy evaluation
+   * Runs the application through credit scoring and risk policy engines
+   * before approving or rejecting the loan application
+   * @param {Object} data - Loan application data
+   * @param {Object} createdByUser - User creating the loan
+   * @param {string} userAgent - Source of the action
+   * @returns {Promise<Object>} Created loan with risk assessment data
+   */
+  async createLoanWithCreditScoring(data, createdByUser, userAgent = 'unknown') {
+    try {
+      const creatorId = createdByUser?.id || null;
+      if (!isAdmin(createdByUser?.role_id)) {
+        throw new Error('User not authorized to create loans');
+      }
+      logger.info(`loanService.createLoanWithCreditScoring called by user ${creatorId}`);
+
+      if (!data.clientId) throw new Error('clientId is required');
+      if (!data.loanProductId) throw new Error('loanProductId is required');
+      if (!data.principalAmount) throw new Error('principalAmount is required');
+      if (!data.startDate) throw new Error('startDate is required');
+
+      // 1. Load client data
+      const client = await Client.findByPk(data.clientId);
+      if (!client) throw new Error('Client not found');
+
+      // 2. Load client's existing loans
+      const existingLoans = await Loan.findAll({
+        where: { clientId: data.clientId }
+      });
+
+      // 3. Calculate credit score through scoring engine
+      const scoringResult = calculateCreditScore(client, existingLoans, {
+        requestedTenure: data.termMonths || 12
+      });
+
+      const { score: riskScore, breakdown: scoringBreakdown, dti: riskDti } = scoringResult;
+
+      // 4. Get risk grade and decision through risk policy engine
+      const riskGrade = getRiskGrade(riskScore);
+      const riskDecision = getDecisionFromScore(riskScore);
+
+      logger.info(
+        `Credit scoring result for client ${data.clientId}: score=${riskScore}, grade=${riskGrade}, decision=${riskDecision}, dti=${riskDti.toFixed(2)}`
+      );
+
+      // 5. Determine loan status based on policy decision
+      // APPROVED (passes checks) -> under_review (admin will approve)
+      // MANUAL_REVIEW/REJECTED (fails checks) -> pending (needs review)
+      let loanStatus;
+      if (riskDecision === 'APPROVED') {
+        loanStatus = LoanStatus.UNDER_REVIEW;
+        logger.info(`Loan application passed automatic checks - setting status to under_review for admin approval`);
+      } else {
+        loanStatus = LoanStatus.PENDING;
+        logger.info(`Loan application did not pass automatic checks - setting status to pending for manual review`);
+      }
+
+      // 6. Load loan product
+      const product = await LoanProduct.findByPk(data.loanProductId);
+      if (!product) throw new Error('Invalid loan product selected');
+
+      // Apply product rules
+      const interestRate = product.interestRate;
+      const interestType = product.interestType;
+      const termMonths = data.termMonths || product.repaymentPeriodMonths;
+      const loanCurrency = product.currency || 'KES';
+      const fees = product.fees || 0;
+
+      // Validate co-signer exists if provided
+      if (data.coSignerId) {
+        const coSigner = await User.findByPk(data.coSignerId);
+        if (!coSigner) throw new Error('Co-signer user not found');
+      }
+
+      // Calculate derived values
+      const endDate = calculateEndDate(data.startDate, termMonths);
+      const installmentAmount = calculateMonthlyPayment(
+        data.principalAmount,
+        interestRate,
+        termMonths,
+        interestType
+      );
+
+      // 7. Create loan with risk assessment data
+      const loanPayload = {
+        clientId: data.clientId,
+        loanProductId: data.loanProductId,
+        principalAmount: data.principalAmount,
+        currency: loanCurrency,
+
+        interestRate,
+        interestType,
+        termMonths,
+
+        startDate: data.startDate,
+        endDate,
+        installmentAmount,
+        outstandingBalance: data.principalAmount,
+
+        fees,
+        penalties: 0.00,
+
+        collateral: data.collateral,
+        coSignerId: data.coSignerId,
+        notes: data.notes,
+
+        // Risk assessment fields
+        riskScore,
+        riskGrade,
+        riskDti,
+        scoringBreakdown,
+        scoringModelVersion: '1.0',
+
+        // Status based on policy decision
+        status: loanStatus,
+
+        referenceCode: `LN-${uuidv4().split('-')[0].toUpperCase()}`,
+        createdBy: creatorId,
+
+        paymentSchedule: {
+          type: interestType,
+          termMonths,
+          monthlyPayment: installmentAmount
+        }
+      };
+
+      const newLoan = await Loan.create(loanPayload);
+
+      // Validate the created loan
+      if (!newLoan || !newLoan.id) {
+        logger.error('Loan creation returned invalid result', { newLoan });
+        throw new Error('Loan creation failed: invalid loan object returned');
+      }
+
+      // Reload loan with associations
+      await newLoan.reload({
+        include: [{ association: 'repaymentSchedules', required: false }]
+      });
+
+      // Log to audit table
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: newLoan.id,
+        action: 'CREATE_WITH_SCORING',
+        data: {
+          loanPayload,
+          scoringResult: {
+            riskScore,
+            riskGrade,
+            riskDti,
+            policyDecision: riskDecision,
+            scoringBreakdown
+          }
+        },
+        actorId: creatorId,
+        options: {
+          actorType: 'USER',
+          source: userAgent
+        }
+      });
+
+      logger.info(
+        `Loan created with credit scoring: id=${newLoan.id} reference=${newLoan.referenceCode} ` +
+        `riskScore=${riskScore} riskGrade=${riskGrade} decision=${riskDecision} by user ${creatorId}`
+      );
+
+      return newLoan;
+
+    } catch (error) {
+      logger.error(`Error in createLoanWithCreditScoring: ${error.message}`);
+      throw error;
+    }
+  },
+
   async updateLoan(id, data, updatorId = null, userAgent = 'unknown') {
     try {
       logger.info(`loanService.updateLoan called for loan ${id}`);
@@ -253,8 +431,8 @@ const loanService = {
       if (!loan) throw new Error('Loan not found');
 
       // Validate loan can be approved
-      if (loan.status !== LoanStatus.PENDING && loan.status !== LoanStatus.IN_REVIEW) {
-        throw new Error(`Loan cannot be approved. Current status: ${loan.status}. Loan must be pending or in review.`);
+      if (loan.status !== LoanStatus.PENDING && loan.status !== LoanStatus.IN_REVIEW && loan.status !== LoanStatus.UNDER_REVIEW) {
+        throw new Error(`Loan cannot be approved. Current status: ${loan.status}. Loan must be pending, in_review, or under_review.`);
       }
 
       // Parse and validate approval date
