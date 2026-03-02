@@ -3,6 +3,7 @@ const LoanProduct = require('../models/loanProductModel');
 const User = require('../models/userModel');
 const Client = require('../models/clientModel');
 const RepaymentSchedule = require('../models/repaymentScheduleModel');
+const CreditScore = require('../models/creditScoreModel');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../config/logger');
 const { calculateEndDate,isAdmin } = require('../utils/helpers'); 
@@ -39,14 +40,20 @@ const loanService = {
       logger.info(`loanService.getAllLoans called by user ${userId} with role ${role}`);
       if (isAdmin(role)) {
         const loans = await Loan.findAll({
-          include: [{ association: 'repaymentSchedules', required: false }]
+          include: [
+            { association: 'repaymentSchedules', required: false },
+            { association: 'creditScore', required: false }
+          ]
         });
         logger.info(`Retrieved ${loans.length} loans (admin)`);
         return loans;
       }
       const loans = await Loan.findAll({ 
         where: { clientId: userId },
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
       logger.info(`Retrieved ${loans.length} loans for user ${userId}`);
       return loans;
@@ -60,7 +67,10 @@ const loanService = {
     try {
       logger.info(`loanService.getLoanById called for loan ${id} by user ${userId} role ${role}`);
       const loan = await Loan.findByPk(id, {
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
       if (!loan) return null;
 
@@ -145,6 +155,9 @@ const loanService = {
           monthlyPayment: installmentAmount
         }
       };
+      //TODO: Calculate credit score and pass to risk policy scoring service . if score < requested principal,  set to under_review for manual review by admin otherwise
+      // set to pending for approval by admin
+
 
       const newLoan = await Loan.create(loanPayload);
 
@@ -291,13 +304,6 @@ const loanService = {
         coSignerId: data.coSignerId,
         notes: data.notes,
 
-        // Risk assessment fields
-        riskScore,
-        riskGrade,
-        riskDti,
-        scoringBreakdown,
-        scoringModelVersion: '1.0',
-
         // Status based on policy decision
         status: loanStatus,
 
@@ -319,9 +325,26 @@ const loanService = {
         throw new Error('Loan creation failed: invalid loan object returned');
       }
 
+      // 8. Create CreditScore record with risk assessment data
+      const creditScorePayload = {
+        loanId: newLoan.id,
+        riskScore,
+        riskGrade,
+        riskDti,
+        scoringBreakdown,
+        scoringModelVersion: '1.0',
+        evaluatedBy: creatorId,
+        notes: `Auto-scored for loan ${newLoan.referenceCode}`
+      };
+
+      await CreditScore.create(creditScorePayload);
+
       // Reload loan with associations
       await newLoan.reload({
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
 
       // Log to audit table
@@ -363,7 +386,10 @@ const loanService = {
     try {
       logger.info(`loanService.updateLoan called for loan ${id}`);
       const loan = await Loan.findByPk(id, {
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
       if (!loan) throw new Error('Loan not found');
 
@@ -411,7 +437,10 @@ const loanService = {
 
       // Reload with associations
       await loan.reload({
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
 
       logger.info(`Loan ${id} updated successfully by user ${updatorId}`);
@@ -426,7 +455,10 @@ const loanService = {
     try {
       logger.info(`loanService.approveLoan called for loan ${id}`);
       const loan = await Loan.findByPk(id, {
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
       if (!loan) throw new Error('Loan not found');
 
@@ -449,7 +481,10 @@ const loanService = {
 
       // Reload with associations
       await loan.reload({
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
 
       // Log to audit
@@ -481,7 +516,10 @@ const loanService = {
     try {
       logger.info(`loanService.deleteLoan called for loan ${id}`);
       const loan = await Loan.findByPk(id, {
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
       if (!loan) throw new Error('Loan not found');
 
@@ -522,7 +560,10 @@ const loanService = {
       logger.info(`Disbursing loan ${loanId} on ${disbursementDate}`);
 
       const loan = await Loan.findByPk(loanId, {
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
       if (!loan) {
         throw new Error('Loan not found');
@@ -589,7 +630,10 @@ const loanService = {
 
       // Reload loan to get updated data
       await loan.reload({
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
 
       // Log to audit

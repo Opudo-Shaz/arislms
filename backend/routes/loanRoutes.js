@@ -123,7 +123,7 @@ router.get('/:id', authenticate, getLoanById);
  *               amount: 15000
  *               status: pending
  */
-router.post('/', authenticate, createLoan);
+router.post('/', authenticate, authorize([1,2]), createLoan);
 
 /**
  * @openapi
@@ -174,7 +174,7 @@ router.post('/', authenticate, createLoan);
  *       500:
  *         description: Server error
  */
-router.post('/with-scoring', authenticate, createLoanWithCreditScoring);
+router.post('/with-scoring', authenticate, authorize([1,2]), createLoanWithCreditScoring);
 
 /**
  * @openapi

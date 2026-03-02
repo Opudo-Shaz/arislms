@@ -4,6 +4,7 @@ const User = require('./userModel');
 const LoanProduct = require('./loanProductModel');
 const Client = require('./clientModel');
 const InterestType = require('../enums/interestType');
+const LoanStatus = require('../enums/loanStatus');
 const RepaymentSchedule = require('./repaymentScheduleModel');
 
 const Loan = sequelize.define('Loan', {
@@ -73,38 +74,16 @@ const Loan = sequelize.define('Loan', {
   collateral: { type: DataTypes.JSONB },
   coSignerId: { type: DataTypes.INTEGER, field: 'co_signer_id' },
 
-  status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'pending' },
+  status: { 
+    type: DataTypes.ENUM(Object.values(LoanStatus)), 
+    allowNull: false, 
+    defaultValue: LoanStatus.PENDING 
+  },
 
   referenceCode: { type: DataTypes.STRING, unique: true, field: 'reference_code' },
   notes: { type: DataTypes.TEXT },
 
   createdBy: { type: DataTypes.INTEGER, allowNull: true, field: 'created_by' },
-
-  riskScore: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    field: 'risk_score'
-  },
-  riskGrade: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    field: 'risk_grade'
-  },
-  riskDti: {
-    type: DataTypes.FLOAT,
-    allowNull: true,
-    field: 'risk_dti'
-  },
-  scoringBreakdown: {
-    type: DataTypes.JSON,
-    allowNull: true,
-    field: 'scoring_breakdown'
-  },
-  scoringModelVersion: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    field: 'scoring_model_version'
-  },
 
   updatedAt: { type: DataTypes.DATE, allowNull: true, field: 'updated_at' },
 

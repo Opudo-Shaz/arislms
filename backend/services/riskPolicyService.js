@@ -22,8 +22,14 @@ function getMaxLoanMultiplier(score) {
   return 1;
 }
 
+function getMaxLoanAmount(score, baseAmount) {
+  const multiplier = getMaxLoanMultiplier(score);
+  return baseAmount * multiplier;
+}
+
 module.exports = {
   getRiskGrade,
   getDecisionFromScore,
-  getMaxLoanMultiplier
+  getMaxLoanMultiplier,
+  getMaxLoanAmount
 };

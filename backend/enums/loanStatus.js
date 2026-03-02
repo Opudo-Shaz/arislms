@@ -3,8 +3,10 @@
 
 module.exports = Object.freeze({
   PENDING: 'pending',
-  IN_REVIEW: 'in_review',
+  PENDING_REVERIFICATION: 'pending_reverification',
   UNDER_REVIEW: 'under_review',
+  VERIFIED: 'verified',
+  IN_REVIEW: 'in_review',
   APPROVED: 'approved',
   REJECTED: 'rejected',
   DISBURSED: 'disbursed',

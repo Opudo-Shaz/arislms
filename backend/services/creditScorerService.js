@@ -31,9 +31,9 @@ function calculateCreditScore(client = {}, loans = [], options = {}) {
   const requestedTenure = Number(options.requestedTenure) || 12;
 
   // 1. Income strength
-  if (income >= 10000) breakdown.income = 1.0;
-  else if (income >= 5000) breakdown.income = 0.6;
-  else if (income >= 2000) breakdown.income = 0.3;
+  if (income >= 50000) breakdown.income = 1.0;
+  else if (income >= 30000) breakdown.income = 0.6;
+  else if (income >= 10000) breakdown.income = 0.3;
 
   score += breakdown.income;
 

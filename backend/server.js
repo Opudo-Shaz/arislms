@@ -34,6 +34,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const loanProductRoutes = require('./routes/loanProductRoutes');
 const auditRoutes = require('./routes/auditRoutes');
+const creditScoreRoutes = require('./routes/creditScoreRoutes');
 
 
 app.use('/api/users', userRoutes);
@@ -45,6 +46,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/loan-products', loanProductRoutes);
 app.use('/api/audits', auditRoutes);
+app.use('/api/credit-scores', creditScoreRoutes);
 
 
 
