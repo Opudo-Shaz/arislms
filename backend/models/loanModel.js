@@ -67,6 +67,7 @@ const Loan = sequelize.define('Loan', {
 
   amountRepaid: { type: DataTypes.DOUBLE, field: 'amount_repaid', defaultValue: 0 },
   noOfRepayments: { type: DataTypes.INTEGER, defaultValue: 0, field: 'no_of_repayments' },
+  missedPaymentsCount: { type: DataTypes.INTEGER, defaultValue: 0, field: 'missed_payments_count', comment: 'Number of missed/overdue payments' },
 
   fees: { type: DataTypes.DECIMAL(14,2), defaultValue: 0, field: 'fees' },
   penalties: { type: DataTypes.DECIMAL(14,2), defaultValue: 0, field: 'penalties' },

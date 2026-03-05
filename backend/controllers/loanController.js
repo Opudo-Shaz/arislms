@@ -4,6 +4,7 @@ const { getUserId, isAdmin } = require('../utils/helpers');
 const { validateSync } = require('../utils/validationMiddleware');
 const LoanResponseDto = require('../dtos/loan/LoanResponseDto');
 const LoanRequestDto = require('../dtos/loan/LoanRequestDto');
+const missedPaymentService = require('../utils/missedPaymentService');
 
 exports.getAllLoans = async (req, res) => {
   try {
@@ -377,6 +378,132 @@ exports.disburseLoan = async (req, res) => {
     return res.status(status).json({
       success: false,
       message: msg
+    });
+  }
+};
+
+// === MISSED PAYMENTS ENDPOINTS ===
+
+/**
+ * Get missed payments count for a specific loan
+ */
+exports.getLoanMissedPayments = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const loanId = req.params.id;
+
+    logger.info(`User ${userId} fetching missed payments for loan ${loanId}`);
+
+    const missedPayments = await missedPaymentService.getMissedRepaymentsForLoan(loanId);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        loanId,
+        missedPaymentsCount: missedPayments.length,
+        missedPayments
+      }
+    });
+  } catch (error) {
+    logger.error(`GetLoanMissedPayments Error (${req.params.id}): ${error.message}`);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching missed payments'
+    });
+  }
+};
+
+/**
+ * Update missed payment status for a specific loan
+ */
+exports.updateLoanMissedPaymentCount = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const loanId = req.params.id;
+
+    logger.info(`User ${userId} updating missed payment count for loan ${loanId}`);
+
+    const result = await missedPaymentService.updateLoanMissedPaymentCount(loanId);
+
+    return res.status(200).json({
+      success: true,
+      message: `Loan updated with ${result.missedCount} missed payment(s)`,
+      data: {
+        loanId,
+        missedPaymentsCount: result.missedCount,
+        loan: new LoanResponseDto(result.updatedLoan)
+      }
+    });
+  } catch (error) {
+    logger.error(`UpdateLoanMissedPaymentCount Error (${req.params.id}): ${error.message}`);
+
+    if (/not found/i.test(error.message)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Loan not found'
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error updating missed payment count'
+    });
+  }
+};
+
+/**
+ * Get all loans with missed payments
+ */
+exports.getLoansWithMissedPayments = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+
+    logger.info(`User ${userId} fetching all loans with missed payments`);
+
+    const loans = await missedPaymentService.getLoansWithMissedPayments();
+    const result = loans.map(l => new LoanResponseDto(l));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        loansWithMissedPaymentsCount: loans.length,
+        loans: result
+      }
+    });
+  } catch (error) {
+    logger.error(`GetLoansWithMissedPayments Error: ${error.message}`);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching loans with missed payments'
+    });
+  }
+};
+
+/**
+ * Batch update all missed payments across all loans
+ * Should be called periodically (e.g., via cron job)
+ */
+exports.batchUpdateMissedPayments = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+
+    logger.info(`User ${userId} triggering batch update of missed payments`);
+
+    const result = await missedPaymentService.updateAllMissedPayments();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Batch update of missed payments completed',
+      data: result
+    });
+  } catch (error) {
+    logger.error(`BatchUpdateMissedPayments Error: ${error.message}`);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error updating missed payments'
     });
   }
 };

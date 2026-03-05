@@ -8,7 +8,11 @@ const {
   deleteLoan,
   getMyLoans,
   approveLoan,
-  disburseLoan
+  disburseLoan,
+  getLoanMissedPayments,
+  updateLoanMissedPaymentCount,
+  getLoansWithMissedPayments,
+  batchUpdateMissedPayments
 } = require('../controllers/loanController');
 
 const { authenticate, authorize } = require('../middleware/authMiddleware');
@@ -63,6 +67,36 @@ router.get('/', authenticate, authorize([1,2]), getAllLoans);
  *                 balance: 4200
  */
 router.get('/my', authenticate, getMyLoans);
+
+/**
+ * @openapi
+ * /api/loans/missed-payments/all:
+ *   get:
+ *     summary: Get all loans with missed payments
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all loans with missed payments
+ */
+router.get('/missed-payments/all', authenticate, authorize([1,2]), getLoansWithMissedPayments);
+
+/**
+ * @openapi
+ * /api/loans/missed-payments/batch-update:
+ *   post:
+ *     summary: Batch update missed payments for all loans
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Batch update completed
+ */
+router.post('/missed-payments/batch-update', authenticate, authorize([1,2]), batchUpdateMissedPayments);
 
 /**
  * @openapi
@@ -339,6 +373,62 @@ router.post('/:id/disburse', authenticate, authorize([1,2]), disburseLoan);
  *         description: Loan not found
  */
 router.post('/:id/approve', authenticate, authorize([1,2]), approveLoan);
+
+/**
+ * @openapi
+ * /api/loans/{id}/missed-payments:
+ *   get:
+ *     summary: Get missed payments for a loan
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: List of missed payments for the loan
+ *         content:
+ *           application/json:
+ *             example:
+ *               loanId: 1
+ *               missedPaymentsCount: 2
+ *               missedPayments:
+ *                 - id: 5
+ *                   installmentNumber: 2
+ *                   dueDate: "2026-01-15"
+ *                   totalAmount: 1000
+ *                   status: overdue
+ *                   isMissed: true
+ */
+router.get('/:id/missed-payments', authenticate, getLoanMissedPayments);
+
+/**
+ * @openapi
+ * /api/loans/{id}/update-missed-payments:
+ *   post:
+ *     summary: Update missed payment count for a loan
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: Missed payment count updated successfully
+ */
+router.post('/:id/update-missed-payments', authenticate, authorize([1,2]), updateLoanMissedPaymentCount);
 
 
 module.exports = router;
