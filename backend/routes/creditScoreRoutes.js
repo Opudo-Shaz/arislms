@@ -67,7 +67,7 @@ router.get('/', authenticate, authorize([1, 2]), getAllCreditScores);
  *                 riskScore: 45
  *                 riskGrade: D
  */
-router.get('/client/:clientId', authenticate, getCreditScoresByClient);
+router.get('/client/:clientId', authenticate, authorize([1, 2]), getCreditScoresByClient);
 
 /**
  * @openapi
@@ -96,7 +96,7 @@ router.get('/client/:clientId', authenticate, getCreditScoresByClient);
  *               riskScore: 75
  *               riskGrade: B
  */
-router.get('/loan/:loanId', authenticate, getCreditScoreByLoan);
+router.get('/loan/:loanId', authenticate, authorize([1, 2]), getCreditScoreByLoan);
 
 /**
  * @openapi
@@ -127,7 +127,7 @@ router.get('/loan/:loanId', authenticate, getCreditScoreByLoan);
  *               riskGrade: D
  *               riskDti: 0.35
  */
-router.get('/:id', authenticate, getCreditScore);
+router.get('/:id', authenticate, authorize([1, 2]), getCreditScore);
 
 /**
  * @openapi

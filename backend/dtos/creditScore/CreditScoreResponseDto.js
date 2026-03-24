@@ -11,8 +11,8 @@ class CreditScoreResponseDto {
     this.scoringModelVersion = creditScore.scoringModelVersion;
     this.evaluatedBy = creditScore.evaluatedBy;
     this.notes = creditScore.notes;
-    this.createdAt = creditScore.createdAt;
-    this.updatedAt = creditScore.updatedAt;
+    this.createdAt = creditScore.createdAt || creditScore.created_at;
+    this.updatedAt = creditScore.updatedAt || creditScore.updated_at;
   }
 
   static fromArray(scoreArray) {

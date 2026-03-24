@@ -5,7 +5,7 @@ const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
 
 const creditScoreService = {
-  // ✅ Create credit score
+  // Create credit score
   async createCreditScore(data, user, userAgent = 'unknown') {
     try {
       const creatorId = user?.id || null;
@@ -58,7 +58,7 @@ const creditScoreService = {
     }
   },
 
-  // ✅ Get all credit scores
+  // Get all credit scores
   async getAllCreditScores() {
     try {
       const creditScores = await CreditScore.findAll({
@@ -75,7 +75,7 @@ const creditScoreService = {
     }
   },
 
-  // ✅ Get credit scores by client
+  // Get credit scores by client
   async getCreditScoresByClientId(clientId) {
     try {
       const creditScores = await CreditScore.findAll({
@@ -83,7 +83,7 @@ const creditScoreService = {
         include: [
           { model: Loan, required: false }
         ],
-        order: [['createdAt', 'DESC']]
+        order: [['created_at', 'DESC']]
       });
       logger.info(`Retrieved credit scores for client ${clientId}`);
       return creditScores;
@@ -93,7 +93,7 @@ const creditScoreService = {
     }
   },
 
-  // ✅ Get credit score by loan
+  //  Get credit score by loan
   async getCreditScoreByLoanId(loanId) {
     try {
       const creditScore = await CreditScore.findOne({
@@ -112,7 +112,7 @@ const creditScoreService = {
     }
   },
 
-  // ✅ Get single credit score by ID
+  //  Get single credit score by ID
   async getCreditScoreById(id) {
     try {
       const creditScore = await CreditScore.findByPk(id, {
@@ -130,7 +130,7 @@ const creditScoreService = {
     }
   },
 
-  // ✅ Update credit score
+  //  Update credit score
   async updateCreditScore(id, data, updatorId = null, userAgent = 'unknown') {
     try {
       const creditScore = await CreditScore.findByPk(id);
@@ -175,7 +175,7 @@ const creditScoreService = {
     }
   },
 
-  // ✅ Delete credit score
+  //  Delete credit score
   async deleteCreditScore(id, deletorId = null, userAgent = 'unknown') {
     try {
       const creditScore = await CreditScore.findByPk(id);

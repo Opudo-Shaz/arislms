@@ -88,7 +88,8 @@ const loanService = {
   async createLoan(data, createdByUser, userAgent) {
     try {
       const creatorId = createdByUser?.id || null;
-      if(!isAdmin(createdByUser?.role_id)) {
+      const role = Number(createdByUser?.role_id ?? createdByUser?.role);
+      if(!isAdmin(role)) {
         throw new Error('User not authorized to create loans');
       }
       logger.info(`loanService.createLoan called by user ${creatorId}`);
@@ -209,7 +210,8 @@ const loanService = {
   async createLoanWithCreditScoring(data, createdByUser, userAgent = 'unknown') {
     try {
       const creatorId = createdByUser?.id || null;
-      if (!isAdmin(createdByUser?.role_id)) {
+      const role = Number(createdByUser?.role_id ?? createdByUser?.role);
+      if (!isAdmin(role)) {
         throw new Error('User not authorized to create loans');
       }
       logger.info(`loanService.createLoanWithCreditScoring called by user ${creatorId}`);
