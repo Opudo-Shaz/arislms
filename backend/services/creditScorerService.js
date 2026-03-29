@@ -58,7 +58,7 @@ function calculateCreditScore(client = {}, loans = [], options = {}) {
 
   // 3. Repayment history
   const missedPayments = loans.reduce(
-    (sum, l) => sum + Number(l.missedPayments || 0),
+    (sum, l) => sum + Number(l.missedPaymentsCount || 0),
     0
   );
 

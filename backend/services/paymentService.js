@@ -82,6 +82,8 @@ async createPayment(data, user, userAgent = 'unknown') {
       notes: data.notes || null,
     }, { transaction: t });
 
+    //TODO: Update loan repayment schedule to reflect this payment (mark installments as paid, adjust future due amounts, etc.)
+
     // Update loan outstanding balance
     const newBalanceRaw = outstanding - appliedToPrincipal;
     const newBalance = newBalanceRaw < 0 ? 0 : Number(newBalanceRaw.toFixed(2));
