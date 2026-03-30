@@ -2,12 +2,113 @@ const { v4: uuidv4 } = require('uuid');
 const Payment = require('../models/paymentModel');
 const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
+const RepaymentSchedule = require('../models/repaymentScheduleModel');
 const sequelize = require('../config/sequalize_db');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
 
 const paymentService = {
-async getAllPayments(role, userId) {
+  /**
+   * Updates repayment schedule installments to reflect a payment made
+   * @param {number} loanId - The loan ID
+   * @param {number} appliedToPrincipal - Amount applied to principal
+   * @param {number} appliedToInterest - Amount applied to interest
+   * @param {Date} paymentDate - Date of the payment
+   * @param {object} transaction - Sequelize transaction object
+   */
+  async updateRepaymentSchedule(loanId, appliedToPrincipal, appliedToInterest, paymentDate, transaction) {
+    try {
+      // Fetch all unpaid/partial installments for this loan, ordered by installment number
+      const installments = await RepaymentSchedule.findAll({
+        where: {
+          loanId,
+          status: ['pending', 'partial']
+        },
+        order: [['installmentNumber', 'ASC']],
+        transaction
+      });
+
+      if (installments.length === 0) {
+        logger.warn(`No pending installments found for loan ${loanId}`);
+        return;
+      }
+
+      let remainingPrincipal = appliedToPrincipal;
+      let remainingInterest = appliedToInterest;
+
+      // Apply payment to installments in order
+      for (const element of installments) {
+        const installment = element;
+        const outstandingPrincipal = Number(installment.principalAmount) - Number(installment.paidAmount || 0);
+        const outstandingInterest = Number(installment.interestAmount) - Number(installment.paidAmount || 0);
+        const outstandingTotal = outstandingPrincipal + outstandingInterest;
+
+        if (remainingPrincipal + remainingInterest <= 0) {
+          break; // No more payment to apply
+        }
+
+        // Calculate payment for this installment
+        let paymentToThisInstallment = 0;
+        let interestForThisInstallment = 0;
+        let principalForThisInstallment = 0;
+
+        // Prioritize interest payment first, then principal
+        if (remainingInterest > 0) {
+          interestForThisInstallment = Math.min(remainingInterest, outstandingInterest);
+          remainingInterest -= interestForThisInstallment;
+        }
+
+        if (remainingPrincipal > 0) {
+          principalForThisInstallment = Math.min(remainingPrincipal, outstandingPrincipal);
+          remainingPrincipal -= principalForThisInstallment;
+        }
+
+        paymentToThisInstallment = interestForThisInstallment + principalForThisInstallment;
+        const newPaidAmount = Number(installment.paidAmount || 0) + paymentToThisInstallment;
+
+        // Determine status based on amount paid
+        let newStatus = 'partial';
+        if (newPaidAmount >= outstandingTotal) {
+          newStatus = 'paid';
+        }
+
+        // Check if payment is made after due date
+        const isMissed = paymentDate > new Date(installment.dueDate);
+
+        // Update installment
+        await installment.update({
+          paidAmount: Number(newPaidAmount.toFixed(2)),
+          paidDate: newStatus === 'paid' ? paymentDate : installment.paidDate,
+          status: newStatus,
+          isMissed: isMissed || installment.isMissed // Keep missed flag if already set
+        }, { transaction });
+
+        logger.info(`Updated installment ${installment.installmentNumber} for loan ${loanId}: status=${newStatus}, paidAmount=${newPaidAmount}`);
+      }
+
+      // Update remaining balance for all installments after the paid ones
+      const allInstallments = await RepaymentSchedule.findAll({
+        where: { loanId },
+        order: [['installmentNumber', 'ASC']],
+        transaction
+      });
+
+      let cumulativePaid = 0;
+      for (const element of allInstallments) {
+        const inst = element;
+        cumulativePaid += Number(inst.paidAmount || 0);
+        const remainingBalance = Math.max(0, Number(inst.remainingBalance) - (appliedToPrincipal + appliedToInterest));
+        
+        await inst.update({ remainingBalance: Number(remainingBalance.toFixed(2)) }, { transaction });
+      }
+
+    } catch (error) {
+      logger.error(`Error updating repayment schedule for loan ${loanId}: ${error.message}`);
+      throw error;
+    }
+  },
+
+  async getAllPayments(role, userId) {
   try {
     logger.info(`paymentService.getAllPayments called by user ${userId} (${role})`);
 
@@ -82,7 +183,9 @@ async createPayment(data, user, userAgent = 'unknown') {
       notes: data.notes || null,
     }, { transaction: t });
 
-    //TODO: Update loan repayment schedule to reflect this payment (mark installments as paid, adjust future due amounts, etc.)
+    // Update loan repayment schedule to reflect this payment (mark installments as paid, adjust future due amounts, etc.)
+    await this.updateRepaymentSchedule(data.loanId, appliedToPrincipal, appliedToInterest, new Date(), t);
+ 
 
     // Update loan outstanding balance
     const newBalanceRaw = outstanding - appliedToPrincipal;

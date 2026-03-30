@@ -106,7 +106,14 @@ const loanService = {
       const termMonths = product.repaymentPeriodMonths;
       const loanCurrency = product.currency || 'KES';
       const fees = product.fees || 0;
-
+//check if client exist and KYC status before creating loan
+      const client = await Client.findByPk(data.clientId);
+      if (!client) {
+        throw new Error('Client not found');
+      }
+      if (client.kycStatus !== 'verified') {
+        throw new Error('Client KYC not verified. Cannot create loan.');
+      }
       // Validate co-signer exists if provided
       if (data.coSignerId) {
         const coSigner = await User.findByPk(data.coSignerId);
