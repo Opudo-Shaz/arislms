@@ -149,6 +149,11 @@ async createPayment(data, user, userAgent = 'unknown') {
     const loan = await Loan.findByPk(data.loanId, { include: [{ model: LoanProduct }] });
     if (!loan) throw new Error('Loan not found');
 
+    // Validate that the clientId in the request matches the loan's clientId
+    if (Number(loan.clientId) !== Number(data.clientId)) {
+      throw new Error('Client ID does not match loan client');
+    }
+
     const paymentAmount = Number(parseFloat(data.amount));
     if (!isFinite(paymentAmount) || paymentAmount <= 0) throw new Error('Payment amount must be greater than zero');
 
@@ -187,10 +192,17 @@ async createPayment(data, user, userAgent = 'unknown') {
     await this.updateRepaymentSchedule(data.loanId, appliedToPrincipal, appliedToInterest, new Date(), t);
  
 
-    // Update loan outstanding balance
+    // Update loan outstanding balance, amount repaid, and repayment count
+    const currentAmountRepaid = Number(loan.amountRepaid || 0);
+    const currentNoOfRepayments = Number(loan.noOfRepayments || 0);
     const newBalanceRaw = outstanding - appliedToPrincipal;
     const newBalance = newBalanceRaw < 0 ? 0 : Number(newBalanceRaw.toFixed(2));
-    await loan.update({ outstandingBalance: newBalance }, { transaction: t });
+    
+    await loan.update({ 
+      outstandingBalance: newBalance,
+      amountRepaid: Number((currentAmountRepaid + appliedToPrincipal).toFixed(2)),
+      noOfRepayments: currentNoOfRepayments + 1
+    }, { transaction: t });
 
     // Log to audit table after successful creation
     await AuditLogger.log({

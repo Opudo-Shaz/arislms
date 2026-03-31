@@ -2,6 +2,7 @@ const Joi = require('joi');
 
 class PaymentRequestDto {
   constructor(data) {
+    this.clientId = data.clientId;
     this.loanId = data.loanId;
     this.amount = data.amount;
     this.currency = data.currency || 'KES';
@@ -15,11 +16,16 @@ class PaymentRequestDto {
     this.fees = data.fees || 0;
     this.penalties = data.penalties || 0;
     this.notes = data.notes;
-    this.processedBy = data.processedBy;
   }
 
   // Joi schema for creating a payment
   static createSchema = Joi.object({
+    clientId: Joi.number().integer().required()
+      .messages({
+        'number.base': 'Client ID must be a number',
+        'any.required': 'Client ID is required'
+      }),
+
     loanId: Joi.number().integer().required()
       .messages({
         'number.base': 'Loan ID must be a number',
@@ -89,17 +95,11 @@ class PaymentRequestDto {
       .messages({
         'string.base': 'Notes must be a string'
       }),
-
-    processedBy: Joi.number().integer().required()
-      .messages({
-        'number.base': 'Processed by must be a number',
-        'any.required': 'Processed by is required'
-      })
   });
 
   // Joi schema for updating a payment
   static updateSchema = PaymentRequestDto.createSchema.fork(
-    ['loanId', 'amount', 'processedBy'],
+    ['clientId', 'loanId', 'amount'],
     (schema) => schema.optional()
   );
 }
