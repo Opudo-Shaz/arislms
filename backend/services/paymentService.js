@@ -110,9 +110,10 @@ const paymentService = {
 
   async getAllPayments(role, userId) {
   try {
-    logger.info(`paymentService.getAllPayments called by user ${userId} (${role})`);
+    logger.info(`paymentService.getAllPayments called by user ${userId} (role: ${role})`);
 
-    if (role === 'admin') {
+    // Admin roles are 1 and 2
+    if ([1, 2].includes(Number(role))) {
       return await Payment.findAll({ include: [{ model: Loan }] });
     }
 

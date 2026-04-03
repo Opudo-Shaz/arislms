@@ -20,7 +20,7 @@ const Loan = sequelize.define('Loan', {
   },
 
   principalAmount: { type: DataTypes.DECIMAL(14,2), allowNull: false, field: 'principal_amount' },
-  currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'USD' },
+  currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'KES' },
 
   interestRate: { type: DataTypes.DECIMAL(6,4), allowNull: false, field: 'interest_rate' },
   interestType: { type: DataTypes.STRING, allowNull: true, defaultValue: InterestType.FIXED, field: 'interest_type' },
