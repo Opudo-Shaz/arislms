@@ -12,9 +12,6 @@ class PaymentRequestDto {
     this.payerPhone = data.payerPhone;
     this.transactionDate = data.transactionDate;
     this.paymentDate = data.paymentDate;
-    this.status = data.status || 'completed';
-    this.fees = data.fees || 0;
-    this.penalties = data.penalties || 0;
     this.notes = data.notes;
   }
 
@@ -72,23 +69,6 @@ class PaymentRequestDto {
     paymentDate: Joi.date().iso().default(() => new Date())
       .messages({
         'date.base': 'Payment date must be a valid date'
-      }),
-
-    status: Joi.string()
-      .valid('pending', 'completed', 'failed', 'reversed')
-      .default('completed')
-      .messages({
-        'any.only': 'Invalid payment status'
-      }),
-
-    fees: Joi.number().min(0).default(0)
-      .messages({
-        'number.min': 'Fees cannot be negative'
-      }),
-
-    penalties: Joi.number().min(0).default(0)
-      .messages({
-        'number.min': 'Penalties cannot be negative'
       }),
 
     notes: Joi.string().allow(null, '')

@@ -85,7 +85,7 @@ const loanService = {
     }
   },
 
-  async createLoan(data, createdByUser, userAgent) {
+  async createLoanWithoutCreditScoring(data, createdByUser, userAgent) {
     try {
       const creatorId = createdByUser?.id || null;
       const role = Number(createdByUser?.role_id ?? createdByUser?.role);
@@ -214,7 +214,7 @@ const loanService = {
    * @param {string} userAgent - Source of the action
    * @returns {Promise<Object>} Created loan with risk assessment data
    */
-  async createLoanWithCreditScoring(data, createdByUser, userAgent = 'unknown') {
+  async createLoan(data, createdByUser, userAgent = 'unknown') {
     try {
       const creatorId = createdByUser?.id || null;
       const role = Number(createdByUser?.role_id ?? createdByUser?.role);
@@ -337,6 +337,7 @@ const loanService = {
       // 8. Create CreditScore record with risk assessment data
       const creditScorePayload = {
         loanId: newLoan.id,
+        clientId: data.clientId,
         riskScore,
         riskGrade,
         riskDti,
@@ -360,7 +361,7 @@ const loanService = {
       await AuditLogger.log({
         entityType: 'LOAN',
         entityId: newLoan.id,
-        action: 'CREATE_WITH_SCORING',
+        action: 'CREATE',
         data: {
           loanPayload,
           scoringResult: {
