@@ -155,15 +155,15 @@ async createPayment(data, user, userAgent = 'unknown') {
       throw new Error('Client ID does not match loan client');
     }
 
-    const paymentAmount = Number(parseFloat(data.amount));
-    if (!isFinite(paymentAmount) || paymentAmount <= 0) throw new Error('Payment amount must be greater than zero');
+    const paymentAmount = Number(Number.parseFloat(data.amount));
+    if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) throw new Error('Payment amount must be greater than zero');
 
-    const outstanding = Number(parseFloat(loan.outstandingBalance));
+    const outstanding = Number(Number.parseFloat(loan.outstandingBalance));
     if (paymentAmount > outstanding) throw new Error('Payment amount exceeds outstanding balance');
 
     // Determine interest rate from loanProduct (fallback to loan.interestRate)
     const interestSource = loan.LoanProduct || loan.loanProduct || null;
-    const interestRate = interestSource ? Number(parseFloat(interestSource.interestRate || loan.interestRate)) : Number(parseFloat(loan.interestRate));
+    const interestRate = interestSource ? Number(Number.parseFloat(interestSource.interestRate || loan.interestRate)) : Number(Number.parseFloat(loan.interestRate));
     const monthlyInterest = (outstanding * (interestRate / 100) / 12);
 
     const appliedToInterestRaw = Math.min(paymentAmount, monthlyInterest);
