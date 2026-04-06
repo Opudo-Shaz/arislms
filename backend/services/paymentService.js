@@ -195,6 +195,27 @@ async createPayment(data, user, userAgent = 'unknown') {
       throw new Error('Client ID does not match loan client');
     }
 
+    // Validate payment currency matches loan currency
+    if (data.currency && data.currency.toUpperCase() !== loan.currency.toUpperCase()) {
+      throw new Error(
+        `Currency mismatch: payment currency '${data.currency}' does not match loan currency '${loan.currency}'`
+      );
+    }
+
+    // Validate externalRef uniqueness per client if provided.
+    // Scoped to client (via loan.clientId) because different payment providers
+    // may coincidentally generate the same reference for different clients.
+    if (data.externalRef) {
+      const existing = await Payment.findOne({
+        where: { externalRef: data.externalRef },
+        include: [{ model: Loan, where: { clientId: data.clientId }, required: true }],
+        transaction: t
+      });
+      if (existing) {
+        throw new Error(`Duplicate external reference: '${data.externalRef}' already exists for this client (payment ID ${existing.id})`);
+      }
+    }
+
     const paymentAmount = Number(parseFloat(data.amount));
     if (!isFinite(paymentAmount) || paymentAmount <= 0) {
       throw new Error('Payment amount must be greater than zero');

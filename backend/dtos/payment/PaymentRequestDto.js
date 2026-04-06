@@ -11,7 +11,6 @@ class PaymentRequestDto {
     this.payerName = data.payerName;
     this.payerPhone = data.payerPhone;
     this.transactionDate = data.transactionDate;
-    this.paymentDate = data.paymentDate;
     this.notes = data.notes;
   }
 
@@ -36,9 +35,10 @@ class PaymentRequestDto {
         'any.required': 'Amount is required'
       }),
 
-    currency: Joi.string().length(3).default('KES')
+    currency: Joi.string().length(3).uppercase().required()
       .messages({
-        'string.length': 'Currency must be a 3-letter code'
+        'string.length': 'Currency must be a 3-letter code',
+        'any.required': 'Currency is required'
       }),
 
     paymentMethod: Joi.string().max(32).allow(null, '')
@@ -61,14 +61,10 @@ class PaymentRequestDto {
         'string.pattern.base': 'Payer phone must be a valid phone number'
       }),
 
-    transactionDate: Joi.date().iso().allow(null)
+    transactionDate: Joi.date().iso().required()
       .messages({
-        'date.base': 'Transaction date must be a valid date'
-      }),
-
-    paymentDate: Joi.date().iso().default(() => new Date())
-      .messages({
-        'date.base': 'Payment date must be a valid date'
+        'date.base': 'Transaction date must be a valid date',
+        'any.required': 'Transaction date is required'
       }),
 
     notes: Joi.string().allow(null, '')

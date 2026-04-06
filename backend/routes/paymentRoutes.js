@@ -72,10 +72,16 @@ router.get('/loan/:loanId', authenticate, paymentController.getByLoan);
  *       content:
  *         application/json:
  *           example:
- *             loanId: 10
- *             amount: 500
- *             paymentDate: 2026-01-25
- *             method: cash
+ *             clientId: 1
+ *             loanId: 2
+ *             amount: 1800
+ *             currency: "KES"
+ *             paymentMethod: "MPESA"
+ *             externalRef: "MP250404001234"
+ *             payerName: "John Doe"
+ *             payerPhone: "+254712345678"
+ *             transactionDate: "2026-04-04"
+ *             notes: "Monthly installment payment - April 2026"
  *     responses:
  *       201:
  *         description: Payment recorded successfully
