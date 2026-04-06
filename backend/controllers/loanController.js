@@ -97,7 +97,7 @@ exports.getLoanById = async (req, res) => {
   }
 };
 
-exports.createLoan = async (req, res) => {
+exports.createLoanWithoutCreditScoring = async (req, res) => {
   try {
     const userId = getUserId(req);
     const userAgent = req.headers['user-agent'];
@@ -116,7 +116,7 @@ exports.createLoan = async (req, res) => {
       });
     }
 
-    const newLoan = await loanService.createLoan(validation.value, req.user, userAgent);
+    const newLoan = await loanService.createLoanWithoutCreditScoring(validation.value, req.user, userAgent);
 
     return res.status(201).json({
       success: true,
@@ -135,9 +135,9 @@ exports.createLoan = async (req, res) => {
 
 /**
  * Create a new loan with integrated credit scoring and risk policy evaluation
- * POST /loans/with-scoring
+ * POST /loans
  */
-exports.createLoanWithCreditScoring = async (req, res) => {
+exports.createLoan = async (req, res) => {
   try {
     const userId = getUserId(req);
     const userAgent = req.headers['user-agent'];
@@ -155,7 +155,7 @@ exports.createLoanWithCreditScoring = async (req, res) => {
       });
     }
 
-    const newLoan = await loanService.createLoanWithCreditScoring(validation.value, req.user, userAgent);
+    const newLoan = await loanService.createLoan(validation.value, req.user, userAgent);
 
     return res.status(201).json({
       success: true,
@@ -163,7 +163,7 @@ exports.createLoanWithCreditScoring = async (req, res) => {
       data: new LoanResponseDto(newLoan)
     });
   } catch (error) {
-    logger.error(`CreateLoanWithCreditScoring Error: ${error.message}`);
+    logger.error(`CreateLoan Error: ${error.message}`);
 
     // Return 422 for policy rejection (unprocessable entity)
     const status = error.message.includes('rejected by risk policy') ? 422 : 500;

@@ -3,7 +3,7 @@ const {
   getAllLoans,
   getLoanById,
   createLoan,
-  createLoanWithCreditScoring,
+  createLoanWithoutCreditScoring,
   updateLoan,
   deleteLoan,
   getMyLoans,
@@ -132,7 +132,22 @@ router.get('/:id', authenticate, getLoanById);
  * @openapi
  * /api/loans:
  *   post:
- *     summary: Create a new loan
+ *     summary: Create a new loan with credit scoring
+ *     description: |
+ *       Creates a new loan application and automatically runs it through the credit scoring
+ *       and risk policy engines before setting the initial status.
+ *
+ *       **Credit Scoring Flow:**
+ *       - Client data and existing loan history are evaluated by the scoring engine.
+ *       - A risk score, risk grade (A–E), and DTI (debt-to-income ratio) are calculated.
+ *       - The risk policy engine then makes a decision: `APPROVED`, `MANUAL_REVIEW`, or `REJECTED`.
+ *
+ *       **Resulting Loan Status:**
+ *       - `APPROVED` decision → loan is set to `under_review` (awaiting admin approval)
+ *       - `MANUAL_REVIEW` or `REJECTED` decision → loan is set to `pending` (requires manual review)
+ *
+ *       Interest rates, term, fees, and currency are derived from the selected loan product.
+ *       The client must have a verified KYC status to be eligible.
  *     tags:
  *       - Loans
  *     security:
@@ -141,48 +156,69 @@ router.get('/:id', authenticate, getLoanById);
  *       required: true
  *       content:
  *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - clientId
+ *               - loanProductId
+ *               - principalAmount
+ *               - startDate
+ *             properties:
+ *               clientId:
+ *                 type: integer
+ *                 description: ID of the client applying for the loan
+ *                 example: 1
+ *               loanProductId:
+ *                 type: integer
+ *                 description: ID of the loan product to apply (determines interest rate, term, fees)
+ *                 example: 1
+ *               principalAmount:
+ *                 type: number
+ *                 description: Requested loan amount
+ *                 example: 20000
+ *               startDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Desired loan start date (YYYY-MM-DD)
+ *                 example: "2026-04-04"
+ *               termMonths:
+ *                 type: integer
+ *                 description: Loan term in months. Defaults to the loan product's repayment period if omitted.
+ *                 example: 12
+ *               collateral:
+ *                 type: object
+ *                 description: Collateral provided to secure the loan
+ *                 properties:
+ *                   type:
+ *                     type: string
+ *                     example: "Logbook"
+ *                   details:
+ *                     type: string
+ *                     example: "Toyota Vitz 2018, KBZ 123A"
+ *               coSignerId:
+ *                 type: integer
+ *                 nullable: true
+ *                 description: User ID of the co-signer (optional)
+ *                 example: null
+ *               notes:
+ *                 type: string
+ *                 nullable: true
+ *                 description: Any additional notes for the loan application
+ *                 example: "First loan application for client."
  *           example:
- *             clientId: 5
- *             amount: 15000
- *             interestRate: 12
- *             durationMonths: 24
- *     responses:
- *       201:
- *         description: Loan created successfully
- *         content:
- *           application/json:
- *             example:
- *               id: 25
- *               clientId: 5
- *               amount: 15000
- *               status: pending
- */
-router.post('/', authenticate, authorize([1,2]), createLoan);
-
-/**
- * @openapi
- * /api/loans/with-scoring:
- *   post:
- *     summary: Create a new loan with integrated credit scoring and risk policy evaluation
- *     tags:
- *       - Loans
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           description: Loan application with client and product details
- *           example:
- *             clientId: 5
+ *             clientId: 1
  *             loanProductId: 1
- *             principalAmount: 15000
- *             startDate: "2026-02-23"
+ *             principalAmount: 20000
+ *             startDate: "2026-04-04"
  *             termMonths: 12
- *             collateral: { type: "vehicle", value: 20000 }
+ *             collateral:
+ *               type: "Logbook"
+ *               details: "Toyota Vitz 2018, KBZ 123A"
+ *             coSignerId: null
+ *             notes: "First loan application for client."
  *     responses:
  *       201:
- *         description: Loan created successfully with credit scoring results
+ *         description: Loan created and scored successfully
  *         content:
  *           application/json:
  *             example:
@@ -190,25 +226,85 @@ router.post('/', authenticate, authorize([1,2]), createLoan);
  *               message: Loan created successfully with credit scoring
  *               data:
  *                 id: 25
- *                 clientId: 5
- *                 referenceCode: "LN-ABC123DE"
- *                 status: pending
- *                 riskScore: 4
- *                 riskGrade: B
- *                 riskDti: 0.35
+ *                 clientId: 1
+ *                 loanProductId: 1
+ *                 referenceCode: "LN-A1B2C3D4"
+ *                 principalAmount: 20000
+ *                 interestRate: 15.5
+ *                 interestType: "reducing"
+ *                 termMonths: 12
+ *                 installmentAmount: "1823.45"
+ *                 status: "under_review"
+ *                 currency: "KES"
+ *                 startDate: "2026-04-04"
+ *                 endDate: "2027-04-04"
+ *                 creditScore:
+ *                   riskScore: 4
+ *                   riskGrade: "B"
+ *                   riskDti: 0.28
+ *       400:
+ *         description: Validation error — missing or invalid fields
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Validation error
+ *               errors:
+ *                 - "clientId is required"
+ *                 - "principalAmount must be greater than zero"
+ *       401:
+ *         description: Unauthorized — missing or invalid token
+ *       403:
+ *         description: Forbidden — insufficient role permissions
  *       422:
- *         description: Loan application rejected by risk policy
+ *         description: Loan rejected by risk policy
  *         content:
  *           application/json:
  *             example:
  *               success: false
  *               message: "Loan application rejected by risk policy. Risk Grade: E, Score: 1/5"
- *       400:
- *         description: Validation error in request
  *       500:
  *         description: Server error
  */
-router.post('/with-scoring', authenticate, authorize([1,2]), createLoanWithCreditScoring);
+router.post('/', authenticate, authorize([1,2]), createLoan);
+
+/**
+ * @openapi
+ * /api/loans/without-scoring:
+ *   post:
+ *     summary: Create a new loan without credit scoring (manual/override)
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             clientId: 1
+ *             loanProductId: 1
+ *             principalAmount: 20000
+ *             startDate: "2026-04-04"
+ *             collateral: { type: "Logbook", details: "Toyota Vitz 2018" }
+ *     responses:
+ *       201:
+ *         description: Loan created successfully without credit scoring
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: Loan created successfully
+ *               data:
+ *                 id: 25
+ *                 clientId: 1
+ *                 status: pending
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Server error
+ */
+router.post('/without-scoring', authenticate, authorize([1,2]), createLoanWithoutCreditScoring);
 
 /**
  * @openapi
