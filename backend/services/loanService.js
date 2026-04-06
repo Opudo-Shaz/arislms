@@ -94,6 +94,16 @@ const loanService = {
       }
       logger.info(`loanService.createLoan called by user ${creatorId}`);
 
+      // Check if client has any approved/active loans before allowing creation of new loan application
+      if (!data.clientId) throw new Error('clientId is required');
+      const existingLoans = await Loan.findAll({
+        where: { clientId: data.clientId, status: [LoanStatus.APPROVED, LoanStatus.DISBURSED, LoanStatus.IN_REVIEW, LoanStatus.ACTIVE] }
+      });
+
+      if (existingLoans.length > 0) {
+        throw new Error('Client has an existing approved or active loan');
+      }
+
       if (!data.loanProductId) throw new Error('loanProductId is required');
 
       // Load loan product
@@ -106,7 +116,9 @@ const loanService = {
       const termMonths = product.repaymentPeriodMonths;
       const loanCurrency = product.currency || 'KES';
       const fees = product.fees || 0;
-//check if client exist and KYC status before creating loan
+
+    
+      //check if client exist and KYC status before creating loan
       const client = await Client.findByPk(data.clientId);
       if (!client) {
         throw new Error('Client not found');
