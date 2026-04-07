@@ -48,7 +48,7 @@ const options = {
     }]
   },
   
-  // 👇 IMPORTANT: point this to your route files
+  // IMPORTANT: point this to your route files
   apis: ["./routes/*.js"],
 };
 

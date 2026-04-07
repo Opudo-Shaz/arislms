@@ -7,7 +7,8 @@ const {
   deleteLoan,
   getMyLoans,
   approveLoan,
-  disburseLoan
+  disburseLoan,
+  updatePrincipalAmount
 } = require('../controllers/loanController');
 
 const { authenticate, authorize } = require('../middleware/authMiddleware');
@@ -287,6 +288,59 @@ router.post('/:id/disburse', authenticate, authorize([1,2]), disburseLoan);
  *         description: Loan not found
  */
 router.post('/:id/approve', authenticate, authorize([1,2]), approveLoan);
+
+/**
+ * @openapi
+ * /api/loans/{id}/principal-amount:
+ *   put:
+ *     summary: Update principal amount before approval (admin only)
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 25
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - newPrincipalAmount
+ *             properties:
+ *               newPrincipalAmount:
+ *                 type: number
+ *                 description: New principal amount (must be positive and different from current)
+ *                 example: 12000
+ *     responses:
+ *       200:
+ *         description: Principal amount updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: Invalid request or loan cannot be updated
+ *       403:
+ *         description: User not authorized
+ *       404:
+ *         description: Loan not found
+ */
+router.put('/:id/principal-amount', authenticate, authorize([1, 2]), updatePrincipalAmount);
 
 
 module.exports = router;

@@ -338,3 +338,58 @@ exports.disburseLoan = async (req, res) => {
     });
   }
 };
+
+exports.updatePrincipalAmount = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+    const loanId = req.params.id;
+    const { newPrincipalAmount } = req.body;
+
+    if (!isAdmin(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'User not authorized to update loan principal amount'
+      });
+    }
+
+    logger.info(`User ${userId} updating principal for loan ${loanId}`);
+
+    // Validate new principal amount is provided
+    if (!newPrincipalAmount) {
+      return res.status(400).json({
+        success: false,
+        message: 'newPrincipalAmount is required'
+      });
+    }
+
+    // Validate it's a positive number
+    const principal = parseFloat(newPrincipalAmount);
+    if (isNaN(principal) || principal <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Principal amount must be a positive number'
+      });
+    }
+
+    const updatedLoan = await loanService.updatePrincipalAmount(loanId, principal, userId, userAgent);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Loan principal amount updated successfully',
+      data: new LoanResponseDto(updatedLoan)
+    });
+  } catch (error) {
+    logger.error(`UpdatePrincipalAmount Error (${req.params.id}): ${error.message}`);
+
+    let status = 500;
+    if (/not found/i.test(error.message)) status = 404;
+    else if (/cannot update|same as current/i.test(error.message)) status = 400;
+    else if (/must be/i.test(error.message)) status = 400;
+
+    return res.status(status).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

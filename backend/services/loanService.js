@@ -685,6 +685,123 @@ const loanService = {
     }
   },
 
+  /**
+   * Update principal amount before loan approval
+   * Only allowed for loans in PENDING, IN_REVIEW, or UNDER_REVIEW status
+   * @param {number} loanId - The loan ID
+   * @param {number} newPrincipalAmount - The new principal amount
+   * @param {number} actorId - User ID performing the action
+   * @param {string} userAgent - Source of the action
+   * @returns {Promise<Object>} Updated loan with recalculated installment
+   */
+  async updatePrincipalAmount(loanId, newPrincipalAmount, actorId = null, userAgent = 'unknown') {
+    try {
+      logger.info(`loanService.updatePrincipalAmount called for loan ${loanId}`);
+
+      // Fetch loan
+      const loan = await Loan.findByPk(loanId, {
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
+      });
+
+      if (!loan) {
+        throw new Error('Loan not found');
+      }
+
+      // Validate loan status - only allow updates before approval
+      const updatableStatuses = [LoanStatus.PENDING, LoanStatus.IN_REVIEW, LoanStatus.UNDER_REVIEW];
+      if (!updatableStatuses.includes(loan.status)) {
+        throw new Error(
+          `Cannot update principal amount for loan in '${loan.status}' status. ` +
+          `Only allowed for loans in PENDING, IN_REVIEW, or UNDER_REVIEW status`
+        );
+      }
+
+      // Validate new principal amount
+      const newPrincipal = parseFloat(newPrincipalAmount);
+      if (isNaN(newPrincipal) || newPrincipal <= 0) {
+        throw new Error('Principal amount must be a positive number');
+      }
+
+      // Check if amount is different
+      if (newPrincipal === loan.principalAmount) {
+        throw new Error('New principal amount is the same as current amount');
+      }
+
+      // Store old values for audit
+      const oldPrincipal = loan.principalAmount;
+      const oldInstallmentAmount = loan.installmentAmount;
+      const difference = newPrincipal - oldPrincipal;
+      const differenceType = difference > 0 ? 'top-up' : 'reduction';
+
+      // Recalculate monthly installment with new principal
+      const newInstallmentAmount = calculateMonthlyPayment(
+        newPrincipal,
+        loan.interestRate,
+        loan.termMonths,
+        loan.interestType
+      );
+
+      // Update loan with new principal and calculated installment
+      await loan.update({
+        principalAmount: newPrincipal,
+        outstandingBalance: newPrincipal,
+        installmentAmount: newInstallmentAmount,
+        paymentSchedule: {
+          type: loan.interestType,
+          termMonths: loan.termMonths,
+          monthlyPayment: newInstallmentAmount
+        }
+      });
+
+      // Reload with associations
+      await loan.reload({
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
+      });
+
+      // Log to audit table
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: loanId,
+        action: 'UPDATE_PRINCIPAL',
+        data: {
+          principalChange: {
+            from: oldPrincipal,
+            to: newPrincipal,
+            difference: Math.abs(difference),
+            type: differenceType
+          },
+          installmentChange: {
+            from: oldInstallmentAmount,
+            to: newInstallmentAmount
+          },
+          loanStatus: loan.status
+        },
+        actorId: actorId || 'system',
+        options: {
+          actorType: 'USER',
+          source: userAgent
+        }
+      });
+
+      logger.info(
+        `Loan ${loanId} principal updated: ${oldPrincipal} -> ${newPrincipal} (${differenceType} of ${Math.abs(difference)}). ` +
+        `Installment recalculated: ${oldInstallmentAmount} -> ${newInstallmentAmount} by user ${actorId}`
+      );
+
+      return loan;
+
+    } catch (error) {
+      logger.error(`Error updating principal amount for loan ${loanId}: ${error.message}`);
+      throw error;
+    }
+  },
+
 };
 
 module.exports = loanService;
