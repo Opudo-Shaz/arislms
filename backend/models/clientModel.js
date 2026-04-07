@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/sequalize_db');
+const ClientStatus = require('../enums/clientStatus');
 
 const Client = sequelize.define('Client', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -26,8 +27,8 @@ const Client = sequelize.define('Client', {
   preferredContactMethod: { type: DataTypes.STRING(16), field: 'preferred_contact_method' },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true, field: 'is_active' },
   status: {
-    type: DataTypes.ENUM('active', 'inactive', 'suspended', 'blacklisted'),
-    defaultValue: 'active',
+    type: DataTypes.ENUM(Object.values(ClientStatus)),
+    defaultValue: ClientStatus.ACTIVE,
     allowNull: false
   },
 

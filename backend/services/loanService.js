@@ -1,13 +1,17 @@
 const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
 const User = require('../models/userModel');
+const Client = require('../models/clientModel');
 const RepaymentSchedule = require('../models/repaymentScheduleModel');
+const CreditScore = require('../models/creditScoreModel');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../config/logger');
 const { calculateEndDate,isAdmin } = require('../utils/helpers'); 
 const LoanStatus = require('../enums/loanStatus');
 const AuditLogger = require('../utils/auditLogger');
 const { generateAmortizationSchedule } = require('../utils/loanCalculator');
+const { calculateCreditScore } = require('./creditScorerService');
+const { getRiskGrade, getDecisionFromScore } = require('./riskPolicyService');
 
 // Calculates monthly payment
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
@@ -36,14 +40,20 @@ const loanService = {
       logger.info(`loanService.getAllLoans called by user ${userId} with role ${role}`);
       if (isAdmin(role)) {
         const loans = await Loan.findAll({
-          include: [{ association: 'repaymentSchedules', required: false }]
+          include: [
+            { association: 'repaymentSchedules', required: false },
+            { association: 'creditScore', required: false }
+          ]
         });
         logger.info(`Retrieved ${loans.length} loans (admin)`);
         return loans;
       }
       const loans = await Loan.findAll({ 
         where: { clientId: userId },
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
       logger.info(`Retrieved ${loans.length} loans for user ${userId}`);
       return loans;
@@ -57,7 +67,10 @@ const loanService = {
     try {
       logger.info(`loanService.getLoanById called for loan ${id} by user ${userId} role ${role}`);
       const loan = await Loan.findByPk(id, {
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
       if (!loan) return null;
 
@@ -72,13 +85,18 @@ const loanService = {
     }
   },
 
-  async createLoan(data, createdByUser, userAgent) {
+  async createLoanWithoutCreditScoring(data, createdByUser, userAgent) {
     try {
       const creatorId = createdByUser?.id || null;
-      if(!isAdmin(createdByUser?.role_id)) {
+      const role = Number(createdByUser?.role_id ?? createdByUser?.role);
+      if(!isAdmin(role)) {
         throw new Error('User not authorized to create loans');
       }
       logger.info(`loanService.createLoan called by user ${creatorId}`);
+
+      // Check if client has any conflicting open loans before allowing creation of new loan application
+      if (!data.clientId) throw new Error('clientId is required');
+      await validateClientOpenLoans(data.clientId);
 
       if (!data.loanProductId) throw new Error('loanProductId is required');
 
@@ -93,6 +111,15 @@ const loanService = {
       const loanCurrency = product.currency || 'KES';
       const fees = product.fees || 0;
 
+    
+      //check if client exist and KYC status before creating loan
+      const client = await Client.findByPk(data.clientId);
+      if (!client) {
+        throw new Error('Client not found');
+      }
+      if (client.kycStatus !== 'verified') {
+        throw new Error('Client KYC not verified. Cannot create loan.');
+      }
       // Validate co-signer exists if provided
       if (data.coSignerId) {
         const coSigner = await User.findByPk(data.coSignerId);
@@ -143,7 +170,7 @@ const loanService = {
         }
       };
 
-      const newLoan = await Loan.create(loanPayload);
+     const newLoan = await Loan.create(loanPayload);
 
       // Validate the created loan before logging
       if (!newLoan || !newLoan.id) {
@@ -181,11 +208,204 @@ const loanService = {
     }
   },
 
+  /**
+   * Create a loan with integrated credit scoring and risk policy evaluation
+   * Runs the application through credit scoring and risk policy engines
+   * before approving or rejecting the loan application
+   * @param {Object} data - Loan application data
+   * @param {Object} createdByUser - User creating the loan
+   * @param {string} userAgent - Source of the action
+   * @returns {Promise<Object>} Created loan with risk assessment data
+   */
+  async createLoan(data, createdByUser, userAgent = 'unknown') {
+    try {
+      const creatorId = createdByUser?.id || null;
+      const role = Number(createdByUser?.role_id ?? createdByUser?.role);
+      if (!isAdmin(role)) {
+        throw new Error('User not authorized to create loans');
+      }
+      logger.info(`loanService.createLoanWithCreditScoring called by user ${creatorId}`);
+
+      if (!data.clientId) throw new Error('clientId is required');
+      if (!data.loanProductId) throw new Error('loanProductId is required');
+      if (!data.principalAmount) throw new Error('principalAmount is required');
+      if (!data.startDate) throw new Error('startDate is required');
+
+      // 1. Validate client has no conflicting open loans
+      await validateClientOpenLoans(data.clientId);
+
+      // 2. Load client data
+      const client = await Client.findByPk(data.clientId);
+      if (!client) throw new Error('Client not found');
+
+      // 3. Load client's credit history (existing loans for scoring)
+      const existingLoans = await Loan.findAll({
+        where: { clientId: data.clientId }
+      });
+
+      // 3. Calculate credit score through scoring engine
+      const scoringResult = calculateCreditScore(client, existingLoans, {
+        requestedTenure: data.termMonths || 12
+      });
+
+      const { score: riskScore, breakdown: scoringBreakdown, dti: riskDti } = scoringResult;
+
+      // 4. Get risk grade and decision through risk policy engine
+      const riskGrade = getRiskGrade(riskScore);
+      const riskDecision = getDecisionFromScore(riskScore);
+
+      logger.info(
+        `Credit scoring result for client ${data.clientId}: score=${riskScore}, grade=${riskGrade}, decision=${riskDecision}, dti=${riskDti.toFixed(2)}`
+      );
+
+      // 5. Determine loan status based on policy decision
+      // APPROVED (passes checks) -> under_review (admin will approve)
+      // MANUAL_REVIEW/REJECTED (fails checks) -> pending (needs review)
+      let loanStatus;
+      if (riskDecision === 'APPROVED') {
+        loanStatus = LoanStatus.UNDER_REVIEW;
+        logger.info(`Loan application passed automatic checks - setting status to under_review for admin approval`);
+      } else {
+        loanStatus = LoanStatus.PENDING;
+        logger.info(`Loan application did not pass automatic checks - setting status to pending for manual review`);
+      }
+
+      // 6. Load loan product
+      const product = await LoanProduct.findByPk(data.loanProductId);
+      if (!product) throw new Error('Invalid loan product selected');
+
+      // Apply product rules
+      const interestRate = product.interestRate;
+      const interestType = product.interestType;
+      const termMonths = data.termMonths || product.repaymentPeriodMonths;
+      const loanCurrency = product.currency || 'KES';
+      const fees = product.fees || 0;
+
+      // Validate co-signer exists if provided
+      if (data.coSignerId) {
+        const coSigner = await User.findByPk(data.coSignerId);
+        if (!coSigner) throw new Error('Co-signer user not found');
+      }
+
+      // Calculate derived values
+      const endDate = calculateEndDate(data.startDate, termMonths);
+      const installmentAmount = calculateMonthlyPayment(
+        data.principalAmount,
+        interestRate,
+        termMonths,
+        interestType
+      );
+
+      // 7. Create loan with risk assessment data
+      const loanPayload = {
+        clientId: data.clientId,
+        loanProductId: data.loanProductId,
+        principalAmount: data.principalAmount,
+        currency: loanCurrency,
+
+        interestRate,
+        interestType,
+        termMonths,
+
+        startDate: data.startDate,
+        endDate,
+        installmentAmount,
+        outstandingBalance: data.principalAmount,
+
+        fees,
+        penalties: 0.00,
+
+        collateral: data.collateral,
+        coSignerId: data.coSignerId,
+        notes: data.notes,
+
+        // Status based on policy decision
+        status: loanStatus,
+
+        referenceCode: `LN-${uuidv4().split('-')[0].toUpperCase()}`,
+        createdBy: creatorId,
+
+        paymentSchedule: {
+          type: interestType,
+          termMonths,
+          monthlyPayment: installmentAmount
+        }
+      };
+
+      const newLoan = await Loan.create(loanPayload);
+
+      // Validate the created loan
+      if (!newLoan || !newLoan.id) {
+        logger.error('Loan creation returned invalid result', { newLoan });
+        throw new Error('Loan creation failed: invalid loan object returned');
+      }
+
+      // 8. Create CreditScore record with risk assessment data
+      const creditScorePayload = {
+        loanId: newLoan.id,
+        clientId: data.clientId,
+        riskScore,
+        riskGrade,
+        riskDti,
+        scoringBreakdown,
+        scoringModelVersion: '1.0',
+        evaluatedBy: creatorId,
+        notes: `Auto-scored for loan ${newLoan.referenceCode}`
+      };
+
+      await CreditScore.create(creditScorePayload);
+
+      // Reload loan with associations
+      await newLoan.reload({
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
+      });
+
+      // Log to audit table
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: newLoan.id,
+        action: 'CREATE',
+        data: {
+          loanPayload,
+          scoringResult: {
+            riskScore,
+            riskGrade,
+            riskDti,
+            policyDecision: riskDecision,
+            scoringBreakdown
+          }
+        },
+        actorId: creatorId,
+        options: {
+          actorType: 'USER',
+          source: userAgent
+        }
+      });
+
+      logger.info(
+        `Loan created with credit scoring: id=${newLoan.id} reference=${newLoan.referenceCode} ` +
+        `riskScore=${riskScore} riskGrade=${riskGrade} decision=${riskDecision} by user ${creatorId}`
+      );
+
+      return newLoan;
+
+    } catch (error) {
+      logger.error(`Error in createLoanWithCreditScoring: ${error.message}`);
+      throw error;
+    }
+  },
+
   async updateLoan(id, data, updatorId = null, userAgent = 'unknown') {
     try {
       logger.info(`loanService.updateLoan called for loan ${id}`);
       const loan = await Loan.findByPk(id, {
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
       if (!loan) throw new Error('Loan not found');
 
@@ -233,7 +453,10 @@ const loanService = {
 
       // Reload with associations
       await loan.reload({
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
 
       logger.info(`Loan ${id} updated successfully by user ${updatorId}`);
@@ -248,13 +471,16 @@ const loanService = {
     try {
       logger.info(`loanService.approveLoan called for loan ${id}`);
       const loan = await Loan.findByPk(id, {
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
       if (!loan) throw new Error('Loan not found');
 
       // Validate loan can be approved
-      if (loan.status !== LoanStatus.PENDING && loan.status !== LoanStatus.IN_REVIEW) {
-        throw new Error(`Loan cannot be approved. Current status: ${loan.status}. Loan must be pending or in review.`);
+      if (loan.status !== LoanStatus.PENDING && loan.status !== LoanStatus.IN_REVIEW && loan.status !== LoanStatus.UNDER_REVIEW) {
+        throw new Error(`Loan cannot be approved. Current status: ${loan.status}. Loan must be pending, in_review, or under_review.`);
       }
 
       // Parse and validate approval date
@@ -271,7 +497,10 @@ const loanService = {
 
       // Reload with associations
       await loan.reload({
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
 
       // Log to audit
@@ -303,19 +532,40 @@ const loanService = {
     try {
       logger.info(`loanService.deleteLoan called for loan ${id}`);
       const loan = await Loan.findByPk(id, {
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
       if (!loan) throw new Error('Loan not found');
 
-      const deletedData = loan.toJSON();
-      await loan.destroy();
+      // Store original data for audit trail
+      const originalData = loan.toJSON();
+      const previousStatus = loan.status;
 
-      // Log deletion to audit table
+      // Soft delete: change status to 'deleted' instead of destroying record
+      await loan.update({
+        status: LoanStatus.DELETED
+      });
+
+      // Reload with associations after update
+      await loan.reload({
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
+      });
+
+      // Log deletion to audit table for compliance and audit trail
       await AuditLogger.log({
         entityType: 'LOAN',
         entityId: id,
         action: 'DELETE',
-        data: deletedData,
+        data: {
+          previousStatus,
+          newStatus: LoanStatus.DELETED,
+          originalData
+        },
         actorId: deletorId || 'system',
         options: {
           actorType: 'USER',
@@ -323,8 +573,8 @@ const loanService = {
         }
       });
 
-      logger.warn(`Loan ${id} deleted`);
-      return { message: 'Loan deleted successfully', id };
+      logger.warn(`Loan ${id} marked as deleted (soft delete). Previous status: ${previousStatus}`);
+      return { message: 'Loan marked as deleted successfully', id, status: LoanStatus.DELETED };
     } catch (error) {
       logger.error(`Error in deleteLoan (${id}): ${error.message}`);
       throw error;
@@ -344,7 +594,10 @@ const loanService = {
       logger.info(`Disbursing loan ${loanId} on ${disbursementDate}`);
 
       const loan = await Loan.findByPk(loanId, {
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
       if (!loan) {
         throw new Error('Loan not found');
@@ -411,7 +664,10 @@ const loanService = {
 
       // Reload loan to get updated data
       await loan.reload({
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
       });
 
       // Log to audit
@@ -686,5 +942,44 @@ const loanService = {
   },
 
 };
+
+/**
+ * Validate that a client has no conflicting open loans
+ * @param {number} clientId 
+ * @param {Array<string>} allowedStatuses Optional override
+ */
+async function validateClientOpenLoans(clientId, allowedStatuses = []) {
+  if (!clientId) {
+    throw new Error('clientId is required for loan validation');
+  }
+
+  // Default statuses considered "open"
+  const openStatuses = [
+    LoanStatus.APPROVED,
+    LoanStatus.DISBURSED,
+    LoanStatus.IN_REVIEW,
+    LoanStatus.ACTIVE,
+    LoanStatus.UNDER_REVIEW,
+    LoanStatus.PENDING
+  ];
+
+  // Use allowedStatuses if provided, otherwise default to openStatuses
+  const statusesToCheck = allowedStatuses.length > 0 ? allowedStatuses : openStatuses;
+
+  const existingLoans = await Loan.findAll({
+    where: {
+      clientId,
+      status: statusesToCheck
+    }
+  });
+
+  if (existingLoans.length > 0) {
+    throw new Error(
+      `Client has ${existingLoans.length} existing loan(s) in status: ${statusesToCheck.join(', ')}`
+    );
+  }
+
+  return true;
+}
 
 module.exports = loanService;

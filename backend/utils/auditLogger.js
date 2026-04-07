@@ -14,7 +14,7 @@ class AuditLogger {
         throw new Error('Missing required audit log parameters');
       }
 
-      const allowedActions = ['CREATE', 'UPDATE', 'DELETE'];
+      const allowedActions = ['CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'DISBURSE', 'GENERATE_SCHEDULE', 'RECALCULATE_SCHEDULE'];
       if (!allowedActions.includes(action)) {
         throw new Error(`Invalid audit action: ${action}`);
       }

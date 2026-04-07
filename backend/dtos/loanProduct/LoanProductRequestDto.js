@@ -14,7 +14,6 @@ class LoanProductRequestDto {
     this.fees = data.fees || 0;
     this.currency = data.currency || 'KES';
     this.isActive = data.isActive !== undefined ? data.isActive : true;
-    this.createdBy = data.createdBy;
   }
 
   // Joi schema for creating a loan product
@@ -80,13 +79,7 @@ class LoanProductRequestDto {
         'string.length': 'Currency must be a 3-letter code'
       }),
 
-    isActive: Joi.boolean().default(true),
-
-    createdBy: Joi.number().integer().required()
-      .messages({
-        'number.base': 'Created by must be a number',
-        'any.required': 'Created by is required'
-      })
+    isActive: Joi.boolean().default(true)
   }).custom((value, helpers) => {
     if (
       value.maxLoanAmount !== null &&
@@ -102,7 +95,7 @@ class LoanProductRequestDto {
 
   // Joi schema for updating a loan product
   static updateSchema = LoanProductRequestDto.createSchema.fork(
-    ['name', 'interestRate', 'repaymentPeriodMonths', 'createdBy'],
+    ['name', 'interestRate', 'repaymentPeriodMonths'],
     (schema) => schema.optional()
   );
 }
