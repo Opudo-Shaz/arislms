@@ -14,5 +14,6 @@ module.exports = Object.freeze({
   OVERDUE: 'overdue',
   DEFAULTED: 'defaulted',
   CLOSED: 'closed',
-  CANCELLED: 'cancelled'
+  CANCELLED: 'cancelled',
+  DELETED: 'deleted'
 });

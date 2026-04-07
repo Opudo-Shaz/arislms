@@ -94,15 +94,9 @@ const loanService = {
       }
       logger.info(`loanService.createLoan called by user ${creatorId}`);
 
-      // Check if client has any approved/active loans before allowing creation of new loan application
+      // Check if client has any conflicting open loans before allowing creation of new loan application
       if (!data.clientId) throw new Error('clientId is required');
-      const existingLoans = await Loan.findAll({
-        where: { clientId: data.clientId, status: [LoanStatus.APPROVED, LoanStatus.DISBURSED, LoanStatus.IN_REVIEW, LoanStatus.ACTIVE] }
-      });
-
-      if (existingLoans.length > 0) {
-        throw new Error('Client has an existing approved or active loan');
-      }
+      await validateClientOpenLoans(data.clientId);
 
       if (!data.loanProductId) throw new Error('loanProductId is required');
 
@@ -175,11 +169,8 @@ const loanService = {
           monthlyPayment: installmentAmount
         }
       };
-      //TODO: Calculate credit score and pass to risk policy scoring service . if score < requested principal,  set to under_review for manual review by admin otherwise
-      // set to pending for approval by admin
 
-
-      const newLoan = await Loan.create(loanPayload);
+     const newLoan = await Loan.create(loanPayload);
 
       // Validate the created loan before logging
       if (!newLoan || !newLoan.id) {
@@ -240,11 +231,14 @@ const loanService = {
       if (!data.principalAmount) throw new Error('principalAmount is required');
       if (!data.startDate) throw new Error('startDate is required');
 
-      // 1. Load client data
+      // 1. Validate client has no conflicting open loans
+      await validateClientOpenLoans(data.clientId);
+
+      // 2. Load client data
       const client = await Client.findByPk(data.clientId);
       if (!client) throw new Error('Client not found');
 
-      // 2. Load client's existing loans
+      // 3. Load client's credit history (existing loans for scoring)
       const existingLoans = await Loan.findAll({
         where: { clientId: data.clientId }
       });
@@ -545,15 +539,33 @@ const loanService = {
       });
       if (!loan) throw new Error('Loan not found');
 
-      const deletedData = loan.toJSON();
-      await loan.destroy();
+      // Store original data for audit trail
+      const originalData = loan.toJSON();
+      const previousStatus = loan.status;
 
-      // Log deletion to audit table
+      // Soft delete: change status to 'deleted' instead of destroying record
+      await loan.update({
+        status: LoanStatus.DELETED
+      });
+
+      // Reload with associations after update
+      await loan.reload({
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false }
+        ]
+      });
+
+      // Log deletion to audit table for compliance and audit trail
       await AuditLogger.log({
         entityType: 'LOAN',
         entityId: id,
         action: 'DELETE',
-        data: deletedData,
+        data: {
+          previousStatus,
+          newStatus: LoanStatus.DELETED,
+          originalData
+        },
         actorId: deletorId || 'system',
         options: {
           actorType: 'USER',
@@ -561,8 +573,8 @@ const loanService = {
         }
       });
 
-      logger.warn(`Loan ${id} deleted`);
-      return { message: 'Loan deleted successfully', id };
+      logger.warn(`Loan ${id} marked as deleted (soft delete). Previous status: ${previousStatus}`);
+      return { message: 'Loan marked as deleted successfully', id, status: LoanStatus.DELETED };
     } catch (error) {
       logger.error(`Error in deleteLoan (${id}): ${error.message}`);
       throw error;
@@ -930,5 +942,44 @@ const loanService = {
   },
 
 };
+
+/**
+ * Validate that a client has no conflicting open loans
+ * @param {number} clientId 
+ * @param {Array<string>} allowedStatuses Optional override
+ */
+async function validateClientOpenLoans(clientId, allowedStatuses = []) {
+  if (!clientId) {
+    throw new Error('clientId is required for loan validation');
+  }
+
+  // Default statuses considered "open"
+  const openStatuses = [
+    LoanStatus.APPROVED,
+    LoanStatus.DISBURSED,
+    LoanStatus.IN_REVIEW,
+    LoanStatus.ACTIVE,
+    LoanStatus.UNDER_REVIEW,
+    LoanStatus.PENDING
+  ];
+
+  // Use allowedStatuses if provided, otherwise default to openStatuses
+  const statusesToCheck = allowedStatuses.length > 0 ? allowedStatuses : openStatuses;
+
+  const existingLoans = await Loan.findAll({
+    where: {
+      clientId,
+      status: statusesToCheck
+    }
+  });
+
+  if (existingLoans.length > 0) {
+    throw new Error(
+      `Client has ${existingLoans.length} existing loan(s) in status: ${statusesToCheck.join(', ')}`
+    );
+  }
+
+  return true;
+}
 
 module.exports = loanService;
