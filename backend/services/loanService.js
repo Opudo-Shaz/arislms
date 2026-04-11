@@ -698,11 +698,12 @@ const loanService = {
     try {
       logger.info(`loanService.updatePrincipalAmount called for loan ${loanId}`);
 
-      // Fetch loan
+      // Fetch loan with product details
       const loan = await Loan.findByPk(loanId, {
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'loanProduct', required: false }
         ]
       });
 
@@ -728,6 +729,24 @@ const loanService = {
       // Check if amount is different
       if (newPrincipal === loan.principalAmount) {
         throw new Error('New principal amount is the same as current amount');
+      }
+
+      // Validate against loan product min/max if product exists
+      if (loan.loanProduct) {
+        const minAmount = loan.loanProduct.minLoanAmount ? parseFloat(loan.loanProduct.minLoanAmount) : null;
+        const maxAmount = loan.loanProduct.maxLoanAmount ? parseFloat(loan.loanProduct.maxLoanAmount) : null;
+
+        if (minAmount && newPrincipal < minAmount) {
+          throw new Error(
+            `Principal amount ${newPrincipal} is below minimum allowed for this product (${minAmount})`
+          );
+        }
+
+        if (maxAmount && newPrincipal > maxAmount) {
+          throw new Error(
+            `Principal amount ${newPrincipal} exceeds maximum allowed for this product (${maxAmount})`
+          );
+        }
       }
 
       // Store old values for audit

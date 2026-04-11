@@ -384,7 +384,7 @@ exports.updatePrincipalAmount = async (req, res) => {
 
     let status = 500;
     if (/not found/i.test(error.message)) status = 404;
-    else if (/cannot update|same as current/i.test(error.message)) status = 400;
+    else if (/cannot update|same as current|below minimum|exceeds maximum/i.test(error.message)) status = 400;
     else if (/must be/i.test(error.message)) status = 400;
 
     return res.status(status).json({
