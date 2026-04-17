@@ -4,6 +4,7 @@ const User = require('./userModel');
 const LoanProduct = require('./loanProductModel');
 const Client = require('./clientModel');
 const InterestType = require('../enums/interestType');
+const LoanStatus = require('../enums/loanStatus');
 const RepaymentSchedule = require('./repaymentScheduleModel');
 
 const Loan = sequelize.define('Loan', {
@@ -19,7 +20,7 @@ const Loan = sequelize.define('Loan', {
   },
 
   principalAmount: { type: DataTypes.DECIMAL(14,2), allowNull: false, field: 'principal_amount' },
-  currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'USD' },
+  currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'KES' },
 
   interestRate: { type: DataTypes.DECIMAL(6,4), allowNull: false, field: 'interest_rate' },
   interestType: { type: DataTypes.STRING, allowNull: true, defaultValue: InterestType.FIXED, field: 'interest_type' },
@@ -66,6 +67,7 @@ const Loan = sequelize.define('Loan', {
 
   amountRepaid: { type: DataTypes.DOUBLE, field: 'amount_repaid', defaultValue: 0 },
   noOfRepayments: { type: DataTypes.INTEGER, defaultValue: 0, field: 'no_of_repayments' },
+  missedPaymentsCount: { type: DataTypes.INTEGER, defaultValue: 0, field: 'missed_payments_count', comment: 'Number of missed/overdue payments' },
 
   fees: { type: DataTypes.DECIMAL(14,2), defaultValue: 0, field: 'fees' },
   penalties: { type: DataTypes.DECIMAL(14,2), defaultValue: 0, field: 'penalties' },
@@ -73,7 +75,11 @@ const Loan = sequelize.define('Loan', {
   collateral: { type: DataTypes.JSONB },
   coSignerId: { type: DataTypes.INTEGER, field: 'co_signer_id' },
 
-  status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'pending' },
+  status: { 
+    type: DataTypes.ENUM(Object.values(LoanStatus)), 
+    allowNull: false, 
+    defaultValue: LoanStatus.PENDING 
+  },
 
   referenceCode: { type: DataTypes.STRING, unique: true, field: 'reference_code' },
   notes: { type: DataTypes.TEXT },

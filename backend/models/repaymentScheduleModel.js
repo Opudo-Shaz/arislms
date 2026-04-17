@@ -74,6 +74,13 @@ const RepaymentSchedule = sequelize.define('RepaymentSchedule', {
     comment: 'Status: pending, paid, overdue, partial'
   },
 
+  isMissed: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'is_missed',
+    comment: 'Whether this payment was missed (due date passed but not paid)'
+  },
+
   remainingBalance: { 
     type: DataTypes.DECIMAL(14,2), 
     allowNull: false, 

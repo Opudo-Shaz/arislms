@@ -4,6 +4,7 @@ const { getUserId, isAdmin } = require('../utils/helpers');
 const { validateSync } = require('../utils/validationMiddleware');
 const LoanResponseDto = require('../dtos/loan/LoanResponseDto');
 const LoanRequestDto = require('../dtos/loan/LoanRequestDto');
+const missedPaymentService = require('../utils/missedPaymentService');
 
 exports.getAllLoans = async (req, res) => {
   try {
@@ -96,7 +97,7 @@ exports.getLoanById = async (req, res) => {
   }
 };
 
-exports.createLoan = async (req, res) => {
+exports.createLoanWithoutCreditScoring = async (req, res) => {
   try {
     const userId = getUserId(req);
     const userAgent = req.headers['user-agent'];
@@ -115,7 +116,7 @@ exports.createLoan = async (req, res) => {
       });
     }
 
-    const newLoan = await loanService.createLoan(validation.value, req.user, userAgent);
+    const newLoan = await loanService.createLoanWithoutCreditScoring(validation.value, req.user, userAgent);
 
     return res.status(201).json({
       success: true,
@@ -126,6 +127,48 @@ exports.createLoan = async (req, res) => {
     logger.error(`CreateLoan Error: ${error.message}`);
 
     return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Create a new loan with integrated credit scoring and risk policy evaluation
+ * POST /loans
+ */
+exports.createLoan = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+
+    logger.info(`User ${userId} creating a new loan with credit scoring`);
+
+    // Validate request payload with Joi schema
+    const validation = validateSync(req.body, LoanRequestDto.createSchema);
+    if (!validation.valid) {
+      logger.warn(`Loan creation validation failed: ${JSON.stringify(validation.errors)}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: validation.errors
+      });
+    }
+
+    const newLoan = await loanService.createLoan(validation.value, req.user, userAgent);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Loan created successfully with credit scoring',
+      data: new LoanResponseDto(newLoan)
+    });
+  } catch (error) {
+    logger.error(`CreateLoan Error: ${error.message}`);
+
+    // Return 422 for policy rejection (unprocessable entity)
+    const status = error.message.includes('rejected by risk policy') ? 422 : 500;
+
+    return res.status(status).json({
       success: false,
       message: error.message
     });
@@ -383,5 +426,4 @@ exports.updatePrincipalAmount = async (req, res) => {
       success: false,
       message: error.message
     });
-  }
-};
+  };

@@ -1,5 +1,6 @@
 // dtos/loan/LoanResponseDTO.js
 const RepaymentScheduleResponseDto = require('../repaymentSchedule/RepaymentScheduleResponseDto');
+const CreditScoreResponseDto = require('../creditScore/CreditScoreResponseDto');
 
 class LoanResponseDto {
   constructor(loan) {
@@ -24,6 +25,12 @@ class LoanResponseDto {
     this.collateral = loan.collateral;
     this.status = loan.status;
     this.referenceCode = loan.referenceCode;
+    
+    // Credit score from CreditScore model
+    this.creditScore = loan.creditScore 
+      ? new CreditScoreResponseDto(loan.creditScore)
+      : null;
+    
     this.repaymentSchedules = loan.repaymentSchedules 
       ? RepaymentScheduleResponseDto.fromArray(loan.repaymentSchedules)
       : [];
@@ -33,3 +40,4 @@ class LoanResponseDto {
 }
 
 module.exports = LoanResponseDto;
+

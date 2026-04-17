@@ -115,7 +115,17 @@ function getUserFullName(first_name, middle_name, last_name){
 }
 
 function isAdmin(role) {
-  return role === 2 || role === 1; // Assuming role_id 2 is admin
+  const numericRole = Number(role);
+  if (!Number.isNaN(numericRole)) {
+    return numericRole === 2 || numericRole === 1;
+  }
+
+  if (typeof role === 'string') {
+    const normalized = role.trim().toLowerCase();
+    return normalized === 'admin' || normalized === 'super_admin' || normalized === 'superadmin';
+  }
+
+  return false;
 }
 
 
