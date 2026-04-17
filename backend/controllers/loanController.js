@@ -359,19 +359,11 @@ exports.updatePrincipalAmount = async (req, res) => {
     if (!newPrincipalAmount) {
       return res.status(400).json({
         success: false,
-        message: 'newPrincipalAmount is required'
+        message: 'New Principal Amount is required'
       });
     }
 
-    // Validate it's a positive number
     const principal = parseFloat(newPrincipalAmount);
-    if (isNaN(principal) || principal <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Principal amount must be a positive number'
-      });
-    }
-
     const updatedLoan = await loanService.updatePrincipalAmount(loanId, principal, userId, userAgent);
 
     return res.status(200).json({

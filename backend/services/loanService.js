@@ -720,7 +720,7 @@ const loanService = {
         );
       }
 
-      // Validate new principal amount
+      // Validate new principal amount --must be a positive number
       const newPrincipal = parseFloat(newPrincipalAmount);
       if (isNaN(newPrincipal) || newPrincipal <= 0) {
         throw new Error('Principal amount must be a positive number');
@@ -764,7 +764,7 @@ const loanService = {
       );
 
       // Update loan with new principal and calculated installment
-      await loan.update({
+      const updateData = {
         principalAmount: newPrincipal,
         outstandingBalance: newPrincipal,
         installmentAmount: newInstallmentAmount,
@@ -773,7 +773,9 @@ const loanService = {
           termMonths: loan.termMonths,
           monthlyPayment: newInstallmentAmount
         }
-      });
+      };
+
+      await loan.update(updateData);
 
       // Reload with associations
       await loan.reload({
