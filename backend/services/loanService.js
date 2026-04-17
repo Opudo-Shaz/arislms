@@ -15,16 +15,16 @@ const { getRiskGrade, getDecisionFromScore } = require('./riskPolicyService');
 
 // Calculates monthly payment
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
-  const P = parseFloat(principal);
-  const r = parseFloat(interestRate) / 100 / 12;
-  const n = parseInt(termMonths, 10);
+  const P = Number.parseFloat(principal);
+  const r = Number.parseFloat(interestRate) / 100 / 12;
+  const n = Number.parseInt(termMonths, 10);
 
   if (!P || !n) return null;
 
   if (!r) return (P / n).toFixed(2);
 
   if (interestType === 'flat') {
-    const totalInterest = P * (parseFloat(interestRate) / 100) * (n / 12);
+    const totalInterest = P * (Number.parseFloat(interestRate) / 100) * (n / 12);
     return ((P + totalInterest) / n).toFixed(2);
   }
 
@@ -173,7 +173,7 @@ const loanService = {
      const newLoan = await Loan.create(loanPayload);
 
       // Validate the created loan before logging
-      if (!newLoan || !newLoan.id) {
+      if (!newLoan?.id) {
         logger.error('Loan creation returned invalid result', { newLoan });
         throw new Error('Loan creation failed: invalid loan object returned');
       }
@@ -335,7 +335,7 @@ const loanService = {
       const newLoan = await Loan.create(loanPayload);
 
       // Validate the created loan
-      if (!newLoan || !newLoan.id) {
+      if (!newLoan?.id) {
         logger.error('Loan creation returned invalid result', { newLoan });
         throw new Error('Loan creation failed: invalid loan object returned');
       }
@@ -485,8 +485,8 @@ const loanService = {
 
       // Parse and validate approval date
       const approval = new Date(approvalDate);
-      if (isNaN(approval.getTime())) {
-        throw new Error('Invalid approval date');
+      if (Number.isNaN(approval.getTime())) {
+        throw new TypeError('Invalid approval date');
       }
 
       // Update loan with approval info
@@ -977,8 +977,8 @@ const loanService = {
       }
 
       // Validate new principal amount --must be a positive number
-      const newPrincipal = parseFloat(newPrincipalAmount);
-      if (isNaN(newPrincipal) || newPrincipal <= 0) {
+      const newPrincipal = Number.parseFloat(newPrincipalAmount);
+      if (Number.isNaN(newPrincipal) || newPrincipal <= 0) {
         throw new Error('Principal amount must be a positive number');
       }
 
@@ -989,8 +989,8 @@ const loanService = {
 
       // Validate against loan product min/max if product exists
       if (loan.loanProduct) {
-        const minAmount = loan.loanProduct.minLoanAmount ? parseFloat(loan.loanProduct.minLoanAmount) : null;
-        const maxAmount = loan.loanProduct.maxLoanAmount ? parseFloat(loan.loanProduct.maxLoanAmount) : null;
+        const minAmount = loan.loanProduct.minLoanAmount ? Number.parseFloat(loan.loanProduct.minLoanAmount) : null;
+        const maxAmount = loan.loanProduct.maxLoanAmount ? Number.parseFloat(loan.loanProduct.maxLoanAmount) : null;
 
         if (minAmount && newPrincipal < minAmount) {
           throw new Error(
