@@ -9,10 +9,7 @@ const {
   getMyLoans,
   approveLoan,
   disburseLoan,
-  getLoanMissedPayments,
-  updateLoanMissedPaymentCount,
-  getLoansWithMissedPayments,
-  batchUpdateMissedPayments
+  updatePrincipalAmount
 } = require('../controllers/loanController');
 
 const { authenticate, authorize } = require('../middleware/authMiddleware');
@@ -67,36 +64,6 @@ router.get('/', authenticate, authorize([1,2]), getAllLoans);
  *                 balance: 4200
  */
 router.get('/my', authenticate, getMyLoans);
-
-/**
- * @openapi
- * /api/loans/missed-payments/all:
- *   get:
- *     summary: Get all loans with missed payments
- *     tags:
- *       - Loans
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of all loans with missed payments
- */
-router.get('/missed-payments/all', authenticate, authorize([1,2]), getLoansWithMissedPayments);
-
-/**
- * @openapi
- * /api/loans/missed-payments/batch-update:
- *   post:
- *     summary: Batch update missed payments for all loans
- *     tags:
- *       - Loans
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Batch update completed
- */
-router.post('/missed-payments/batch-update', authenticate, authorize([1,2]), batchUpdateMissedPayments);
 
 /**
  * @openapi
@@ -472,6 +439,9 @@ router.post('/:id/approve', authenticate, authorize([1,2]), approveLoan);
 
 /**
  * @openapi
+ * /api/loans/{id}/update_principal:
+ *   put:
+ *     summary: Update principal amount before approval (admin only)
  * /api/loans/{id}/missed-payments:
  *   get:
  *     summary: Get missed payments for a loan
@@ -485,46 +455,43 @@ router.post('/:id/approve', authenticate, authorize([1,2]), approveLoan);
  *         required: true
  *         schema:
  *           type: integer
- *         example: 1
+ *         example: 25
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - newPrincipalAmount
+ *             properties:
+ *               newPrincipalAmount:
+ *                 type: number
+ *                 description: New principal amount (must be positive and different from current)
+ *                 example: 12000
  *     responses:
  *       200:
- *         description: List of missed payments for the loan
+ *         description: Principal amount updated successfully
  *         content:
  *           application/json:
- *             example:
- *               loanId: 1
- *               missedPaymentsCount: 2
- *               missedPayments:
- *                 - id: 5
- *                   installmentNumber: 2
- *                   dueDate: "2026-01-15"
- *                   totalAmount: 1000
- *                   status: overdue
- *                   isMissed: true
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: Invalid request or loan cannot be updated
+ *       403:
+ *         description: User not authorized
+ *       404:
+ *         description: Loan not found
  */
-router.get('/:id/missed-payments', authenticate, getLoanMissedPayments);
-
-/**
- * @openapi
- * /api/loans/{id}/update-missed-payments:
- *   post:
- *     summary: Update missed payment count for a loan
- *     tags:
- *       - Loans
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         example: 1
- *     responses:
- *       200:
- *         description: Missed payment count updated successfully
- */
-router.post('/:id/update-missed-payments', authenticate, authorize([1,2]), updateLoanMissedPaymentCount);
+router.put('/:id/update_principal', authenticate, authorize([1, 2]), updatePrincipalAmount);
 
 
 module.exports = router;

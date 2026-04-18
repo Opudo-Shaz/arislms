@@ -56,11 +56,6 @@ const Loan = sequelize.define('Loan', {
     comment: 'Next expected payment date'
   },
 
-  paymentSchedule: { 
-    type: DataTypes.JSONB, 
-    field: 'payment_schedule',
-    comment: 'Deprecated: Use RepaymentSchedule model instead'
-  },
   installmentAmount: { type: DataTypes.DECIMAL(14,2), field: 'installment_amount' },
 
   outstandingBalance: { type: DataTypes.DECIMAL(14,2), allowNull: false, field: 'outstanding_balance' },

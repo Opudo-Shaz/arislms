@@ -15,16 +15,16 @@ const { getRiskGrade, getDecisionFromScore } = require('./riskPolicyService');
 
 // Calculates monthly payment
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
-  const P = parseFloat(principal);
-  const r = parseFloat(interestRate) / 100 / 12;
-  const n = parseInt(termMonths, 10);
+  const P = Number.parseFloat(principal);
+  const r = Number.parseFloat(interestRate) / 100 / 12;
+  const n = Number.parseInt(termMonths, 10);
 
   if (!P || !n) return null;
 
   if (!r) return (P / n).toFixed(2);
 
   if (interestType === 'flat') {
-    const totalInterest = P * (parseFloat(interestRate) / 100) * (n / 12);
+    const totalInterest = P * (Number.parseFloat(interestRate) / 100) * (n / 12);
     return ((P + totalInterest) / n).toFixed(2);
   }
 
@@ -161,26 +161,20 @@ const loanService = {
         status: LoanStatus.PENDING,
 
         referenceCode: `LN-${uuidv4().split('-')[0].toUpperCase()}`,
-        createdBy: creatorId,
-
-        paymentSchedule: {
-          type: interestType,
-          termMonths,
-          monthlyPayment: installmentAmount
-        }
+        createdBy: creatorId
       };
 
      const newLoan = await Loan.create(loanPayload);
 
       // Validate the created loan before logging
-      if (!newLoan || !newLoan.id) {
+      if (!newLoan?.id) {
         logger.error('Loan creation returned invalid result', { newLoan });
         throw new Error('Loan creation failed: invalid loan object returned');
       }
 
       // Reload loan with associations
       await newLoan.reload({
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [{ association: 'creditScore', required: false }]
       });
 
       // Log to audit table after successful creation
@@ -323,19 +317,13 @@ const loanService = {
         status: loanStatus,
 
         referenceCode: `LN-${uuidv4().split('-')[0].toUpperCase()}`,
-        createdBy: creatorId,
-
-        paymentSchedule: {
-          type: interestType,
-          termMonths,
-          monthlyPayment: installmentAmount
-        }
+        createdBy: creatorId
       };
 
       const newLoan = await Loan.create(loanPayload);
 
       // Validate the created loan
-      if (!newLoan || !newLoan.id) {
+      if (!newLoan?.id) {
         logger.error('Loan creation returned invalid result', { newLoan });
         throw new Error('Loan creation failed: invalid loan object returned');
       }
@@ -485,8 +473,8 @@ const loanService = {
 
       // Parse and validate approval date
       const approval = new Date(approvalDate);
-      if (isNaN(approval.getTime())) {
-        throw new Error('Invalid approval date');
+      if (Number.isNaN(approval.getTime())) {
+        throw new TypeError('Invalid approval date');
       }
 
       // Update loan with approval info
@@ -937,6 +925,137 @@ const loanService = {
       return schedule;
     } catch (error) {
       logger.error(`Error fetching repayment schedule for loan ${loanId}: ${error.message}`);
+      throw error;
+    }
+  },
+
+  /**
+   * Update principal amount before loan approval
+   * Only allowed for loans in PENDING, IN_REVIEW, or UNDER_REVIEW status
+   * @param {number} loanId - The loan ID
+   * @param {number} newPrincipalAmount - The new principal amount
+   * @param {number} actorId - User ID performing the action
+   * @param {string} userAgent - Source of the action
+   * @returns {Promise<Object>} Updated loan with recalculated installment
+   */
+  async updatePrincipalAmount(loanId, newPrincipalAmount, actorId = null, userAgent = 'unknown') {
+    try {
+      logger.info(`loanService.updatePrincipalAmount called for loan ${loanId}`);
+
+      // Fetch loan with product details
+      const loan = await Loan.findByPk(loanId, {
+        include: [
+          { association: 'creditScore', required: false },
+          { association: 'loanProduct', required: false }
+        ]
+      });
+
+      if (!loan) {
+        throw new Error('Loan not found');
+      }
+
+      // Validate loan status - only allow updates before approval
+      const updatableStatuses = [LoanStatus.PENDING, LoanStatus.IN_REVIEW, LoanStatus.UNDER_REVIEW];
+      if (!updatableStatuses.includes(loan.status)) {
+        throw new Error(
+          `Cannot update principal amount for loan in '${loan.status}' status. ` +
+          `Only allowed for loans in PENDING, IN_REVIEW, or UNDER_REVIEW status`
+        );
+      }
+
+      // Validate new principal amount --must be a positive number
+      const newPrincipal = Number.parseFloat(newPrincipalAmount);
+      if (Number.isNaN(newPrincipal) || newPrincipal <= 0) {
+        throw new Error('Principal amount must be a positive number');
+      }
+
+      // Check if amount is different
+      if (newPrincipal === loan.principalAmount) {
+        throw new Error('New principal amount is the same as current amount');
+      }
+
+      // Validate against loan product min/max if product exists
+      if (loan.loanProduct) {
+        const minAmount = loan.loanProduct.minLoanAmount ? Number.parseFloat(loan.loanProduct.minLoanAmount) : null;
+        const maxAmount = loan.loanProduct.maxLoanAmount ? Number.parseFloat(loan.loanProduct.maxLoanAmount) : null;
+
+        if (minAmount && newPrincipal < minAmount) {
+          throw new Error(
+            `Principal amount ${newPrincipal} is below minimum allowed for this product (${minAmount})`
+          );
+        }
+
+        if (maxAmount && newPrincipal > maxAmount) {
+          throw new Error(
+            `Principal amount ${newPrincipal} exceeds maximum allowed for this product (${maxAmount})`
+          );
+        }
+      }
+
+      // Store old values for audit
+      const oldPrincipal = loan.principalAmount;
+      const oldInstallmentAmount = loan.installmentAmount;
+      const difference = newPrincipal - oldPrincipal;
+      const differenceType = difference > 0 ? 'top-up' : 'reduction';
+
+      // Recalculate monthly installment with new principal
+      const newInstallmentAmount = calculateMonthlyPayment(
+        newPrincipal,
+        loan.interestRate,
+        loan.termMonths,
+        loan.interestType
+      );
+
+      // Update loan with new principal and calculated installment
+      const updateData = {
+        principalAmount: newPrincipal,
+        outstandingBalance: newPrincipal,
+        installmentAmount: newInstallmentAmount
+      };
+
+      await loan.update(updateData);
+
+      // Reload with associations
+      await loan.reload({
+        include: [
+          { association: 'creditScore', required: false }
+        ]
+      });
+
+      // Log to audit table
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: loanId,
+        action: 'UPDATE_PRINCIPAL',
+        data: {
+          principalChange: {
+            from: oldPrincipal,
+            to: newPrincipal,
+            difference: Math.abs(difference),
+            type: differenceType
+          },
+          installmentChange: {
+            from: oldInstallmentAmount,
+            to: newInstallmentAmount
+          },
+          loanStatus: loan.status
+        },
+        actorId: actorId || 'system',
+        options: {
+          actorType: 'USER',
+          source: userAgent
+        }
+      });
+
+      logger.info(
+        `Loan ${loanId} principal updated: ${oldPrincipal} -> ${newPrincipal} (${differenceType} of ${Math.abs(difference)}). ` +
+        `Installment recalculated: ${oldInstallmentAmount} -> ${newInstallmentAmount} by user ${actorId}`
+      );
+
+      return loan;
+
+    } catch (error) {
+      logger.error(`Error updating principal amount for loan ${loanId}: ${error.message}`);
       throw error;
     }
   },

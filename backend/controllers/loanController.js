@@ -382,128 +382,49 @@ exports.disburseLoan = async (req, res) => {
   }
 };
 
-// === MISSED PAYMENTS ENDPOINTS ===
-
-/**
- * Get missed payments count for a specific loan
- */
-exports.getLoanMissedPayments = async (req, res) => {
+exports.updatePrincipalAmount = async (req, res) => {
   try {
     const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
     const loanId = req.params.id;
+    const { newPrincipalAmount } = req.body;
 
-    logger.info(`User ${userId} fetching missed payments for loan ${loanId}`);
-
-    const missedPayments = await missedPaymentService.getMissedRepaymentsForLoan(loanId);
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        loanId,
-        missedPaymentsCount: missedPayments.length,
-        missedPayments
-      }
-    });
-  } catch (error) {
-    logger.error(`GetLoanMissedPayments Error (${req.params.id}): ${error.message}`);
-
-    return res.status(500).json({
-      success: false,
-      message: 'Error fetching missed payments'
-    });
-  }
-};
-
-/**
- * Update missed payment status for a specific loan
- */
-exports.updateLoanMissedPaymentCount = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    const loanId = req.params.id;
-
-    logger.info(`User ${userId} updating missed payment count for loan ${loanId}`);
-
-    const result = await missedPaymentService.updateLoanMissedPaymentCount(loanId);
-
-    return res.status(200).json({
-      success: true,
-      message: `Loan updated with ${result.missedCount} missed payment(s)`,
-      data: {
-        loanId,
-        missedPaymentsCount: result.missedCount,
-        loan: new LoanResponseDto(result.updatedLoan)
-      }
-    });
-  } catch (error) {
-    logger.error(`UpdateLoanMissedPaymentCount Error (${req.params.id}): ${error.message}`);
-
-    if (/not found/i.test(error.message)) {
-      return res.status(404).json({
+    if (!isAdmin(req.user.role)) {
+      return res.status(403).json({
         success: false,
-        message: 'Loan not found'
+        message: 'User not authorized to update loan principal amount'
       });
     }
 
-    return res.status(500).json({
-      success: false,
-      message: 'Error updating missed payment count'
-    });
-  }
-};
+    logger.info(`User ${userId} updating principal for loan ${loanId}`);
 
-/**
- * Get all loans with missed payments
- */
-exports.getLoansWithMissedPayments = async (req, res) => {
-  try {
-    const userId = getUserId(req);
+    // Validate new principal amount is provided
+    if (!newPrincipalAmount) {
+      return res.status(400).json({
+        success: false,
+        message: 'New Principal Amount is required'
+      });
+    }
 
-    logger.info(`User ${userId} fetching all loans with missed payments`);
-
-    const loans = await missedPaymentService.getLoansWithMissedPayments();
-    const result = loans.map(l => new LoanResponseDto(l));
+    const principal = parseFloat(newPrincipalAmount);
+    const updatedLoan = await loanService.updatePrincipalAmount(loanId, principal, userId, userAgent);
 
     return res.status(200).json({
       success: true,
-      data: {
-        loansWithMissedPaymentsCount: loans.length,
-        loans: result
-      }
+      message: 'Loan principal amount updated successfully',
+      data: new LoanResponseDto(updatedLoan)
     });
   } catch (error) {
-    logger.error(`GetLoansWithMissedPayments Error: ${error.message}`);
+    logger.error(`UpdatePrincipalAmount Error (${req.params.id}): ${error.message}`);
 
-    return res.status(500).json({
+    let status = 500;
+    if (/not found/i.test(error.message)) status = 404;
+    else if (/cannot update|same as current|below minimum|exceeds maximum/i.test(error.message)) status = 400;
+    else if (/must be/i.test(error.message)) status = 400;
+
+    return res.status(status).json({
       success: false,
-      message: 'Error fetching loans with missed payments'
-    });
-  }
-};
-
-/**
- * Batch update all missed payments across all loans
- * Should be called periodically (e.g., via cron job)
- */
-exports.batchUpdateMissedPayments = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-
-    logger.info(`User ${userId} triggering batch update of missed payments`);
-
-    const result = await missedPaymentService.updateAllMissedPayments();
-
-    return res.status(200).json({
-      success: true,
-      message: 'Batch update of missed payments completed',
-      data: result
-    });
-  } catch (error) {
-    logger.error(`BatchUpdateMissedPayments Error: ${error.message}`);
-
-    return res.status(500).json({
-      success: false,
-      message: 'Error updating missed payments'
+      message: error.message
     });
   }
 };
