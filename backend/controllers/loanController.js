@@ -426,4 +426,5 @@ exports.updatePrincipalAmount = async (req, res) => {
       success: false,
       message: error.message
     });
-  };
+  }
+};

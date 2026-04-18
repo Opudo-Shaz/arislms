@@ -161,13 +161,7 @@ const loanService = {
         status: LoanStatus.PENDING,
 
         referenceCode: `LN-${uuidv4().split('-')[0].toUpperCase()}`,
-        createdBy: creatorId,
-
-        paymentSchedule: {
-          type: interestType,
-          termMonths,
-          monthlyPayment: installmentAmount
-        }
+        createdBy: creatorId
       };
 
      const newLoan = await Loan.create(loanPayload);
@@ -180,7 +174,7 @@ const loanService = {
 
       // Reload loan with associations
       await newLoan.reload({
-        include: [{ association: 'repaymentSchedules', required: false }]
+        include: [{ association: 'creditScore', required: false }]
       });
 
       // Log to audit table after successful creation
@@ -323,13 +317,7 @@ const loanService = {
         status: loanStatus,
 
         referenceCode: `LN-${uuidv4().split('-')[0].toUpperCase()}`,
-        createdBy: creatorId,
-
-        paymentSchedule: {
-          type: interestType,
-          termMonths,
-          monthlyPayment: installmentAmount
-        }
+        createdBy: creatorId
       };
 
       const newLoan = await Loan.create(loanPayload);
@@ -957,7 +945,6 @@ const loanService = {
       // Fetch loan with product details
       const loan = await Loan.findByPk(loanId, {
         include: [
-          { association: 'repaymentSchedules', required: false },
           { association: 'creditScore', required: false },
           { association: 'loanProduct', required: false }
         ]
@@ -1023,12 +1010,7 @@ const loanService = {
       const updateData = {
         principalAmount: newPrincipal,
         outstandingBalance: newPrincipal,
-        installmentAmount: newInstallmentAmount,
-        paymentSchedule: {
-          type: loan.interestType,
-          termMonths: loan.termMonths,
-          monthlyPayment: newInstallmentAmount
-        }
+        installmentAmount: newInstallmentAmount
       };
 
       await loan.update(updateData);
@@ -1036,7 +1018,6 @@ const loanService = {
       // Reload with associations
       await loan.reload({
         include: [
-          { association: 'repaymentSchedules', required: false },
           { association: 'creditScore', required: false }
         ]
       });

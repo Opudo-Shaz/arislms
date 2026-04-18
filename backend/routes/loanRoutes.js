@@ -439,7 +439,7 @@ router.post('/:id/approve', authenticate, authorize([1,2]), approveLoan);
 
 /**
  * @openapi
- * /api/loans/{id}/principal-amount:
+ * /api/loans/{id}/update_principal:
  *   put:
  *     summary: Update principal amount before approval (admin only)
  * /api/loans/{id}/missed-payments:
@@ -491,7 +491,7 @@ router.post('/:id/approve', authenticate, authorize([1,2]), approveLoan);
  *       404:
  *         description: Loan not found
  */
-router.put('/:id/principal-amount', authenticate, authorize([1, 2]), updatePrincipalAmount);
+router.put('/:id/update_principal', authenticate, authorize([1, 2]), updatePrincipalAmount);
 
 
 module.exports = router;
