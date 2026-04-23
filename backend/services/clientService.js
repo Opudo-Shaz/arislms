@@ -25,7 +25,7 @@ const clientService = {
         entityId: client.id,
         action: 'CREATE',
         data,
-        actorId: creatorId || 'system',
+        actorId: creatorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -80,7 +80,7 @@ const clientService = {
         entityId: id,
         action: 'UPDATE',
         data: { changes: data },
-        actorId: updatorId || 'system',
+        actorId: updatorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -110,7 +110,7 @@ const clientService = {
         entityId: id,
         action: 'DELETE',
         data: deletedData,
-        actorId: deletorId || 'system',
+        actorId: deletorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent

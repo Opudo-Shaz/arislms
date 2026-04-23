@@ -12,6 +12,7 @@ const AuditLogger = require('../utils/auditLogger');
 const { generateAmortizationSchedule } = require('../utils/loanCalculator');
 const { calculateCreditScore } = require('./creditScorerService');
 const { getRiskGrade, getDecisionFromScore } = require('./riskPolicyService');
+const ledgerService = require('./ledgerService');
 
 // Calculates monthly payment
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
@@ -432,7 +433,7 @@ const loanService = {
         entityId: id,
         action: 'UPDATE',
         data: auditData,
-        actorId: updatorId || 'system',
+        actorId: updatorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -500,7 +501,7 @@ const loanService = {
           approvalDate: approval.toISOString().split('T')[0],
           status: LoanStatus.APPROVED
         },
-        actorId: approverId || 'system',
+        actorId: approverId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -554,7 +555,7 @@ const loanService = {
           newStatus: LoanStatus.DELETED,
           originalData
         },
-        actorId: deletorId || 'system',
+        actorId: deletorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -650,6 +651,9 @@ const loanService = {
         });
       }
 
+      // Post ledger entry for disbursement
+      await ledgerService.postDisbursementEntry(loan);
+
       // Reload loan to get updated data
       await loan.reload({
         include: [
@@ -668,7 +672,7 @@ const loanService = {
           installmentsCount: scheduleEntries.length,
           status: loan.status
         },
-        actorId: actorId || 'system',
+        actorId: actorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -767,7 +771,7 @@ const loanService = {
           disbursementDate,
           installmentsCount: scheduleEntries.length
         },
-        actorId: actorId || 'system',
+        actorId: actorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -892,7 +896,7 @@ const loanService = {
           changes: options,
           installmentsCount: scheduleEntries.length
         },
-        actorId: actorId || 'system',
+        actorId: actorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -1040,7 +1044,7 @@ const loanService = {
           },
           loanStatus: loan.status
         },
-        actorId: actorId || 'system',
+        actorId: actorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent

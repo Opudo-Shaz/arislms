@@ -41,7 +41,7 @@ const creditScoreService = {
         entityId: creditScore.id,
         action: 'CREATE',
         data,
-        actorId: creatorId || 'system',
+        actorId: creatorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -160,7 +160,7 @@ const creditScoreService = {
           oldData,
           newData: data
         },
-        actorId: updatorId || 'system',
+        actorId: updatorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -190,7 +190,7 @@ const creditScoreService = {
         entityId: id,
         action: 'DELETE',
         data: deletedData,
-        actorId: deletorId || 'system',
+        actorId: deletorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent

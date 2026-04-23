@@ -9,6 +9,10 @@ const Payment = require('./paymentModel');
 const AuditLog = require('./auditLogModel');
 const RepaymentSchedule = require('./repaymentScheduleModel');
 const CreditScore = require('./creditScoreModel');
+const ChartOfAccount = require('./chartOfAccountModel');
+const JournalEntry = require('./journalEntryModel');
+const JournalEntryLine = require('./journalEntryLineModel');
+const MemberContribution = require('./memberContributionModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
@@ -61,6 +65,26 @@ if (typeof Loan !== 'undefined' && typeof CreditScore !== 'undefined') {
   CreditScore.belongsTo(Loan, { foreignKey: 'loan_id' });
 }
 
+// ChartOfAccount self-reference (sub-accounts)
+ChartOfAccount.belongsTo(ChartOfAccount, { foreignKey: 'parent_account_id', as: 'parentAccount' });
+ChartOfAccount.hasMany(ChartOfAccount, { foreignKey: 'parent_account_id', as: 'subAccounts' });
+
+// JournalEntry <-> JournalEntryLine
+JournalEntry.hasMany(JournalEntryLine, { foreignKey: 'journal_entry_id', as: 'lines' });
+JournalEntryLine.belongsTo(JournalEntry, { foreignKey: 'journal_entry_id' });
+
+// JournalEntryLine -> ChartOfAccount
+JournalEntryLine.belongsTo(ChartOfAccount, { foreignKey: 'account_id', as: 'account' });
+
+// JournalEntryLine optional subsidiary ledger links
+JournalEntryLine.belongsTo(Loan, { foreignKey: 'loan_id', as: 'loan', constraints: false });
+JournalEntryLine.belongsTo(Client, { foreignKey: 'client_id', as: 'client', constraints: false });
+
+// MemberContribution associations
+MemberContribution.belongsTo(Client, { foreignKey: 'client_id', as: 'client' });
+MemberContribution.belongsTo(JournalEntry, { foreignKey: 'journal_entry_id', as: 'journalEntry' });
+Client.hasMany(MemberContribution, { foreignKey: 'client_id', as: 'contributions' });
+
 module.exports = {
   sequelize,
   Role,
@@ -71,4 +95,8 @@ module.exports = {
   AuditLog,
   RepaymentSchedule,
   CreditScore,
+  ChartOfAccount,
+  JournalEntry,
+  JournalEntryLine,
+  MemberContribution,
 };

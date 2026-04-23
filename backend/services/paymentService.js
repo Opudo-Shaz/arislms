@@ -7,6 +7,7 @@ const sequelize = require('../config/sequalize_db');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
 const LoanStatus = require('../enums/loanStatus');
+const ledgerService = require('./ledgerService');
 
 const paymentService = {
   /**
@@ -268,6 +269,9 @@ async createPayment(data, user, userAgent = 'unknown') {
       notes: data.notes || null,
     }, { transaction: t });
 
+    // ── Step 4b: Post ledger entry ────────────────────────────────────
+    await ledgerService.postPaymentEntry(payment, loan, t);
+
     // ── Step 5: Update loan summary fields ────────────────────────────
     // outstandingBalance tracks remaining principal only
     const newBalance = Math.max(0, Number((outstanding - appliedToPrincipal).toFixed(2)));
@@ -303,7 +307,7 @@ async createPayment(data, user, userAgent = 'unknown') {
         newBalance,
         externalRef: payment.externalRef
       },
-      actorId: creatorId || 'system',
+      actorId: creatorId || 1,
       options: {
         actorType: 'USER',
         source: userAgent
@@ -342,7 +346,7 @@ async deletePayment(id, deletorId = null, userAgent = 'unknown') {
       entityId: id,
       action: 'DELETE',
       data: deletedData,
-      actorId: deletorId || 'system',
+      actorId: deletorId || 1,
       options: {
         actorType: 'USER',
         source: userAgent

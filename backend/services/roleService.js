@@ -21,7 +21,7 @@ const roleService = {
         entityId: newRole.id,
         action: 'CREATE',
         data,
-        actorId: creatorId || 'system',
+        actorId: creatorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -103,7 +103,7 @@ const roleService = {
         entityId: id,
         action: 'UPDATE',
         data: { changes: data },
-        actorId: updatorId || 'system',
+        actorId: updatorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -142,7 +142,7 @@ const roleService = {
           entityId: id,
           action: 'UPDATE',
           data: { action: 'add_permission', permission },
-          actorId: updatorId || 'system',
+          actorId: updatorId || 1,
           options: {
             actorType: 'USER',
             source: userAgent
@@ -183,7 +183,7 @@ const roleService = {
           entityId: id,
           action: 'UPDATE',
           data: { action: 'remove_permission', permission },
-          actorId: updatorId || 'system',
+          actorId: updatorId || 1,
           options: {
             actorType: 'USER',
             source: userAgent
@@ -220,7 +220,7 @@ const roleService = {
         entityId: id,
         action: 'DELETE',
         data: deletedData,
-        actorId: deletorId || 'system',
+        actorId: deletorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent

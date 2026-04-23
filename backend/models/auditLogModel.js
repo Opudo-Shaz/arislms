@@ -19,7 +19,7 @@ const AuditLog = sequelize.define('AuditLog', {
     type: DataTypes.STRING(10),
     allowNull: false,
     validate: {
-      isIn: [['CREATE', 'UPDATE', 'DELETE']],
+      isIn: [['CREATE', 'UPDATE', 'DELETE', 'DISBURSE', 'REVERSE']],
     },
   },
   command_as_json: {
@@ -27,8 +27,9 @@ const AuditLog = sequelize.define('AuditLog', {
     allowNull: true,
   },
   actor_id: {
-    type: DataTypes.STRING(128),
+    type: DataTypes.INTEGER,
     allowNull: false,
+    comment: 'User ID of the actor. Use 1 for system-initiated operations.',
   },
   actor_type: {
     type: DataTypes.STRING(50),
