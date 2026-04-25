@@ -58,6 +58,10 @@ app.use('/api/member-contributions', memberContributionRoutes);
 
 require('./models');
 
+// Register business event listeners (after models are loaded)
+const { registerLoanTransactionListeners } = require('./utils/loanTransactionEmitter');
+registerLoanTransactionListeners();
+
 // Database Connection
 (async () => {
   try {

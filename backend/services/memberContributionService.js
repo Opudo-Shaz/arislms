@@ -152,7 +152,7 @@ const memberContributionService = {
     const records = await MemberContribution.findAll({ where: { clientId } });
 
     const totalContributions = records
-      .filter(r => r.type === ContributionType.CONTRIBUTION)
+      .filter(r => [ContributionType.CONTRIBUTION, ContributionType.OVERPAYMENT_CREDIT].includes(r.type))
       .reduce((s, r) => s + Number(r.amount), 0);
 
     const totalWithdrawals = records
@@ -187,6 +187,51 @@ const memberContributionService = {
     const balance = await this.getMemberBalance(clientId);
 
     return { client, records, ...balance };
+  },
+
+  /**
+   * Records an overpayment credit for a member, linked to the existing payment
+   * journal entry. Must be called within an existing Sequelize transaction.
+   *
+   * @param {object} opts
+   * @param {number}  opts.clientId
+   * @param {number}  opts.surplus          - Overpayment amount
+   * @param {number}  opts.loanId           - Source loan ID
+   * @param {number}  opts.paymentId        - Source payment ID
+   * @param {number}  opts.journalEntryId   - Journal entry ID from postPaymentEntry
+   * @param {number}  [opts.createdBy]
+   * @param {string}  [opts.source]
+   * @param {object}  opts.transaction      - Sequelize transaction (required)
+   * @returns {Promise<MemberContribution>}
+   */
+  async creditOverpayment({ clientId, surplus, loanId, paymentId, journalEntryId, createdBy, source, transaction }) {
+    const entryDate = new Date().toISOString().split('T')[0];
+
+    const contribution = await MemberContribution.create({
+      clientId,
+      amount: Number(surplus.toFixed(2)),
+      contributionDate: entryDate,
+      type: ContributionType.OVERPAYMENT_CREDIT,
+      notes: `Overpayment credit from Loan #${loanId}, Payment #${paymentId}`,
+      journalEntryId: journalEntryId || null,
+      createdBy: createdBy || null,
+    }, { transaction });
+
+    logger.info(
+      `Overpayment credit recorded: client ${clientId}, amount ${surplus.toFixed(2)}, ` +
+      `loan ${loanId}, payment ${paymentId}, entry ${journalEntryId}`
+    );
+
+    await AuditLogger.log({
+      entityType: 'MEMBER_CONTRIBUTION',
+      entityId: contribution.id,
+      action: 'CREATE',
+      data: { clientId, amount: surplus, type: ContributionType.OVERPAYMENT_CREDIT, loanId, paymentId, journalEntryId },
+      actorId: createdBy || AuditLogger.SYSTEM_USER_ID,
+      options: { actorType: 'USER', source: source || 'system' },
+    });
+
+    return contribution;
   },
 };
 

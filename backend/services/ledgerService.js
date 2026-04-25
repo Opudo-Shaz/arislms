@@ -179,14 +179,21 @@ async function postDisbursementEntry(loan, transaction) {
 
 /**
  * Posts the payment received entry.
- * DR 1001 Cash / Bank           (total payment)
+ * DR 1001 Cash / Bank           (total payment = loan portion + surplus)
  * CR 1100 Loans Receivable       (principal portion)
  * CR 4001 Interest Income        (interest portion)
+ * CR 3001 Member Contributions   (overpayment surplus, if any)
+ *
+ * @param {object} payment
+ * @param {object} loan
+ * @param {object} transaction
+ * @param {number} [surplus=0] - Overpayment amount to credit to member contributions (account 3001)
  */
-async function postPaymentEntry(payment, loan, transaction) {
+async function postPaymentEntry(payment, loan, transaction, surplus = 0) {
   const total = Number(payment.amount);
   const principal = Number(payment.appliedToPrincipal);
   const interest = Number(payment.appliedToInterest);
+  const overpayment = Number(surplus || 0);
   const entryDate = (payment.paymentDate || new Date()).toISOString
     ? new Date(payment.paymentDate || new Date()).toISOString().split('T')[0]
     : String(payment.paymentDate);
@@ -221,8 +228,17 @@ async function postPaymentEntry(payment, loan, transaction) {
     });
   }
 
-  // Guard: if rounding leaves a tiny gap, absorb into principal credit
-  const creditSum = principal + interest;
+  if (overpayment > 0) {
+    lines.push({
+      accountCode: '3001',
+      credit: overpayment,
+      description: `Overpayment credit – Payment #${payment.id} on Loan #${loan.id}`,
+      clientId: loan.clientId,
+    });
+  }
+
+  // Guard: absorb any floating-point rounding gap (< 1 cent) into the last credit line
+  const creditSum = principal + interest + overpayment;
   if (Math.abs(total - creditSum) > 0.001 && creditSum > 0) {
     const diff = Number((total - creditSum).toFixed(2));
     lines[lines.length - 1].credit = Number((lines[lines.length - 1].credit + diff).toFixed(2));

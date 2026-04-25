@@ -13,6 +13,7 @@ const ChartOfAccount = require('./chartOfAccountModel');
 const JournalEntry = require('./journalEntryModel');
 const JournalEntryLine = require('./journalEntryLineModel');
 const MemberContribution = require('./memberContributionModel');
+const LoanTransaction = require('./loanTransactionModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
@@ -99,4 +100,5 @@ module.exports = {
   JournalEntry,
   JournalEntryLine,
   MemberContribution,
+  LoanTransaction,
 };

@@ -8,6 +8,9 @@ const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
 const LoanStatus = require('../enums/loanStatus');
 const ledgerService = require('./ledgerService');
+const memberContributionService = require('./memberContributionService');
+const { emitLoanTransaction } = require('../utils/loanTransactionEmitter');
+const LoanTransactionType = require('../enums/loanTransactionType');
 
 const paymentService = {
   /**
@@ -234,20 +237,18 @@ async createPayment(data, user, userAgent = 'unknown') {
       return sum + Number(inst.totalAmount) - Number(inst.paidAmount || 0);
     }, 0);
 
-    if (paymentAmount > Number(totalOwed.toFixed(2)) + 0.01) {
-      throw new Error(
-        `Payment amount (${paymentAmount}) exceeds total amount owed (${totalOwed.toFixed(2)})`
-      );
-    }
+    // Compute overpayment surplus — amount beyond total owed goes to member contributions
+    const surplus = Math.max(0, Number((paymentAmount - totalOwed).toFixed(2)));
+    const effectiveAmount = Number((paymentAmount - surplus).toFixed(2));
 
     const outstanding = Number(parseFloat(loan.outstandingBalance));
 
     // ── Step 3: Apply payment to repayment schedule ───────────────────
-    // The schedule determines the actual principal/interest split based on
-    // each installment's amortized amounts (interest-first per installment).
+    // Only apply the loan portion (effectiveAmount) to the schedule.
+    // Any surplus is routed to member contributions after this step.
     const { appliedToPrincipal, appliedToInterest, nextDueDate } =
       await this.applyPaymentToSchedule(
-        data.loanId, paymentAmount, new Date(), outstanding, t
+        data.loanId, effectiveAmount, new Date(), outstanding, t
       );
 
     // ── Step 4: Create payment record ─────────────────────────────────
@@ -270,7 +271,8 @@ async createPayment(data, user, userAgent = 'unknown') {
     }, { transaction: t });
 
     // ── Step 4b: Post ledger entry ────────────────────────────────────
-    await ledgerService.postPaymentEntry(payment, loan, t);
+    // Pass surplus so postPaymentEntry adds a CR 3001 Member Contributions line
+    const { entry: paymentJournalEntry } = await ledgerService.postPaymentEntry(payment, loan, t, surplus);
 
     // ── Step 5: Update loan summary fields ────────────────────────────
     // outstandingBalance tracks remaining principal only
@@ -279,8 +281,8 @@ async createPayment(data, user, userAgent = 'unknown') {
 
     const loanUpdates = {
       outstandingBalance: newBalance,
-      // amountRepaid tracks total cash received (principal + interest)
-      amountRepaid: Number((currentAmountRepaid + paymentAmount).toFixed(2)),
+      // amountRepaid tracks cash applied to the loan (excludes overpayment surplus)
+      amountRepaid: Number((currentAmountRepaid + effectiveAmount).toFixed(2)),
       noOfRepayments: Number(loan.noOfRepayments || 0) + 1,
       nextPaymentDate: nextDueDate || null,
     };
@@ -294,6 +296,24 @@ async createPayment(data, user, userAgent = 'unknown') {
 
     await loan.update(loanUpdates, { transaction: t });
 
+    // ── Step 5b: Credit overpayment to member contributions ──────────
+    let overpaymentContribution = null;
+    if (surplus > 0) {
+      overpaymentContribution = await memberContributionService.creditOverpayment({
+        clientId: loan.clientId,
+        surplus,
+        loanId: loan.id,
+        paymentId: payment.id,
+        journalEntryId: paymentJournalEntry.id,
+        createdBy: creatorId,
+        source: userAgent,
+        transaction: t,
+      });
+      logger.info(
+        `Overpayment of ${surplus} for loan ${loan.id} credited to member ${loan.clientId} contributions`
+      );
+    }
+
     // ── Step 6: Audit log ─────────────────────────────────────────────
     await AuditLogger.log({
       entityType: 'PAYMENT',
@@ -302,10 +322,12 @@ async createPayment(data, user, userAgent = 'unknown') {
       data: {
         loanId: data.loanId,
         amount: paymentAmount,
+        effectiveAmount,
         appliedToPrincipal,
         appliedToInterest,
         newBalance,
-        externalRef: payment.externalRef
+        externalRef: payment.externalRef,
+        ...(surplus > 0 ? { overpaymentSurplus: surplus, overpaymentContributionId: overpaymentContribution?.id } : {})
       },
       actorId: creatorId || 1,
       options: {
@@ -316,14 +338,34 @@ async createPayment(data, user, userAgent = 'unknown') {
 
     await t.commit();
 
+    // ── Step 7: Emit loan transaction event (after commit) ────────────
+    emitLoanTransaction({
+      loanId: loan.id,
+      transactionType: LoanTransactionType.REPAYMENT,
+      direction: 'CREDIT',
+      amount: effectiveAmount,
+      currency: loan.currency,
+      principalBalance: newBalance,
+      interestBalance: 0,
+      feesBalance: Number(payment.fees || 0),
+      penaltiesBalance: Number(payment.penalties || 0),
+      totalBalance: newBalance,
+      referenceId: payment.id,
+      referenceType: 'payment',
+      transactionDate: payment.transactionDate || new Date(),
+      notes: `Payment ${payment.externalRef}: principal=${appliedToPrincipal}, interest=${appliedToInterest}`,
+      createdBy: creatorId || null,
+    });
+
     logger.info(
       `Payment ${payment.id} recorded for loan ${loan.id}: ` +
-      `amount=${paymentAmount} (principal=${appliedToPrincipal}, interest=${appliedToInterest}). ` +
+      `amount=${paymentAmount} (principal=${appliedToPrincipal}, interest=${appliedToInterest}` +
+      (surplus > 0 ? `, overpayment=${surplus}` : '') + `). ` +
       `New balance: ${newBalance}` +
       (loanUpdates.status ? `, status→${loanUpdates.status}` : '')
     );
 
-    return payment;
+    return { payment, overpaymentContribution };
   } catch (err) {
     await t.rollback();
     logger.error(`Error creating payment: ${err.message}`);

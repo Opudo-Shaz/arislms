@@ -13,6 +13,8 @@ const { generateAmortizationSchedule } = require('../utils/loanCalculator');
 const { calculateCreditScore } = require('./creditScorerService');
 const { getRiskGrade, getDecisionFromScore } = require('./riskPolicyService');
 const ledgerService = require('./ledgerService');
+const { emitLoanTransaction } = require('../utils/loanTransactionEmitter');
+const LoanTransactionType = require('../enums/loanTransactionType');
 
 // Calculates monthly payment
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
@@ -43,7 +45,8 @@ const loanService = {
         const loans = await Loan.findAll({
           include: [
             { association: 'repaymentSchedules', required: false },
-            { association: 'creditScore', required: false }
+            { association: 'creditScore', required: false },
+            { association: 'transactions', required: false }
           ]
         });
         logger.info(`Retrieved ${loans.length} loans (admin)`);
@@ -53,7 +56,8 @@ const loanService = {
         where: { clientId: userId },
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'transactions', required: false }
         ]
       });
       logger.info(`Retrieved ${loans.length} loans for user ${userId}`);
@@ -70,7 +74,8 @@ const loanService = {
       const loan = await Loan.findByPk(id, {
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'transactions', required: false }
         ]
       });
       if (!loan) return null;
@@ -393,7 +398,8 @@ const loanService = {
       const loan = await Loan.findByPk(id, {
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'transactions', required: false }
         ]
       });
       if (!loan) throw new Error('Loan not found');
@@ -444,7 +450,8 @@ const loanService = {
       await loan.reload({
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'transactions', required: false }
         ]
       });
 
@@ -488,7 +495,8 @@ const loanService = {
       await loan.reload({
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'transactions', required: false }
         ]
       });
 
@@ -654,11 +662,31 @@ const loanService = {
       // Post ledger entry for disbursement
       await ledgerService.postDisbursementEntry(loan);
 
+      // Emit loan transaction event for disbursement
+      emitLoanTransaction({
+        loanId: loan.id,
+        transactionType: LoanTransactionType.DISBURSEMENT,
+        direction: 'DEBIT',
+        amount: Number(loan.principalAmount),
+        currency: loan.currency,
+        principalBalance: Number(loan.outstandingBalance),
+        interestBalance: 0,
+        feesBalance: Number(loan.fees || 0),
+        penaltiesBalance: Number(loan.penalties || 0),
+        totalBalance: Number(loan.outstandingBalance),
+        referenceType: 'loan',
+        referenceId: loan.id,
+        transactionDate: disbursement,
+        notes: `Loan ${loan.referenceCode} disbursed`,
+        createdBy: actorId || null,
+      });
+
       // Reload loan to get updated data
       await loan.reload({
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          {association: 'transactions', required: false }
         ]
       });
 
@@ -1055,6 +1083,25 @@ const loanService = {
         `Loan ${loanId} principal updated: ${oldPrincipal} -> ${newPrincipal} (${differenceType} of ${Math.abs(difference)}). ` +
         `Installment recalculated: ${oldInstallmentAmount} -> ${newInstallmentAmount} by user ${actorId}`
       );
+
+      // Emit loan transaction event for principal update
+      emitLoanTransaction({
+        loanId: loan.id,
+        transactionType: LoanTransactionType.PRINCIPAL_UPDATE,
+        direction: difference > 0 ? 'DEBIT' : 'CREDIT',
+        amount: Math.abs(difference),
+        currency: loan.currency,
+        principalBalance: Number(newPrincipal),
+        interestBalance: 0,
+        feesBalance: Number(loan.fees || 0),
+        penaltiesBalance: Number(loan.penalties || 0),
+        totalBalance: Number(newPrincipal),
+        referenceType: 'loan',
+        referenceId: loan.id,
+        transactionDate: new Date(),
+        notes: `Principal ${differenceType}: ${oldPrincipal} → ${newPrincipal}`,
+        createdBy: actorId || null,
+      });
 
       return loan;
 
