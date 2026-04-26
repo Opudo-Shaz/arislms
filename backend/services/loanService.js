@@ -10,8 +10,8 @@ const { calculateEndDate,isAdmin } = require('../utils/helpers');
 const LoanStatus = require('../enums/loanStatus');
 const AuditLogger = require('../utils/auditLogger');
 const { generateAmortizationSchedule } = require('../utils/loanCalculator');
-const { calculateCreditScore } = require('./creditScorerService');
-const { getRiskGrade, getDecisionFromScore } = require('./riskPolicyService');
+const { getDecisionFromScore } = require('./riskPolicyService');
+const creditScoreService = require('./creditScoreService');
 const ledgerService = require('./ledgerService');
 const { emitLoanTransaction } = require('../utils/loanTransactionEmitter');
 const LoanTransactionType = require('../enums/loanTransactionType');
@@ -255,29 +255,31 @@ const loanService = {
         throw Object.assign(new Error('Client account is inactive. Loan creation not allowed.'), { statusCode: 422 });
       }
 
-      // 3. Load client's credit history (existing loans for scoring)
-      const existingLoans = await Loan.findAll({
-        where: { clientId: data.clientId }
-      });
+      // 3. Score client via shared service (also loads loans internally)
+      const { riskScore, riskGrade, riskDti, creditLimit } = await creditScoreService.computeAndSave(
+        data.clientId,
+        creatorId,
+        userAgent,
+        { requestedTenure: data.termMonths || 12 }
+      );
 
-      // 3. Calculate credit score through scoring engine
-      const scoringResult = calculateCreditScore(client, existingLoans, {
-        requestedTenure: data.termMonths || 12
-      });
-
-      const { score: riskScore, breakdown: scoringBreakdown, dti: riskDti } = scoringResult;
-
-      // 4. Get risk grade and decision through risk policy engine
-      const riskGrade = getRiskGrade(riskScore);
       const riskDecision = getDecisionFromScore(riskScore);
 
       logger.info(
-        `Credit scoring result for client ${data.clientId}: score=${riskScore}, grade=${riskGrade}, decision=${riskDecision}, dti=${riskDti.toFixed(2)}`
+        `Credit scoring result for client ${data.clientId}: score=${riskScore}, grade=${riskGrade}, decision=${riskDecision}, dti=${riskDti.toFixed(2)}, limit=${creditLimit}`
       );
 
+      // 4. Reject if requested principal exceeds computed credit limit
+      if (Number(data.principalAmount) > creditLimit) {
+        throw Object.assign(
+          new Error(`Requested amount (${data.principalAmount}) exceeds client credit limit (${creditLimit})`),
+          { statusCode: 422 }
+        );
+      }
+
       // 5. Determine loan status based on policy decision
-      // APPROVED (passes checks) -> under_review (admin will approve)
-      // MANUAL_REVIEW/REJECTED (fails checks) -> pending (needs review)
+      // APPROVED -> under_review (admin will approve)
+      // MANUAL_REVIEW/REJECTED -> pending (needs review)
       let loanStatus;
       if (riskDecision === 'APPROVED') {
         loanStatus = LoanStatus.UNDER_REVIEW;
@@ -351,20 +353,17 @@ const loanService = {
         throw new Error('Loan creation failed: invalid loan object returned');
       }
 
-      // 8. Create CreditScore record with risk assessment data
-      const creditScorePayload = {
-        loanId: newLoan.id,
-        clientId: data.clientId,
-        riskScore,
-        riskGrade,
-        riskDti,
-        scoringBreakdown,
-        scoringModelVersion: '1.0',
-        evaluatedBy: creatorId,
-        notes: `Auto-scored for loan ${newLoan.referenceCode}`
-      };
-
-      await CreditScore.create(creditScorePayload);
+      // 8. Link the already-created CreditScore record to this loan
+      const latestScore = await CreditScore.findOne({
+        where: { clientId: data.clientId },
+        order: [['created_at', 'DESC']]
+      });
+      if (latestScore) {
+        await latestScore.update({
+          loanId: newLoan.id,
+          notes: `Auto-scored for loan ${newLoan.referenceCode}`
+        });
+      }
 
       // Reload loan with associations
       await newLoan.reload({
@@ -381,13 +380,7 @@ const loanService = {
         action: 'CREATE',
         data: {
           loanPayload,
-          scoringResult: {
-            riskScore,
-            riskGrade,
-            riskDti,
-            policyDecision: riskDecision,
-            scoringBreakdown
-          }
+          scoringResult: { riskScore, riskGrade, riskDti, creditLimit, policyDecision: riskDecision }
         },
         actorId: creatorId,
         options: {

@@ -429,4 +429,40 @@ router.post('/:id/suspend', authenticate, authorize([1,2]), clientController.sus
  */
 router.post('/:id/blacklist', authenticate, authorize([1,2]), clientController.blacklistClient);
 
+/**
+ * @openapi
+ * /api/clients/{id}/credit-score/refresh:
+ *   post:
+ *     summary: Refresh credit score for a client (admin only)
+ *     description: Re-runs the credit scoring engine for the client based on their current profile and loan history, and saves the result.
+ *     tags:
+ *       - Clients - Credit Score
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: Credit score refreshed successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: Credit score refreshed successfully.
+ *               data:
+ *                 id: 10
+ *                 clientId: 1
+ *                 riskScore: 3
+ *                 riskGrade: B
+ *                 riskDti: 0.35
+ *       404:
+ *         description: Client not found
+ */
+router.post('/:id/credit-score/refresh', authenticate, authorize([1,2]), clientController.refreshCreditScore);
+
 module.exports = router;

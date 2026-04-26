@@ -304,6 +304,26 @@ const clientController = {
       return res.status(error.statusCode || 400).json({ success: false, message: error.message });
     }
   },
+
+  async refreshCreditScore(req, res) {
+    try {
+      const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
+      const id = req.params.id;
+
+      logger.info(`User ${userId} refreshing credit score for client ${id}`);
+      const creditScore = await clientService.refreshCreditScore(id, userId, userAgent);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Credit score refreshed successfully.',
+        data: creditScore
+      });
+    } catch (error) {
+      logger.error(`Refresh Credit Score Error: ${error.message}`);
+      return res.status(error.statusCode || 400).json({ success: false, message: error.message });
+    }
+  },
 };
 
 module.exports = clientController;

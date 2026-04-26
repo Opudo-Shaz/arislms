@@ -23,6 +23,10 @@ class ClientResponseDto {
     this.verifiedBy = client.verifiedBy;
     this.createdAt = client.createdAt;
     this.updatedAt = client.updatedAt;
+
+    // Include latest credit score if loaded via association
+    const scores = client.creditScores;
+    this.creditScore = scores && scores.length > 0 ? scores[0] : null;
   }
 }
 

@@ -60,6 +60,13 @@ const CreditScore = sequelize.define('CreditScore', {
     comment: 'User ID who evaluated the credit score'
   },
 
+  creditLimit: {
+    type: DataTypes.DECIMAL(14, 2),
+    allowNull: true,
+    field: 'credit_limit',
+    comment: 'Computed credit limit based on income band and risk score'
+  },
+
   notes: {
     type: DataTypes.TEXT,
     allowNull: true,

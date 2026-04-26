@@ -1,5 +1,6 @@
 const Client = require('../models/clientModel');
 const Loan = require('../models/loanModel');
+const CreditScore = require('../models/creditScoreModel');
 const { Op } = require('sequelize');
 const ClientStatus = require('../enums/clientStatus');
 const LoanStatus = require('../enums/loanStatus');
@@ -7,6 +8,7 @@ const KycStatus = require('../enums/kycStatus');
 const logger = require('../config/logger');
 const { v4: uuidv4 } = require('uuid');
 const AuditLogger = require('../utils/auditLogger');
+const creditScoreService = require('./creditScoreService');
 
 const clientService = {
   // ✅ Create client 
@@ -78,7 +80,16 @@ const clientService = {
   // ✅ Get all clients 
   async getAllClients() {
     try {
-      const clients = await Client.findAll();
+      const clients = await Client.findAll({
+        include: [{
+          model: CreditScore,
+          as: 'creditScores',
+          required: false,
+          order: [['created_at', 'DESC']],
+          limit: 1,
+          separate: true
+        }]
+      });
       logger.info(`Retrieved all clients`);
       return clients;
     } catch (error) {
@@ -90,7 +101,16 @@ const clientService = {
   // ✅ Get single client by ID (any authenticated user, but only admin can see all)
   async getClientById(id) {
     try {
-      const client = await Client.findByPk(id);
+      const client = await Client.findByPk(id, {
+        include: [{
+          model: CreditScore,
+          as: 'creditScores',
+          required: false,
+          order: [['created_at', 'DESC']],
+          limit: 1,
+          separate: true
+        }]
+      });
       if (!client) throw new Error('Client not found');
       logger.info(`Retrieved client ID: ${id}`);
       return client;
@@ -185,6 +205,10 @@ const clientService = {
       });
 
       logger.info(`Client ID ${id} KYC verified by user ${actorId}`);
+
+      // Run credit scoring after KYC verification
+      await this._computeAndSaveCreditScore(id, actorId, userAgent);
+
       return client;
     } catch (error) {
       logger.error(`Error verifying KYC for client ID ${id}: ${error.message}`);
@@ -274,6 +298,22 @@ const clientService = {
       logger.error(`Error activating client ID ${id}: ${error.message}`);
       throw error;
     }
+  },
+
+  // Shared helper — delegates to creditScoreService so the logic is reusable
+  async _computeAndSaveCreditScore(clientId, actorId, userAgent) {
+    try {
+      return await creditScoreService.computeAndSave(clientId, actorId, userAgent);
+    } catch (err) {
+      logger.error(`Error computing credit score for client ${clientId}: ${err.message}`);
+    }
+  },
+
+  // ✅ Refresh credit score for a client
+  async refreshCreditScore(id, actorId, userAgent = 'unknown') {
+    const client = await Client.findByPk(id);
+    if (!client) throw Object.assign(new Error('Client not found'), { statusCode: 404 });
+    return this._computeAndSaveCreditScore(id, actorId, userAgent);
   },
 
   // Shared guard — throws 409 if the client has an outstanding loan

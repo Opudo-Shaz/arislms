@@ -3,6 +3,8 @@ const Client = require('../models/clientModel');
 const Loan = require('../models/loanModel');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
+const { calculateCreditScore } = require('./creditScorerService');
+const { getRiskGrade, computeCreditLimit } = require('./riskPolicyService');
 
 const creditScoreService = {
   // Create credit score
@@ -203,6 +205,60 @@ const creditScoreService = {
       logger.error(`Error deleting credit score ${id}: ${error.message}`);
       throw error;
     }
+  },
+
+  /**
+   * Runs the scoring engine for a client and persists the result as a new CreditScore record.
+   * Optionally associates the record with a specific loan.
+   *
+   * @param {number} clientId
+   * @param {number} actorId
+   * @param {string} userAgent
+   * @param {object} [opts]
+   * @param {number}  [opts.loanId]        - link score to a loan
+   * @param {number}  [opts.requestedTenure] - tenure hint for the scorer
+   * @param {string}  [opts.notes]
+   * @returns {Promise<{ creditScore: CreditScore, creditLimit: number }>}
+   */
+  async computeAndSave(clientId, actorId, userAgent = 'unknown', opts = {}) {
+    const client = await Client.findByPk(clientId);
+    if (!client) throw Object.assign(new Error('Client not found'), { statusCode: 404 });
+
+    const loans = await Loan.findAll({ where: { clientId } });
+    const { score: riskScore, breakdown: scoringBreakdown, dti: riskDti } =
+      calculateCreditScore(client, loans, { requestedTenure: opts.requestedTenure });
+
+    const riskGrade = getRiskGrade(riskScore);
+    const creditLimit = computeCreditLimit(client.monthlyIncome, riskScore);
+
+    const creditScore = await CreditScore.create({
+      clientId,
+      loanId: opts.loanId || null,
+      riskScore,
+      riskGrade,
+      riskDti,
+      creditLimit,
+      scoringBreakdown,
+      scoringModelVersion: '1.0',
+      evaluatedBy: actorId,
+      notes: opts.notes || null
+    });
+
+    await AuditLogger.log({
+      entityType: 'CREDIT_SCORE',
+      entityId: creditScore.id,
+      action: 'CREATE',
+      data: { clientId, loanId: opts.loanId || null, riskScore, riskGrade, riskDti, creditLimit },
+      actorId: actorId || 1,
+      options: { actorType: 'USER', source: userAgent }
+    });
+
+    logger.info(
+      `Credit score computed for client ${clientId}: score=${riskScore}, grade=${riskGrade}, limit=${creditLimit}` +
+      (opts.loanId ? `, loanId=${opts.loanId}` : '')
+    );
+
+    return { creditScore, riskScore, riskGrade, riskDti, creditLimit };
   }
 };
 
