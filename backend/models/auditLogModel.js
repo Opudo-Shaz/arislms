@@ -16,10 +16,14 @@ const AuditLog = sequelize.define('AuditLog', {
     allowNull: false,
   },
   action: {
-    type: DataTypes.STRING(10),
+    type: DataTypes.STRING(32),
     allowNull: false,
     validate: {
-      isIn: [['CREATE', 'UPDATE', 'DELETE', 'DISBURSE', 'REVERSE']],
+      isIn: [[
+        'CREATE', 'UPDATE', 'DELETE', 'DISBURSE', 'REVERSE',
+        'UPDATE_PRINCIPAL', 'KYC_VERIFY', 'KYC_REQUEST_INFO', 'KYC_REJECT',
+        'ACTIVATE', 'DEACTIVATE', 'SUSPEND', 'BLACKLIST'
+      ]],
     },
   },
   command_as_json: {
@@ -52,7 +56,7 @@ const AuditLog = sequelize.define('AuditLog', {
     allowNull: true,
   },
 }, {
-  tableName: 'audit_log',
+  tableName: 'audit_logs',
   timestamps: false,
   freezeTableName: true,
 });

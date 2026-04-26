@@ -153,6 +153,157 @@ const clientController = {
       });
     }
   },
+
+  async verifyKyc(req, res) {
+    try {
+      const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
+      const id = req.params.id;
+      const { notes } = req.body || {};
+
+      logger.info(`User ${userId} verifying KYC for client ${id}`);
+      const client = await clientService.verifyKyc(id, userId, userAgent, notes || null);
+
+      return res.status(200).json({
+        success: true,
+        message: 'KYC verified successfully. Client is now active.',
+        data: new ClientResponseDto(client)
+      });
+    } catch (error) {
+      logger.error(`KYC Verify Error: ${error.message}`);
+      return res.status(error.statusCode || 400).json({ success: false, message: error.message });
+    }
+  },
+
+  async requestKycInfo(req, res) {
+    try {
+      const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
+      const id = req.params.id;
+      const { kycNotes } = req.body;
+
+      if (!kycNotes || !String(kycNotes).trim()) {
+        return res.status(400).json({ success: false, message: 'kycNotes is required' });
+      }
+
+      logger.info(`User ${userId} requesting additional KYC info for client ${id}`);
+      const client = await clientService.requestKycInfo(id, String(kycNotes).trim(), userId, userAgent);
+
+      return res.status(200).json({
+        success: true,
+        message: 'KYC info requested. Client status set to pending re-verification.',
+        data: new ClientResponseDto(client)
+      });
+    } catch (error) {
+      logger.error(`KYC Request Info Error: ${error.message}`);
+      return res.status(error.statusCode || 400).json({ success: false, message: error.message });
+    }
+  },
+
+  async rejectKyc(req, res) {
+    try {
+      const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
+      const id = req.params.id;
+      const { notes } = req.body || {};
+
+      logger.info(`User ${userId} rejecting KYC for client ${id}`);
+      const client = await clientService.rejectKyc(id, userId, userAgent, notes || null);
+
+      return res.status(200).json({
+        success: true,
+        message: 'KYC rejected. Client status set to KYC failed.',
+        data: new ClientResponseDto(client)
+      });
+    } catch (error) {
+      logger.error(`KYC Reject Error: ${error.message}`);
+      return res.status(error.statusCode || 400).json({ success: false, message: error.message });
+    }
+  },
+
+  async activateClient(req, res) {
+    try {
+      const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
+      const id = req.params.id;
+      const { notes } = req.body || {};
+
+      logger.info(`User ${userId} activating client ${id}`);
+      const client = await clientService.activateClient(id, userId, userAgent, notes || null);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Client activated successfully.',
+        data: new ClientResponseDto(client)
+      });
+    } catch (error) {
+      logger.error(`Activate Client Error: ${error.message}`);
+      return res.status(error.statusCode || 400).json({ success: false, message: error.message });
+    }
+  },
+
+  async deactivateClient(req, res) {
+    try {
+      const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
+      const id = req.params.id;
+      const { notes } = req.body || {};
+
+      logger.info(`User ${userId} deactivating client ${id}`);
+      const client = await clientService.deactivateClient(id, userId, userAgent, notes || null);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Client deactivated successfully.',
+        data: new ClientResponseDto(client)
+      });
+    } catch (error) {
+      logger.error(`Deactivate Client Error: ${error.message}`);
+      return res.status(error.statusCode || 400).json({ success: false, message: error.message });
+    }
+  },
+
+  async suspendClient(req, res) {
+    try {
+      const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
+      const id = req.params.id;
+      const { notes } = req.body || {};
+
+      logger.info(`User ${userId} suspending client ${id}`);
+      const client = await clientService.suspendClient(id, userId, userAgent, notes || null);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Client suspended successfully.',
+        data: new ClientResponseDto(client)
+      });
+    } catch (error) {
+      logger.error(`Suspend Client Error: ${error.message}`);
+      return res.status(error.statusCode || 400).json({ success: false, message: error.message });
+    }
+  },
+
+  async blacklistClient(req, res) {
+    try {
+      const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
+      const id = req.params.id;
+      const { notes } = req.body || {};
+
+      logger.info(`User ${userId} blacklisting client ${id}`);
+      const client = await clientService.blacklistClient(id, userId, userAgent, notes || null);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Client blacklisted successfully.',
+        data: new ClientResponseDto(client)
+      });
+    } catch (error) {
+      logger.error(`Blacklist Client Error: ${error.message}`);
+      return res.status(error.statusCode || 400).json({ success: false, message: error.message });
+    }
+  },
 };
 
 module.exports = clientController;

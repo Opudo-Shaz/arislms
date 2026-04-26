@@ -22,13 +22,14 @@ const Client = sequelize.define('Client', {
   idDocumentImages: { type: DataTypes.JSONB, field: 'id_document_images' },
   kycStatus: { type: DataTypes.STRING(20), defaultValue: 'not_started', field: 'kyc_status' },
   kycVerifiedAt: { type: DataTypes.DATE, field: 'kyc_verified_at' },
+  kycNotes: { type: DataTypes.TEXT, field: 'kyc_notes' },
   verifiedBy: { type: DataTypes.INTEGER, field: 'verified_by' },
   riskScore: { type: DataTypes.DECIMAL(5,2), field: 'risk_score' },
   preferredContactMethod: { type: DataTypes.STRING(16), field: 'preferred_contact_method' },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true, field: 'is_active' },
   status: {
     type: DataTypes.ENUM(Object.values(ClientStatus)),
-    defaultValue: ClientStatus.ACTIVE,
+    defaultValue: ClientStatus.PENDING,
     allowNull: false
   },
 

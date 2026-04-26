@@ -19,8 +19,6 @@ class ClientRequestDto {
     this.idDocumentImages = data.idDocumentImages;
     this.preferredContactMethod = data.preferredContactMethod;
     this.notes = data.notes;
-    this.isActive = data.isActive !== undefined ? data.isActive : true;
-    this.status = data.status || 'active';
   }
 
   // Joi validation schema for creating clients
@@ -68,14 +66,18 @@ class ClientRequestDto {
         'date.base': 'Date of birth must be a valid date'
       }),
 
-    gender: Joi.string().valid('male', 'female', 'other').allow(null, '')
+    gender: Joi.string().valid('male', 'female', 'other').required()
       .messages({
-        'any.only': 'Gender must be male, female, or other'
+        'string.empty': 'Gender is required',
+        'any.only': 'Gender must be male, female, or other',
+        'any.required': 'Gender is required'
       }),
 
-    occupation: Joi.string().max(128).allow(null, '')
+    occupation: Joi.string().trim().min(1).max(128).required()
       .messages({
-        'string.max': 'Occupation cannot exceed 128 characters'
+        'string.empty': 'Occupation is required',
+        'string.max': 'Occupation cannot exceed 128 characters',
+        'any.required': 'Occupation is required'
       }),
 
     employer: Joi.string().max(128).allow(null, '')
@@ -83,31 +85,37 @@ class ClientRequestDto {
         'string.max': 'Employer cannot exceed 128 characters'
       }),
 
-    monthlyIncome: Joi.number().min(0).allow(null, '')
+    monthlyIncome: Joi.number().min(0).required()
       .messages({
         'number.base': 'Monthly income must be a number',
-        'number.min': 'Monthly income cannot be negative'
+        'number.min': 'Monthly income cannot be negative',
+        'any.required': 'Monthly income is required'
       }),
 
     address: Joi.object({
-      street: Joi.string().allow('', null),
-      city: Joi.string().allow('', null),
+      street: Joi.string().trim().min(1).required().messages({ 'any.required': 'Street is required', 'string.empty': 'Street is required' }),
+      city: Joi.string().trim().min(1).required().messages({ 'any.required': 'City is required', 'string.empty': 'City is required' }),
       state: Joi.string().allow('', null),
       postalCode: Joi.string().allow('', null),
-      country: Joi.string().allow('', null)
-    }).allow(null)
+      country: Joi.string().trim().min(1).required().messages({ 'any.required': 'Country is required', 'string.empty': 'Country is required' })
+    }).required()
       .messages({
-        'object.base': 'Address must be an object'
+        'object.base': 'Address must be an object',
+        'any.required': 'Address is required'
       }),
 
-    idDocumentType: Joi.string().max(32).allow(null, '')
+    idDocumentType: Joi.string().trim().min(1).max(32).required()
       .messages({
-        'string.max': 'ID document type cannot exceed 32 characters'
+        'string.empty': 'ID document type is required',
+        'string.max': 'ID document type cannot exceed 32 characters',
+        'any.required': 'ID document type is required'
       }),
 
-    idDocumentNumber: Joi.string().max(255).allow(null, '')
+    idDocumentNumber: Joi.string().trim().min(1).max(255).required()
       .messages({
-        'string.max': 'ID document number cannot exceed 255 characters'
+        'string.empty': 'ID document number is required',
+        'string.max': 'ID document number cannot exceed 255 characters',
+        'any.required': 'ID document number is required'
       }),
 
     idDocumentImages: Joi.object({
@@ -129,13 +137,6 @@ class ClientRequestDto {
         'string.base': 'Notes must be a string'
       }),
 
-    isActive: Joi.boolean().default(true),
-
-    status: Joi.string().valid('active', 'inactive', 'suspended', 'blacklisted')
-      .default('active')
-      .messages({
-        'any.only': 'Status must be active, inactive, suspended, or blacklisted'
-      })
   });
 
   // Joi validation schema for updating clients
@@ -145,7 +146,13 @@ class ClientRequestDto {
       'firstName',
       'lastName',
       'email',
-      'phone'    
+      'phone',
+      'gender',
+      'occupation',
+      'monthlyIncome',
+      'address',
+      'idDocumentType',
+      'idDocumentNumber'
     ],
     (schema) => schema.optional()
   );

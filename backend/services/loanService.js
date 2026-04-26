@@ -124,7 +124,13 @@ const loanService = {
         throw new Error('Client not found');
       }
       if (client.kycStatus !== 'verified') {
-        throw new Error('Client KYC not verified. Cannot create loan.');
+        throw Object.assign(new Error('Client KYC is not verified. Loan creation not allowed.'), { statusCode: 422 });
+      }
+      if (client.status !== 'active') {
+        throw Object.assign(new Error(`Client account is not active (current status: ${client.status}). Loan creation not allowed.`), { statusCode: 422 });
+      }
+      if (!client.isActive) {
+        throw Object.assign(new Error('Client account is inactive. Loan creation not allowed.'), { statusCode: 422 });
       }
       // Validate co-signer exists if provided
       if (data.coSignerId) {
@@ -237,6 +243,17 @@ const loanService = {
       // 2. Load client data
       const client = await Client.findByPk(data.clientId);
       if (!client) throw new Error('Client not found');
+
+      // 2a. Validate client eligibility
+      if (client.kycStatus !== 'verified') {
+        throw Object.assign(new Error('Client KYC is not verified. Loan creation not allowed.'), { statusCode: 422 });
+      }
+      if (client.status !== 'active') {
+        throw Object.assign(new Error(`Client account is not active (current status: ${client.status}). Loan creation not allowed.`), { statusCode: 422 });
+      }
+      if (!client.isActive) {
+        throw Object.assign(new Error('Client account is inactive. Loan creation not allowed.'), { statusCode: 422 });
+      }
 
       // 3. Load client's credit history (existing loans for scoring)
       const existingLoans = await Loan.findAll({
