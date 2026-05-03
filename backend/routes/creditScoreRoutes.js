@@ -1,6 +1,6 @@
 const express = require('express');
 const {
-  getCreditScoresByClient
+  getCreditScoreByClientId
 } = require('../controllers/creditScoreController');
 
 const { authenticate, authorize } = require('../middleware/authMiddleware');
@@ -13,7 +13,7 @@ const router = express.Router();
  * @openapi
  * /api/credit-scores/client/{clientId}:
  *   get:
- *     summary: Get all credit scores for a specific client
+ *     summary: Get the most recent credit score for a specific client
  *     tags:
  *       - Credit Scores
  *     security:
@@ -27,7 +27,7 @@ const router = express.Router();
  *         example: 5
  *     responses:
  *       200:
- *         description: List of credit scores for the client
+ *         description: Most recent credit score for the client
  *         content:
  *           application/json:
  *             example:
@@ -36,7 +36,7 @@ const router = express.Router();
  *                 riskScore: 45
  *                 riskGrade: D
  */
-router.get('/client/:clientId', authenticate, authorize([1, 2]), getCreditScoresByClient);
+router.get('/client/:clientId', authenticate, authorize([1, 2]), getCreditScoreByClientId);
 
 
 

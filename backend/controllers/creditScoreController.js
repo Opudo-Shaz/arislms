@@ -12,27 +12,25 @@ const creditScoreController = {
 
 
   // Get credit scores by client ID
-  async getCreditScoresByClient(req, res) {
+  async getCreditScoreByClientId(req, res) {
     try {
       const userId = getUserId(req);
       const clientId = req.params.clientId;
 
       logger.info(`User ${userId} fetching credit scores for client ${clientId}`);
 
-      const creditScores = await creditScoreService.getCreditScoresByClientId(clientId);
+      const creditScore = await creditScoreService.getCreditScoreByClientId(clientId);
 
-      if (creditScores.length === 0) {
+      if (!creditScore) {
         return res.status(404).json({
           success: false,
-          message: 'No credit scores found for this client'
+          message: 'No credit score found for this client'
         });
       }
 
-      const result = creditScores.map(cs => new CreditScoreResponseDto(cs));
-
       return res.status(200).json({
         success: true,
-        data: result
+        data: new CreditScoreResponseDto(creditScore)
       });
     } catch (error) {
       logger.error(`Get Credit Scores By Client Error: ${error.message}`);

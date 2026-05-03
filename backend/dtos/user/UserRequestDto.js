@@ -8,7 +8,7 @@ class UserRequestDto {
     this.last_name = data.last_name;
     this.email = data.email;
     this.phone = data.phone;
-    this.role_id = data.roleId;
+    this.role = data.roleId;
     this.id_number = data.id_number;
     this.password = data.password;
   }
@@ -53,7 +53,7 @@ class UserRequestDto {
         'string.pattern.base': 'Phone must contain at least 7 digits'
       }),
 
-    role_id: Joi.number().integer().required()
+    role: Joi.number().integer().required()
       .example(1)
       .messages({
         'any.required': 'Role ID is required',
@@ -113,7 +113,7 @@ class UserRequestDto {
         'string.pattern.base': 'Phone must contain at least 7 digits'
       }),
 
-    role_id: Joi.number().integer().optional()
+    role: Joi.number().integer().optional()
       .example(2)
       .messages({
         'number.base': 'Role ID must be a number'

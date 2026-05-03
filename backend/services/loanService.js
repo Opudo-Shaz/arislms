@@ -10,8 +10,11 @@ const { calculateEndDate,isAdmin } = require('../utils/helpers');
 const LoanStatus = require('../enums/loanStatus');
 const AuditLogger = require('../utils/auditLogger');
 const { generateAmortizationSchedule } = require('../utils/loanCalculator');
-const { calculateCreditScore } = require('./creditScorerService');
-const { getRiskGrade, getDecisionFromScore } = require('./riskPolicyService');
+const { getDecisionFromScore } = require('./riskPolicyService');
+const creditScoreService = require('./creditScoreService');
+const ledgerService = require('./ledgerService');
+const { emitLoanTransaction } = require('../utils/loanTransactionEmitter');
+const LoanTransactionType = require('../enums/loanTransactionType');
 
 // Calculates monthly payment
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
@@ -42,7 +45,8 @@ const loanService = {
         const loans = await Loan.findAll({
           include: [
             { association: 'repaymentSchedules', required: false },
-            { association: 'creditScore', required: false }
+            { association: 'creditScore', required: false },
+            { association: 'transactions', required: false }
           ]
         });
         logger.info(`Retrieved ${loans.length} loans (admin)`);
@@ -52,7 +56,8 @@ const loanService = {
         where: { clientId: userId },
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'transactions', required: false }
         ]
       });
       logger.info(`Retrieved ${loans.length} loans for user ${userId}`);
@@ -69,7 +74,8 @@ const loanService = {
       const loan = await Loan.findByPk(id, {
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'transactions', required: false }
         ]
       });
       if (!loan) return null;
@@ -118,7 +124,13 @@ const loanService = {
         throw new Error('Client not found');
       }
       if (client.kycStatus !== 'verified') {
-        throw new Error('Client KYC not verified. Cannot create loan.');
+        throw Object.assign(new Error('Client KYC is not verified. Loan creation not allowed.'), { statusCode: 422 });
+      }
+      if (client.status !== 'active') {
+        throw Object.assign(new Error(`Client account is not active (current status: ${client.status}). Loan creation not allowed.`), { statusCode: 422 });
+      }
+      if (!client.isActive) {
+        throw Object.assign(new Error('Client account is inactive. Loan creation not allowed.'), { statusCode: 422 });
       }
       // Validate co-signer exists if provided
       if (data.coSignerId) {
@@ -232,29 +244,42 @@ const loanService = {
       const client = await Client.findByPk(data.clientId);
       if (!client) throw new Error('Client not found');
 
-      // 3. Load client's credit history (existing loans for scoring)
-      const existingLoans = await Loan.findAll({
-        where: { clientId: data.clientId }
-      });
+      // 2a. Validate client eligibility
+      if (client.kycStatus !== 'verified') {
+        throw Object.assign(new Error('Client KYC is not verified. Loan creation not allowed.'), { statusCode: 422 });
+      }
+      if (client.status !== 'active') {
+        throw Object.assign(new Error(`Client account is not active (current status: ${client.status}). Loan creation not allowed.`), { statusCode: 422 });
+      }
+      if (!client.isActive) {
+        throw Object.assign(new Error('Client account is inactive. Loan creation not allowed.'), { statusCode: 422 });
+      }
 
-      // 3. Calculate credit score through scoring engine
-      const scoringResult = calculateCreditScore(client, existingLoans, {
-        requestedTenure: data.termMonths || 12
-      });
+      // 3. Score client via shared service (also loads loans internally)
+      const { riskScore, riskGrade, riskDti, creditLimit } = await creditScoreService.computeAndSave(
+        data.clientId,
+        creatorId,
+        userAgent,
+        { requestedTenure: data.termMonths || 12 }
+      );
 
-      const { score: riskScore, breakdown: scoringBreakdown, dti: riskDti } = scoringResult;
-
-      // 4. Get risk grade and decision through risk policy engine
-      const riskGrade = getRiskGrade(riskScore);
       const riskDecision = getDecisionFromScore(riskScore);
 
       logger.info(
-        `Credit scoring result for client ${data.clientId}: score=${riskScore}, grade=${riskGrade}, decision=${riskDecision}, dti=${riskDti.toFixed(2)}`
+        `Credit scoring result for client ${data.clientId}: score=${riskScore}, grade=${riskGrade}, decision=${riskDecision}, dti=${riskDti.toFixed(2)}, limit=${creditLimit}`
       );
 
+      // 4. Reject if requested principal exceeds computed credit limit
+      if (Number(data.principalAmount) > creditLimit) {
+        throw Object.assign(
+          new Error(`Requested amount (${data.principalAmount}) exceeds client credit limit (${creditLimit})`),
+          { statusCode: 422 }
+        );
+      }
+
       // 5. Determine loan status based on policy decision
-      // APPROVED (passes checks) -> under_review (admin will approve)
-      // MANUAL_REVIEW/REJECTED (fails checks) -> pending (needs review)
+      // APPROVED -> under_review (admin will approve)
+      // MANUAL_REVIEW/REJECTED -> pending (needs review)
       let loanStatus;
       if (riskDecision === 'APPROVED') {
         loanStatus = LoanStatus.UNDER_REVIEW;
@@ -328,20 +353,17 @@ const loanService = {
         throw new Error('Loan creation failed: invalid loan object returned');
       }
 
-      // 8. Create CreditScore record with risk assessment data
-      const creditScorePayload = {
-        loanId: newLoan.id,
-        clientId: data.clientId,
-        riskScore,
-        riskGrade,
-        riskDti,
-        scoringBreakdown,
-        scoringModelVersion: '1.0',
-        evaluatedBy: creatorId,
-        notes: `Auto-scored for loan ${newLoan.referenceCode}`
-      };
-
-      await CreditScore.create(creditScorePayload);
+      // 8. Link the already-created CreditScore record to this loan
+      const latestScore = await CreditScore.findOne({
+        where: { clientId: data.clientId },
+        order: [['created_at', 'DESC']]
+      });
+      if (latestScore) {
+        await latestScore.update({
+          loanId: newLoan.id,
+          notes: `Auto-scored for loan ${newLoan.referenceCode}`
+        });
+      }
 
       // Reload loan with associations
       await newLoan.reload({
@@ -358,13 +380,7 @@ const loanService = {
         action: 'CREATE',
         data: {
           loanPayload,
-          scoringResult: {
-            riskScore,
-            riskGrade,
-            riskDti,
-            policyDecision: riskDecision,
-            scoringBreakdown
-          }
+          scoringResult: { riskScore, riskGrade, riskDti, creditLimit, policyDecision: riskDecision }
         },
         actorId: creatorId,
         options: {
@@ -392,7 +408,8 @@ const loanService = {
       const loan = await Loan.findByPk(id, {
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'transactions', required: false }
         ]
       });
       if (!loan) throw new Error('Loan not found');
@@ -432,7 +449,7 @@ const loanService = {
         entityId: id,
         action: 'UPDATE',
         data: auditData,
-        actorId: updatorId || 'system',
+        actorId: updatorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -443,7 +460,8 @@ const loanService = {
       await loan.reload({
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'transactions', required: false }
         ]
       });
 
@@ -487,7 +505,8 @@ const loanService = {
       await loan.reload({
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'transactions', required: false }
         ]
       });
 
@@ -500,7 +519,7 @@ const loanService = {
           approvalDate: approval.toISOString().split('T')[0],
           status: LoanStatus.APPROVED
         },
-        actorId: approverId || 'system',
+        actorId: approverId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -554,7 +573,7 @@ const loanService = {
           newStatus: LoanStatus.DELETED,
           originalData
         },
-        actorId: deletorId || 'system',
+        actorId: deletorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -650,11 +669,34 @@ const loanService = {
         });
       }
 
+      // Post ledger entry for disbursement
+      await ledgerService.postDisbursementEntry(loan);
+
+      // Emit loan transaction event for disbursement
+      emitLoanTransaction({
+        loanId: loan.id,
+        transactionType: LoanTransactionType.DISBURSEMENT,
+        direction: 'DEBIT',
+        amount: Number(loan.principalAmount),
+        currency: loan.currency,
+        principalBalance: Number(loan.outstandingBalance),
+        interestBalance: 0,
+        feesBalance: Number(loan.fees || 0),
+        penaltiesBalance: Number(loan.penalties || 0),
+        totalBalance: Number(loan.outstandingBalance),
+        referenceType: 'loan',
+        referenceId: loan.id,
+        transactionDate: disbursement,
+        notes: `Loan ${loan.referenceCode} disbursed`,
+        createdBy: actorId || null,
+      });
+
       // Reload loan to get updated data
       await loan.reload({
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          {association: 'transactions', required: false }
         ]
       });
 
@@ -668,7 +710,7 @@ const loanService = {
           installmentsCount: scheduleEntries.length,
           status: loan.status
         },
-        actorId: actorId || 'system',
+        actorId: actorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -767,7 +809,7 @@ const loanService = {
           disbursementDate,
           installmentsCount: scheduleEntries.length
         },
-        actorId: actorId || 'system',
+        actorId: actorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -892,7 +934,7 @@ const loanService = {
           changes: options,
           installmentsCount: scheduleEntries.length
         },
-        actorId: actorId || 'system',
+        actorId: actorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -1040,7 +1082,7 @@ const loanService = {
           },
           loanStatus: loan.status
         },
-        actorId: actorId || 'system',
+        actorId: actorId || 1,
         options: {
           actorType: 'USER',
           source: userAgent
@@ -1051,6 +1093,25 @@ const loanService = {
         `Loan ${loanId} principal updated: ${oldPrincipal} -> ${newPrincipal} (${differenceType} of ${Math.abs(difference)}). ` +
         `Installment recalculated: ${oldInstallmentAmount} -> ${newInstallmentAmount} by user ${actorId}`
       );
+
+      // Emit loan transaction event for principal update
+      emitLoanTransaction({
+        loanId: loan.id,
+        transactionType: LoanTransactionType.PRINCIPAL_UPDATE,
+        direction: difference > 0 ? 'DEBIT' : 'CREDIT',
+        amount: Math.abs(difference),
+        currency: loan.currency,
+        principalBalance: Number(newPrincipal),
+        interestBalance: 0,
+        feesBalance: Number(loan.fees || 0),
+        penaltiesBalance: Number(loan.penalties || 0),
+        totalBalance: Number(newPrincipal),
+        referenceType: 'loan',
+        referenceId: loan.id,
+        transactionDate: new Date(),
+        notes: `Principal ${differenceType}: ${oldPrincipal} → ${newPrincipal}`,
+        createdBy: actorId || null,
+      });
 
       return loan;
 

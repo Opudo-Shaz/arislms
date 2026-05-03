@@ -78,12 +78,21 @@ const paymentController = {
         });
       }
 
-      const payment = await paymentService.createPayment(validation.value, req.user, userAgent);
+      const { payment, overpaymentContribution } = await paymentService.createPayment(validation.value, req.user, userAgent);
+
+      const responseData = { payment: new PaymentResponseDto(payment) };
+      if (overpaymentContribution) {
+        responseData.overpaymentCredit = {
+          contributionId: overpaymentContribution.id,
+          amount: overpaymentContribution.amount,
+          message: `An overpayment of ${overpaymentContribution.amount} has been credited to your member contributions.`,
+        };
+      }
 
       return res.status(201).json({
         success: true,
         message: 'Payment created successfully',
-        data: new PaymentResponseDto(payment)
+        data: responseData
       });
     } catch (error) {
       logger.error(`CreatePayment Error: ${error.message}`);

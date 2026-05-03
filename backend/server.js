@@ -35,6 +35,9 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const loanProductRoutes = require('./routes/loanProductRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const creditScoreRoutes = require('./routes/creditScoreRoutes');
+const chartOfAccountRoutes = require('./routes/chartOfAccountRoutes');
+const ledgerRoutes = require('./routes/ledgerRoutes');
+const memberContributionRoutes = require('./routes/memberContributionRoutes');
 
 
 app.use('/api/users', userRoutes);
@@ -47,10 +50,17 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/loan-products', loanProductRoutes);
 app.use('/api/audits', auditRoutes);
 app.use('/api/credit-scores', creditScoreRoutes);
+app.use('/api/chart-of-accounts', chartOfAccountRoutes);
+app.use('/api/ledger', ledgerRoutes);
+app.use('/api/member-contributions', memberContributionRoutes);
 
 
 
 require('./models');
+
+// Register business event listeners (after models are loaded)
+const { registerLoanTransactionListeners } = require('./utils/loanTransactionEmitter');
+registerLoanTransactionListeners();
 
 // Database Connection
 (async () => {

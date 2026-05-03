@@ -23,11 +23,23 @@ const getUserById = async (id) => {
 
 const createUser = async (data, creatorId = null, userAgent = 'unknown') => {
   try {
-    const existingUser = await User.findOne({ where: { email: data.email } });
-    if (existingUser) throw new Error('Email already exists');
+    const existingEmail = await User.findOne({ where: { email: data.email } });
+    if (existingEmail) throw new Error('Email already exists');
+
+    const existingIdNumber = await User.findOne({ where: { id_number: data.id_number } });
+    if (existingIdNumber) throw new Error('ID number already exists');
     if (data.password) {
       const salt = await bcrypt.genSalt(10);
       data.password = await bcrypt.hash(data.password, salt);
+    }
+
+    if (data.role !== undefined) {
+      data.role_id = data.role;
+      delete data.role;
+    }
+
+    if (creatorId) {
+      data.createdBy = creatorId;
     }
 
     const newUser = await User.create(data);
@@ -54,7 +66,13 @@ const createUser = async (data, creatorId = null, userAgent = 'unknown') => {
     logger.info(`User created: id=${newUser.id} email=${newUser.email} by user ${creatorId}`);
     return newUser;
   } catch (error) {
-    logger.error(`Error in createUser: ${error.message}`);
+    if (error.errors) {
+      // Sequelize ValidationError / UniqueConstraintError — log each violation
+      const details = error.errors.map(e => `${e.path}: ${e.message}`).join(', ');
+      logger.error(`Error in createUser: ${error.message} — ${details}`);
+    } else {
+      logger.error(`Error in createUser: ${error.message}`);
+    }
     throw error;
   }
 };
@@ -70,7 +88,12 @@ const updateUser = async (id, data, updatorId = null, userAgent = 'unknown') => 
       data.password = await bcrypt.hash(data.password, salt);
     }
 
-await user.update(data);
+    if (data.role !== undefined) {
+      data.role_id = data.role;
+      delete data.role;
+    }
+
+    await user.update(data);
 
 
     // Log to audit table after successful update
