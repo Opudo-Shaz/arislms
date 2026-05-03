@@ -9,6 +9,7 @@ class CreditScoreResponseDto {
     this.riskDti = creditScore.riskDti;
     this.scoringBreakdown = creditScore.scoringBreakdown;
     this.scoringModelVersion = creditScore.scoringModelVersion;
+    this.creditLimit = creditScore.creditLimit != null ? parseFloat(creditScore.creditLimit) : null;
     this.evaluatedBy = creditScore.evaluatedBy;
     this.notes = creditScore.notes;
     this.createdAt = creditScore.createdAt || creditScore.created_at;

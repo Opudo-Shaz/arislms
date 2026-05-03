@@ -78,9 +78,9 @@ const creditScoreService = {
   },
 
   // Get credit scores by client
-  async getCreditScoresByClientId(clientId) {
+  async getCreditScoreByClientId(clientId) {
     try {
-      const creditScores = await CreditScore.findAll({
+      const creditScores = await CreditScore.findOne({
         where: { clientId },
         include: [
           { model: Loan, required: false }
