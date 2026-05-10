@@ -36,7 +36,7 @@ const router = express.Router();
  *                 riskScore: 45
  *                 riskGrade: D
  */
-router.get('/client/:clientId', authenticate, authorize([1, 2]), getCreditScoreByClientId);
+router.get('/client/:clientId', authenticate, authorize([1, 2, 3]), getCreditScoreByClientId);
 
 
 

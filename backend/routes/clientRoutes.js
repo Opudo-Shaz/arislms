@@ -92,7 +92,7 @@ router.get('/', authenticate, authorize([1,2]), clientController.getClients);
  *               phone: "+1234567890"
  *               address: "456 Elm Street"
  */
-router.get('/:id', authenticate, authorize([1,2]), clientController.getClient);
+router.get('/:id', authenticate, authorize([1,2, 3]), clientController.getClient);
 
 /**
  * @openapi
