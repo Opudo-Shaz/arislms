@@ -39,21 +39,37 @@ class LoanRequestDto {
         'date.base': 'Start date must be a valid date',
         'any.required': 'Start date is required'
       }),
-    collateral: Joi.object({
-      type: Joi.string().trim().required()
-        .messages({
-          'string.base': 'Collateral type must be a string',
-          'any.required': 'Collateral type is required'
-        }),
-      details: Joi.string().trim().required()
-        .messages({
-          'string.base': 'Collateral details must be a string',
-          'any.required': 'Collateral details are required'
-        })
-    }).allow(null)
-      .messages({
-        'object.base': 'Collateral must be an object'
+    collateral: Joi.alternatives().try(
+      Joi.object({
+        type: Joi.string().trim().required()
+          .messages({
+            'string.base': 'Collateral type must be a string',
+            'any.required': 'Collateral type is required'
+          }),
+        details: Joi.string().trim().required()
+          .messages({
+            'string.base': 'Collateral details must be a string',
+            'any.required': 'Collateral details are required'
+          }),
+        referenceNumber: Joi.string().trim().allow(null, ''),
+        registrationNumber: Joi.string().trim().allow(null, ''),
+        estimatedValue: Joi.number().positive().allow(null),
+        notes: Joi.string().allow(null, '')
       }),
+      Joi.array().items(
+        Joi.object({
+          type: Joi.string().trim().required(),
+          details: Joi.string().trim().required(),
+          referenceNumber: Joi.string().trim().allow(null, ''),
+          registrationNumber: Joi.string().trim().allow(null, ''),
+          estimatedValue: Joi.number().positive().allow(null),
+          notes: Joi.string().allow(null, '')
+        })
+      ),
+      Joi.valid(null)
+    ).messages({
+      'alternatives.match': 'Collateral must be an object or an array of collateral items'
+    }),
 
     coSignerId: Joi.number().integer().allow(null)
       .messages({

@@ -5,15 +5,17 @@ class LoanProductRequestDto {
     this.name = data.name;
     this.description = data.description;
     this.interestRate = data.interestRate;
-    this.interestType = data.interestType || 'reducing';
-    this.penaltyRate = data.penaltyRate || 0;
-    this.minimumDownPayment = data.minimumDownPayment || 0;
+    this.interestType = data.interestType ?? 'reducing';
+    this.penaltyRate = data.penaltyRate ?? 0;
+    this.minimumDownPayment = data.minimumDownPayment ?? 0;
     this.repaymentPeriodMonths = data.repaymentPeriodMonths;
     this.maxLoanAmount = data.maxLoanAmount;
     this.minLoanAmount = data.minLoanAmount;
-    this.fees = data.fees || 0;
-    this.currency = data.currency || 'KES';
-    this.isActive = data.isActive !== undefined ? data.isActive : true;
+    this.requiresCollateral = data.requiresCollateral ?? false;
+    this.allowedCollateralTypes = data.allowedCollateralTypes ?? [];
+    this.fees = data.fees ?? 0;
+    this.currency = data.currency ?? 'KES';
+    this.isActive = data.isActive ?? true;
   }
 
   // Joi schema for creating a loan product
@@ -67,6 +69,16 @@ class LoanProductRequestDto {
     minLoanAmount: Joi.number().positive().allow(null)
       .messages({
         'number.base': 'Min loan amount must be a number'
+      }),
+
+    requiresCollateral: Joi.boolean().default(false),
+
+    allowedCollateralTypes: Joi.array()
+      .items(Joi.string().trim().valid('car_log_book', 'title_deed', 'other'))
+      .default([])
+      .messages({
+        'array.base': 'Allowed collateral types must be an array',
+        'any.only': 'Allowed collateral types must be valid collateral type values'
       }),
 
     fees: Joi.number().min(0).default(0)

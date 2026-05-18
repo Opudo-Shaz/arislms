@@ -1,5 +1,6 @@
 const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
+const sequelize = require('../config/sequalize_db');
 const User = require('../models/userModel');
 const Client = require('../models/clientModel');
 const RepaymentSchedule = require('../models/repaymentScheduleModel');
@@ -13,6 +14,7 @@ const { generateAmortizationSchedule } = require('../utils/loanCalculator');
 const { getDecisionFromScore } = require('./riskPolicyService');
 const creditScoreService = require('./creditScoreService');
 const ledgerService = require('./ledgerService');
+const collateralService = require('./collateralService');
 const { emitLoanTransaction } = require('../utils/loanTransactionEmitter');
 const LoanTransactionType = require('../enums/loanTransactionType');
 
@@ -46,6 +48,7 @@ const loanService = {
           include: [
             { association: 'repaymentSchedules', required: false },
             { association: 'creditScore', required: false },
+            { association: 'collaterals', required: false },
             { association: 'transactions', required: false }
           ]
         });
@@ -57,6 +60,7 @@ const loanService = {
         include: [
           { association: 'repaymentSchedules', required: false },
           { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false },
           { association: 'transactions', required: false }
         ]
       });
@@ -75,6 +79,7 @@ const loanService = {
         include: [
           { association: 'repaymentSchedules', required: false },
           { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false },
           { association: 'transactions', required: false }
         ]
       });
@@ -109,6 +114,7 @@ const loanService = {
       // Load loan product
       const product = await LoanProduct.findByPk(data.loanProductId);
       if (!product) throw new Error('Invalid loan product selected');
+      collateralService.validateCollateralInputAgainstProduct(product, data.collateral);
 
       // Apply product rules
       const interestRate = product.interestRate;
@@ -164,7 +170,7 @@ const loanService = {
         outstandingBalance: data.principalAmount,
 
         fees,
-        penalties: 0.00,
+        penalties: 0,
 
         collateral: data.collateral,
         coSignerId: data.coSignerId,
@@ -176,7 +182,22 @@ const loanService = {
         createdBy: creatorId
       };
 
-     const newLoan = await Loan.create(loanPayload);
+      const transaction = await sequelize.transaction();
+      let newLoan;
+      try {
+        newLoan = await Loan.create(loanPayload, { transaction });
+        await collateralService.createLoanCollaterals({
+          loan: newLoan,
+          product,
+          collateral: data.collateral,
+          actorId: creatorId,
+          transaction
+        });
+        await transaction.commit();
+      } catch (txError) {
+        await transaction.rollback();
+        throw txError;
+      }
 
       // Validate the created loan before logging
       if (!newLoan?.id) {
@@ -186,7 +207,10 @@ const loanService = {
 
       // Reload loan with associations
       await newLoan.reload({
-        include: [{ association: 'creditScore', required: false }]
+        include: [
+          { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false }
+        ]
       });
 
       // Log to audit table after successful creation
@@ -292,6 +316,7 @@ const loanService = {
       // 6. Load loan product
       const product = await LoanProduct.findByPk(data.loanProductId);
       if (!product) throw new Error('Invalid loan product selected');
+      collateralService.validateCollateralInputAgainstProduct(product, data.collateral);
 
       // Apply product rules
       const interestRate = product.interestRate;
@@ -332,7 +357,7 @@ const loanService = {
         outstandingBalance: data.principalAmount,
 
         fees,
-        penalties: 0.00,
+        penalties: 0,
 
         collateral: data.collateral,
         coSignerId: data.coSignerId,
@@ -345,7 +370,35 @@ const loanService = {
         createdBy: creatorId
       };
 
-      const newLoan = await Loan.create(loanPayload);
+      const transaction = await sequelize.transaction();
+      let newLoan;
+      try {
+        newLoan = await Loan.create(loanPayload, { transaction });
+        await collateralService.createLoanCollaterals({
+          loan: newLoan,
+          product,
+          collateral: data.collateral,
+          actorId: creatorId,
+          transaction
+        });
+
+        const latestScore = await CreditScore.findOne({
+          where: { clientId: data.clientId },
+          order: [['created_at', 'DESC']],
+          transaction
+        });
+        if (latestScore) {
+          await latestScore.update({
+            loanId: newLoan.id,
+            notes: `Auto-scored for loan ${newLoan.referenceCode}`
+          }, { transaction });
+        }
+
+        await transaction.commit();
+      } catch (txError) {
+        await transaction.rollback();
+        throw txError;
+      }
 
       // Validate the created loan
       if (!newLoan?.id) {
@@ -353,23 +406,12 @@ const loanService = {
         throw new Error('Loan creation failed: invalid loan object returned');
       }
 
-      // 8. Link the already-created CreditScore record to this loan
-      const latestScore = await CreditScore.findOne({
-        where: { clientId: data.clientId },
-        order: [['created_at', 'DESC']]
-      });
-      if (latestScore) {
-        await latestScore.update({
-          loanId: newLoan.id,
-          notes: `Auto-scored for loan ${newLoan.referenceCode}`
-        });
-      }
-
       // Reload loan with associations
       await newLoan.reload({
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false }
         ]
       });
 
@@ -409,6 +451,7 @@ const loanService = {
         include: [
           { association: 'repaymentSchedules', required: false },
           { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false },
           { association: 'transactions', required: false }
         ]
       });
@@ -461,9 +504,16 @@ const loanService = {
         include: [
           { association: 'repaymentSchedules', required: false },
           { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false },
           { association: 'transactions', required: false }
         ]
       });
+
+      if (data.status && data.status !== oldStatus) {
+        await collateralService.syncCollateralLifecycleForLoanStatus(loan, data.status, updatorId, {
+          notes: data.notes
+        });
+      }
 
       logger.info(`Loan ${id} updated successfully by user ${updatorId}`);
       return loan;
@@ -479,7 +529,8 @@ const loanService = {
       const loan = await Loan.findByPk(id, {
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false }
         ]
       });
       if (!loan) throw new Error('Loan not found');
@@ -506,8 +557,13 @@ const loanService = {
         include: [
           { association: 'repaymentSchedules', required: false },
           { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false },
           { association: 'transactions', required: false }
         ]
+      });
+
+      await collateralService.syncCollateralLifecycleForLoanStatus(loan, LoanStatus.APPROVED, approverId, {
+        notes: `Loan ${loan.referenceCode} approved`
       });
 
       // Log to audit
@@ -541,7 +597,8 @@ const loanService = {
       const loan = await Loan.findByPk(id, {
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false }
         ]
       });
       if (!loan) throw new Error('Loan not found');
@@ -559,8 +616,13 @@ const loanService = {
       await loan.reload({
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false }
         ]
+      });
+
+      await collateralService.syncCollateralLifecycleForLoanStatus(loan, LoanStatus.DELETED, deletorId, {
+        notes: `Loan ${loan.referenceCode} deleted`
       });
 
       // Log deletion to audit table for compliance and audit trail
@@ -603,7 +665,8 @@ const loanService = {
       const loan = await Loan.findByPk(loanId, {
         include: [
           { association: 'repaymentSchedules', required: false },
-          { association: 'creditScore', required: false }
+          { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false }
         ]
       });
       if (!loan) {
@@ -635,6 +698,10 @@ const loanService = {
       await loan.update({
         disbursementDate: disbursement.toISOString().split('T')[0],
         status: LoanStatus.DISBURSED
+      });
+
+      await collateralService.syncCollateralLifecycleForLoanStatus(loan, LoanStatus.DISBURSED, actorId, {
+        notes: `Loan ${loan.referenceCode} disbursed`
       });
 
       // Generate repayment schedule
@@ -696,6 +763,7 @@ const loanService = {
         include: [
           { association: 'repaymentSchedules', required: false },
           { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false },
           {association: 'transactions', required: false }
         ]
       });

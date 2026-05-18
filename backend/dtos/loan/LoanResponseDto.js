@@ -2,42 +2,46 @@
 const RepaymentScheduleResponseDto = require('../repaymentSchedule/RepaymentScheduleResponseDto');
 const CreditScoreResponseDto = require('../creditScore/CreditScoreResponseDto');
 
-class LoanResponseDto {
-  constructor(loan) {
-    this.id = loan.id;
-    this.clientId = loan.clientId;
-    this.loanProductId = loan.loanProductId;
-    this.principalAmount = loan.principalAmount;
-    this.currency = loan.currency;
-    this.interestRate = loan.interestRate;
-    this.interestType = loan.interestType;
-    this.termMonths = loan.termMonths;
-    this.startDate = loan.startDate;
-    this.endDate = loan.endDate;
-    this.disbursementDate = loan.disbursementDate;
-    this.approvalDate = loan.approvalDate;
-    this.installmentAmount = loan.installmentAmount;
-    this.outstandingBalance = loan.outstandingBalance;
-    this.totalPayments = loan.totalPayments;
-    this.paymentsMade = loan.paymentsMade;
-    this.fees = loan.fees;
-    this.penalties = loan.penalties;
-    this.collateral = loan.collateral;
-    this.status = loan.status;
-    this.referenceCode = loan.referenceCode;
-    
-    // Credit score from CreditScore model
-    this.creditScore = loan.creditScore 
+function LoanResponseDto(loan) {
+  return {
+    id: loan.id,
+    clientId: loan.clientId,
+    loanProductId: loan.loanProductId,
+    principalAmount: loan.principalAmount,
+    currency: loan.currency,
+    interestRate: loan.interestRate,
+    interestType: loan.interestType,
+    termMonths: loan.termMonths,
+    startDate: loan.startDate,
+    endDate: loan.endDate,
+    disbursementDate: loan.disbursementDate,
+    approvalDate: loan.approvalDate,
+    installmentAmount: loan.installmentAmount,
+    outstandingBalance: loan.outstandingBalance,
+    totalPayments: loan.totalPayments,
+    paymentsMade: loan.paymentsMade,
+    fees: loan.fees,
+    penalties: loan.penalties,
+    collateral: loan.collateral,
+    collaterals: loan.collaterals
+      ? loan.collaterals.map((collateral) => (typeof collateral.toJSON === 'function' ? collateral.toJSON() : collateral))
+      : [],
+    status: loan.status,
+    referenceCode: loan.referenceCode,
+    creditScore: loan.creditScore
       ? new CreditScoreResponseDto(loan.creditScore)
-      : null;
-    
-    this.repaymentSchedules = loan.repaymentSchedules 
+      : null,
+    repaymentSchedules: loan.repaymentSchedules
       ? RepaymentScheduleResponseDto.fromArray(loan.repaymentSchedules)
-      : [];
-    this.createdAt = loan.createdAt;
-    this.updatedAt = loan.updatedAt;
-  }
+      : [],
+    createdAt: loan.createdAt,
+    updatedAt: loan.updatedAt
+  };
 }
+
+LoanResponseDto.fromArray = function fromArray(loans) {
+  return loans.map((loan) => LoanResponseDto(loan));
+};
 
 module.exports = LoanResponseDto;
 

@@ -1,12 +1,13 @@
 require('dotenv').config();
 const express = require('express');
-const path = require('path');
+const path = require('node:path');
 const sequelize = require('./config/sequalize_db');
 const logger = require('./config/logger'); 
 const morgan = require('morgan'); 
 const { swaggerUi, swaggerSpec } = require("./swagger");
 
 const app = express();
+app.disable('x-powered-by');
 
 
 app.use(express.json());
@@ -33,6 +34,7 @@ const clientRoutes = require('./routes/clientRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const loanProductRoutes = require('./routes/loanProductRoutes');
+const collateralRoutes = require('./routes/collateralRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const creditScoreRoutes = require('./routes/creditScoreRoutes');
 const chartOfAccountRoutes = require('./routes/chartOfAccountRoutes');
@@ -48,6 +50,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/loan-products', loanProductRoutes);
+app.use('/api/collaterals', collateralRoutes);
 app.use('/api/audits', auditRoutes);
 app.use('/api/credit-scores', creditScoreRoutes);
 app.use('/api/chart-of-accounts', chartOfAccountRoutes);
@@ -87,7 +90,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-const SERVER_PORT = parseInt(process.env.SERVER_PORT, 10) || 3002;
+const SERVER_PORT = Number.parseInt(process.env.SERVER_PORT, 10) || 3002;
 
 app.listen(SERVER_PORT, () => {
   logger.info(`Server running on http://localhost:${SERVER_PORT}`);

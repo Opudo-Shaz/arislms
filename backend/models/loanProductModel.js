@@ -25,6 +25,9 @@ const LoanProduct = sequelize.define('LoanProduct', {
   maxLoanAmount: { type: DataTypes.DECIMAL(14,2), defaultValue: null },
   minLoanAmount: { type: DataTypes.DECIMAL(14,2), defaultValue: null },
 
+  requiresCollateral: { type: DataTypes.BOOLEAN, defaultValue: false },
+  allowedCollateralTypes: { type: DataTypes.JSONB, defaultValue: [] },
+
   fees: {
     type: DataTypes.DECIMAL(14,2),
     defaultValue: 0
