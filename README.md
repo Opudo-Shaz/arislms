@@ -2,7 +2,7 @@
 
 A comprehensive web-based Loan Management System designed to manage loan products, client information, loan applications, payments, members, and financial accounting for microfinance institutions.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [System Overview](#system-overview)
 - [Tech Stack](#tech-stack)
@@ -17,7 +17,7 @@ A comprehensive web-based Loan Management System designed to manage loan product
 - [Contributing](#contributing)
 - [License](#license)
 
-## 🎯 System Overview
+## System Overview
 
 Aris LMS is a full-stack application built to manage the complete lifecycle of loan products and client interactions in microfinance settings. The system includes:
 
@@ -32,7 +32,7 @@ Aris LMS is a full-stack application built to manage the complete lifecycle of l
 - **Notifications**: Email and SMS notifications for important events
 - **Role-Based Access Control**: Secure role-based permission system
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Backend
 - **Runtime**: Node.js
@@ -40,17 +40,8 @@ Aris LMS is a full-stack application built to manage the complete lifecycle of l
 - **Database ORM**: Sequelize 6.37.7
 - **Database**: PostgreSQL (pg 8.16.3)
 - **Authentication**: JWT (jsonwebtoken 9.0.2)
-- **Password Hashing**: bcryptjs & bcrypt
-- **HTTP Logging**: Morgan 1.10.1
 - **Logging**: Winston 3.18.3
 - **API Documentation**: Swagger/OpenAPI (swagger-jsdoc, swagger-ui-express)
-- **Email**: Nodemailer 7.0.6
-- **SMS**: Twilio 5.10.0
-- **Task Scheduling**: node-cron 4.2.1
-- **Input Validation**: Joi 18.0.2
-- **CORS**: cors 2.8.5
-- **Environment**: dotenv 17.2.2
-- **Development**: nodemon 3.1.14
 
 ### Frontend
 - **Framework**: React 19.1.1 with React DOM
@@ -58,7 +49,6 @@ Aris LMS is a full-stack application built to manage the complete lifecycle of l
 - **Routing**: React Router DOM 7.9.1
 - **HTTP Client**: Axios 1.12.2
 - **Linting**: ESLint 9.35.0
-- **Development Server**: Vite Dev Server
 
 ## 📁 Project Structure
 
@@ -66,89 +56,19 @@ Aris LMS is a full-stack application built to manage the complete lifecycle of l
 arislms/
 ├── backend/                          # Node.js/Express API server
 │   ├── config/                       # Configuration files
-│   │   ├── db.js                     # Database configuration
-│   │   ├── logger.js                 # Winston logger setup
-│   │   └── sequalize_db.js           # Sequelize ORM configuration
 │   ├── controllers/                  # Request handlers
-│   │   ├── auditController.js
-│   │   ├── authController.js
-│   │   ├── chartOfAccountController.js
-│   │   ├── clientController.js
-│   │   ├── creditScoreController.js
-│   │   ├── ledgerController.js
-│   │   ├── loanController.js
-│   │   ├── loanProductController.js
-│   │   ├── memberContributionController.js
-│   │   ├── notificationController.js
-│   │   ├── paymentController.js
-│   │   ├── roleController.js
-│   │   └── userController.js
 │   ├── dtos/                         # Data Transfer Objects
-│   │   ├── chartOfAccount/
-│   │   ├── client/
-│   │   ├── creditScore/
-│   │   ├── journalEntry/
-│   │   ├── loan/
-│   │   ├── loanProduct/
-│   │   ├── loanScoring/
-│   │   ├── memberContribution/
-│   │   ├── payment/
-│   │   ├── repaymentSchedule/
-│   │   ├── role/
-│   │   └── user/
 │   ├── enums/                        # Enumeration constants
-│   │   ├── accountType.js
-│   │   ├── clientStatus.js
-│   │   ├── contributionType.js
-│   │   ├── interestType.js
-│   │   ├── journalEntryStatus.js
-│   │   ├── kycStatus.js
-│   │   ├── loanStatus.js
-│   │   └── loanTransactionType.js
 │   ├── middleware/                   # Express middleware
-│   │   └── authMiddleware.js         # JWT authentication
 │   ├── models/                       # Sequelize database models
-│   │   ├── auditLogModel.js
-│   │   ├── chartOfAccountModel.js
-│   │   ├── clientModel.js
-│   │   ├── creditScoreModel.js
-│   │   ├── journalEntryModel.js
-│   │   ├── journalEntryLineModel.js
-│   │   ├── loanModel.js
-│   │   ├── loanProductModel.js
-│   │   ├── loanTransactionModel.js
-│   │   ├── memberContributionModel.js
-│   │   ├── notificationModel.js
-│   │   ├── paymentModel.js
-│   │   ├── repaymentScheduleModel.js
-│   │   ├── roleModel.js
-│   │   ├── userModel.js
 │   │   └── index.js                  # Model associations
 │   ├── routes/                       # API route definitions
 │   ├── services/                     # Business logic layer
-│   │   ├── auditService.js
-│   │   ├── authService.js
-│   │   ├── chartOfAccountService.js
-│   │   ├── clientService.js
-│   │   ├── creditScoreService.js
-│   │   ├── ledgerService.js
-│   │   ├── loanProductService.js
-│   │   ├── loanService.js
-│   │   ├── loanTransactionService.js
-│   │   ├── memberContributionService.js
-│   │   ├── notificationService.js
-│   │   ├── paymentService.js
-│   │   ├── roleService.js
-│   │   ├── userService.js
-│   │   └── riskPolicyService.js
 │   ├── utils/                        # Utility functions
 │   │   ├── auditLogger.js            # Audit logging helper
 │   │   ├── helpers.js                # Common helpers
-│   │   ├── loanCalculator.js         # Loan calculation utilities
-│   │   └── loanTransactionEmitter.js # Event emission for transactions
 │   ├── scripts/                      # Database scripts
 │   │   ├── initAuditTable.js
-│   │   ├── migrateAuditActorId.js
 │   │   └── seedChartOfAccounts.js
 │   ├── logs/                         # Log files directory
 │   ├── server.js                     # Express server entry point
@@ -156,16 +76,15 @@ arislms/
 │   ├── package.json
 │   └── .env.example                  # Example environment variables
 └── frontend/                         # React frontend application
-    └── loan-app/
-        ├── src/                      # React components and pages
-        ├── public/                   # Static assets
-        ├── index.html                # HTML entry point
-        ├── vite.config.js            # Vite configuration
-        ├── package.json
-        └── eslint.config.js          # ESLint configuration
+      ├── src/                      # React components and pages
+      ├── public/                   # Static assets
+      ├── index.html                # HTML entry point
+      ├── vite.config.js            # Vite configuration
+      ├── package.json
+      └── eslint.config.js          # ESLint configuration
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -178,7 +97,7 @@ arislms/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/arislms.git
+   git clone https://github.com/opudo-shaz/arislms.git
    cd arislms
    ```
 
@@ -198,47 +117,13 @@ arislms/
 
 ### Backend Environment Variables
 
-Create a `.env` file in the `backend` directory with the following variables:
+Create a `.env` file in the `backend` directory with variables as shown in .env.example:
 
-```env
-# Server Configuration
-PORT=5000
-NODE_ENV=development
-
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=arislms_db
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_DIALECT=postgres
-
-# JWT Configuration
-JWT_SECRET=your_jwt_secret_key_here
-JWT_EXPIRATION=24h
-
-# Email Configuration (Nodemailer)
-EMAIL_SERVICE=gmail
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASSWORD=your_app_password
-EMAIL_FROM=noreply@arislms.com
-
-# SMS Configuration (Twilio)
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
-
-# Logging
-LOG_LEVEL=info
-LOG_FILE_PATH=./logs
-
-# Frontend URL (for CORS)
-FRONTEND_URL=http://localhost:5173
 ```
 
 ### Frontend Environment Variables
 
-Create a `.env` file in the `frontend/loan-app` directory:
+Create a `.env` file in the `frontend/` directory:
 
 ```env
 VITE_API_BASE_URL=http://localhost:5000/api
@@ -258,7 +143,7 @@ npm run dev
 npm start
 ```
 
-The backend server will start on `http://localhost:5000`
+The backend server will start on `http://localhost:3002`
 
 ### Frontend Application
 
@@ -275,14 +160,14 @@ npm build
 npm run preview
 ```
 
-The frontend will be available at `http://localhost:5173` (default Vite port)
+The frontend will be available at `http://localhost:3052`
 
 ## 📚 API Documentation
 
 The API documentation is automatically generated using Swagger/OpenAPI and is available at:
 
 ```
-http://localhost:5000/api-docs
+http://localhost:3002/api-docs
 ```
 
 This interactive documentation allows you to:
@@ -308,7 +193,7 @@ This interactive documentation allows you to:
 | Ledger | `/api/ledger` | General ledger entries |
 | Audit Logs | `/api/audits` | System audit trail |
 
-## 🎨 Key Features
+## Key Features
 
 ### 1. **Client Management**
 - Client registration and profiling
@@ -376,7 +261,7 @@ This interactive documentation allows you to:
 - Data cleanup and archival
 - Configurable with node-cron
 
-## 🗄️ Database
+## Database
 
 ### Database Setup
 
@@ -420,7 +305,7 @@ The system uses Sequelize ORM with the following main models:
 - **AuditLog**: System audit trail
 - **Notification**: Notification records
 
-## 👨‍💻 Development
+## Development
 
 ### Project Structure Best Practices
 
@@ -460,49 +345,9 @@ cd frontend/loan-app
 npm run lint
 ```
 
-## 🤝 Contributing
+## Contributing
 
-1. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-2. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-3. Push to the branch (`git push origin feature/AmazingFeature`)
-4. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the ISC License - see the LICENSE file for details.
-
----
-
-## 🆘 Troubleshooting
-
-### Backend won't start
-- Ensure PostgreSQL is running
-- Check `.env` file configuration
-- Verify database credentials
-- Check logs in `backend/logs` directory
-
-### Frontend won't compile
-- Clear node_modules: `rm -rf node_modules && npm install`
-- Clear Vite cache: `rm -rf .vite`
-- Restart dev server
-
-### Database connection errors
-- Verify PostgreSQL service is running
-- Test connection: `psql -U postgres -h localhost`
-- Check DATABASE_URL environment variable
-
-### CORS issues
-- Verify `FRONTEND_URL` in backend `.env`
-- Ensure frontend is running on correct port
-- Check CORS middleware configuration
-
-## 📞 Support
-
-For issues or questions, please:
-1. Check existing documentation
-2. Review API documentation at `/api-docs`
-3. Check application logs in `backend/logs`
-4. Contact the development team
+## License
 
 ---
 
