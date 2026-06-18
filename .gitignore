@@ -1,3 +1,13 @@
 node_modules/
 /backend/node_modules/
 .DS_Store
+
+# Internal planning docs
+FRONTEND_PORTAL_PLAN.md
+
+# Environment files
+.env
+.env.local
+.env.*.local
+frontend/.env
+frontend/.env.local
