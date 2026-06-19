@@ -1,7 +1,7 @@
 /**
  * HTTP client for the backend LMS API.
  *
- * Thin wrapper around `fetch` that:
+ * Axios instance that:
  * - prefixes requests with the configured API base URL,
  * - attaches the `Authorization: Bearer <token>` header when authenticated,
  * - serializes/deserializes JSON,
@@ -11,6 +11,7 @@
  * @module api/http
  */
 
+import axios from 'axios'
 import config from '../config'
 import { getToken } from './authStorage'
 
@@ -39,6 +40,46 @@ export const setUnauthorizedHandler = (handler) => {
   unauthorizedHandler = handler
 }
 
+/** Shared axios instance pointed at the API base URL. */
+export const axiosInstance = axios.create({
+  baseURL: config.apiBaseUrl,
+  headers: { Accept: 'application/json' },
+})
+
+// Attach the bearer token unless the request opts out (`auth: false`).
+axiosInstance.interceptors.request.use((requestConfig) => {
+  if (requestConfig.auth !== false) {
+    const token = getToken()
+    if (token) {
+      requestConfig.headers.Authorization = `Bearer ${token}`
+    }
+  }
+  return requestConfig
+})
+
+// Normalize responses to their JSON body and errors to `ApiError`.
+axiosInstance.interceptors.response.use(
+  (response) => response.data ?? null,
+  (error) => {
+    if (axios.isCancel(error)) {
+      return Promise.reject(new ApiError(error.message || 'Request cancelled', 0, null))
+    }
+
+    const response = error.response
+    if (!response) {
+      return Promise.reject(new ApiError(error.message || 'Network error', 0, null))
+    }
+
+    const { status, data } = response
+    if ((status === 401 || status === 403) && unauthorizedHandler) {
+      unauthorizedHandler(status)
+    }
+    const message =
+      (data && (data.message || data.error)) || `Request failed with status ${status}`
+    return Promise.reject(new ApiError(message, status, data))
+  },
+)
+
 /**
  * Perform an API request.
  * @param {string} path - Path relative to the API base URL (e.g. `/clients`).
@@ -48,63 +89,20 @@ export const setUnauthorizedHandler = (handler) => {
  * @param {Record<string, string|number>} [options.params] - Query string params.
  * @param {Record<string, string>} [options.headers] - Extra headers.
  * @param {boolean} [options.auth=true] - Whether to attach the bearer token.
+ * @param {AbortSignal} [options.signal] - Optional abort signal.
  * @returns {Promise<any>} Parsed JSON response (or `null` for 204).
  */
-export const request = async (path, options = {}) => {
-  const { method = 'GET', body, params, headers = {}, auth = true } = options
-
-  let url = `${config.apiBaseUrl}${path}`
-  if (params && Object.keys(params).length) {
-    const query = new URLSearchParams()
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        query.append(key, value)
-      }
-    })
-    const qs = query.toString()
-    if (qs) url += `?${qs}`
-  }
-
-  const finalHeaders = { Accept: 'application/json', ...headers }
-  if (body !== undefined) {
-    finalHeaders['Content-Type'] = 'application/json'
-  }
-  if (auth) {
-    const token = getToken()
-    if (token) finalHeaders.Authorization = `Bearer ${token}`
-  }
-
-  let response
-  try {
-    response = await fetch(url, {
-      method,
-      headers: finalHeaders,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    })
-  } catch (networkErr) {
-    throw new ApiError(networkErr.message || 'Network error', 0, null)
-  }
-
-  if (response.status === 204) return null
-
-  let data = null
-  const contentType = response.headers.get('content-type') || ''
-  if (contentType.includes('application/json')) {
-    data = await response.json().catch(() => null)
-  } else {
-    data = await response.text().catch(() => null)
-  }
-
-  if (!response.ok) {
-    if ((response.status === 401 || response.status === 403) && unauthorizedHandler) {
-      unauthorizedHandler(response.status)
-    }
-    const message =
-      (data && (data.message || data.error)) || `Request failed with status ${response.status}`
-    throw new ApiError(message, response.status, data)
-  }
-
-  return data
+export const request = (path, options = {}) => {
+  const { method = 'GET', body, params, headers, auth = true, signal } = options
+  return axiosInstance.request({
+    url: path,
+    method,
+    data: body,
+    params,
+    headers,
+    auth,
+    signal,
+  })
 }
 
 export const http = {

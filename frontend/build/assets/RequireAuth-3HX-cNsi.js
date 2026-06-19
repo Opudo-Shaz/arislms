@@ -1,0 +1,1 @@
+import{n as e,r as t}from"./prop-types-DKi7PsXu.js";import{h as n,m as r,t as i,v as a}from"./index-BAPq2nSl.js";t();var o=e(),s=()=>{let{isAuthenticated:e}=i(),t=a();return e?(0,o.jsx)(n,{}):(0,o.jsx)(r,{to:`/login`,replace:!0,state:{from:t}})};export{s as default};

@@ -1,1 +1,0 @@
-import{r as e,t}from"./jsx-runtime-C9fD6ytu.js";import{h as n,m as r,t as i,v as a}from"./index-CCkoiNev.js";e();var o=t(),s=()=>{let{isAuthenticated:e}=i(),t=a();return e?(0,o.jsx)(n,{}):(0,o.jsx)(r,{to:`/login`,replace:!0,state:{from:t}})};export{s as default};

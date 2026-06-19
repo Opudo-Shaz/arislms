@@ -5,7 +5,7 @@
  * and lazy-loaded page components with suspense boundaries.
  *
  * Features:
- * - Client-side routing with HashRouter
+ * - Client-side routing with BrowserRouter
  * - Theme detection from URL parameters and Redux state
  * - Lazy loading for all routes with loading spinner fallback
  * - Public routes (login, register, error pages)
@@ -15,7 +15,7 @@
  */
 
 import React, { Suspense, useEffect } from 'react'
-import { HashRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 
 import { CSpinner, useColorModes } from '@coreui/react'
@@ -76,7 +76,7 @@ const App = () => {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Suspense
         fallback={
           <div className="pt-3 text-center">
@@ -95,7 +95,7 @@ const App = () => {
           </Route>
         </Routes>
       </Suspense>
-    </HashRouter>
+    </BrowserRouter>
   )
 }
 

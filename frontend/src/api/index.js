@@ -3,6 +3,6 @@
  * @module api
  */
 
-export { default as http, request, ApiError, setUnauthorizedHandler } from './http'
+export { default as http, request, ApiError, setUnauthorizedHandler, axiosInstance } from './http'
 export { default as authApi } from './authApi'
 export * from './authStorage'
