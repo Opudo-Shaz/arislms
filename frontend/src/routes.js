@@ -15,6 +15,10 @@ import ModulePlaceholder from './views/ModulePlaceholder'
 
 // Implemented
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
+const ClientsList = React.lazy(() => import('./views/clients/ClientsList'))
+const ClientForm = React.lazy(() => import('./views/clients/ClientForm'))
+const ClientDetail = React.lazy(() => import('./views/clients/ClientDetail'))
+const LoanProductsList = React.lazy(() => import('./views/loanProducts/LoanProductsList'))
 
 /**
  * Factory for a phase placeholder route element.
@@ -33,7 +37,10 @@ export const routes = [
   { path: '/dashboard', name: 'Dashboard', element: Dashboard },
 
   // Clients (Phase 1)
-  { path: '/clients', name: 'Clients', element: placeholder('Clients', 'Phase 1') },
+  { path: '/clients', name: 'Clients', element: ClientsList, exact: true },
+  { path: '/clients/new', name: 'New Client', element: ClientForm },
+  { path: '/clients/:id', name: 'Client Detail', element: ClientDetail, exact: true },
+  { path: '/clients/:id/edit', name: 'Edit Client', element: ClientForm },
 
   // Loans (Phase 2)
   { path: '/loans', name: 'Loans', element: placeholder('Loans', 'Phase 2'), exact: true },
@@ -52,7 +59,7 @@ export const routes = [
   {
     path: '/loan-products',
     name: 'Loan Products',
-    element: placeholder('Loan Products', 'Phase 1'),
+    element: LoanProductsList,
   },
 
   // Payments & Collaterals (Phase 3)

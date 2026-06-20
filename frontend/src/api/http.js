@@ -48,12 +48,13 @@ export const axiosInstance = axios.create({
 
 // Attach the bearer token unless the request opts out (`auth: false`).
 axiosInstance.interceptors.request.use((requestConfig) => {
-  if (requestConfig.auth !== false) {
+  if (!requestConfig.skipAuth) {
     const token = getToken()
     if (token) {
       requestConfig.headers.Authorization = `Bearer ${token}`
     }
   }
+  delete requestConfig.skipAuth
   return requestConfig
 })
 
@@ -100,7 +101,7 @@ export const request = (path, options = {}) => {
     data: body,
     params,
     headers,
-    auth,
+    skipAuth: auth === false,
     signal,
   })
 }
