@@ -157,7 +157,6 @@ export const DOCUMENT_TYPE = buildEnum(
     national_id: 'primary',
     passport: 'primary',
     driving_license: 'primary',
-    voters_card: 'secondary',
     birth_certificate: 'secondary',
     utility_bill: 'warning',
     bank_statement: 'warning',
@@ -176,7 +175,6 @@ export const DOCUMENT_TYPE = buildEnum(
     national_id: 'National ID',
     passport: 'Passport',
     driving_license: 'Driving License',
-    voters_card: "Voter's Card",
     birth_certificate: 'Birth Certificate',
     utility_bill: 'Utility Bill',
     bank_statement: 'Bank Statement',
@@ -191,6 +189,16 @@ export const DOCUMENT_TYPE = buildEnum(
     other: 'Other',
   },
 )
+
+/** Document types valid for the Client KYC category. */
+export const CLIENT_KYC_DOCUMENT_TYPES = [
+  'client_photo',
+  'national_id',
+  'passport',
+  'driving_license',
+  'birth_certificate',
+  'other',
+]
 
 export const DOCUMENT_STATUS = buildEnum({
   active: 'success',

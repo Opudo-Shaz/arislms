@@ -30,7 +30,7 @@ import { cilCloudUpload, cilExternalLink, cilFile, cilTrash } from '@coreui/icon
 
 import ConfirmModal from '../../components/ConfirmModal'
 import StatusBadge from '../../components/StatusBadge'
-import { DOCUMENT_TYPE, DOCUMENT_STATUS } from '../../constants/enums'
+import { DOCUMENT_TYPE, DOCUMENT_STATUS, CLIENT_KYC_DOCUMENT_TYPES } from '../../constants/enums'
 import { useClientDocuments, useUploadDocument, useDeleteDocument } from '../../hooks/useDocuments'
 import documentApi from '../../api/documentApi'
 import { formatDate } from '../../utils/format'
@@ -192,7 +192,7 @@ const ClientDocuments = ({ clientId }) => {
                   value={form.documentType}
                   onChange={(e) => setForm((f) => ({ ...f, documentType: e.target.value }))}
                 >
-                  {DOCUMENT_TYPE.values.map((v) => (
+                  {CLIENT_KYC_DOCUMENT_TYPES.map((v) => (
                     <option key={v} value={v}>{DOCUMENT_TYPE.labels[v]}</option>
                   ))}
                 </CFormSelect>
