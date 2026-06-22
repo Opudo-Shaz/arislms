@@ -1,6 +1,8 @@
 const Client = require('../models/clientModel');
 const Loan = require('../models/loanModel');
 const CreditScore = require('../models/creditScoreModel');
+const Document = require('../models/documentModel');
+const DocumentStatus = require('../enums/documentStatus');
 const { Op } = require('sequelize');
 const ClientStatus = require('../enums/clientStatus');
 const LoanStatus = require('../enums/loanStatus');
@@ -102,14 +104,24 @@ const clientService = {
   async getClientById(id) {
     try {
       const client = await Client.findByPk(id, {
-        include: [{
-          model: CreditScore,
-          as: 'creditScores',
-          required: false,
-          order: [['created_at', 'DESC']],
-          limit: 1,
-          separate: true
-        }]
+        include: [
+          {
+            model: CreditScore,
+            as: 'creditScores',
+            required: false,
+            order: [['created_at', 'DESC']],
+            limit: 1,
+            separate: true,
+          },
+          {
+            model: Document,
+            as: 'documents',
+            required: false,
+            where: { status: { [Op.ne]: DocumentStatus.DELETED } },
+            order: [['created_at', 'DESC']],
+            separate: true,
+          },
+        ],
       });
       if (!client) throw new Error('Client not found');
       logger.info(`Retrieved client ID: ${id}`);

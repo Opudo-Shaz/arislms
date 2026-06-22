@@ -1,0 +1,18 @@
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/arislms
+JWT_SECRET=your_jwt_secret_key_here
+
+# Server
+SERVER_PORT=3002
+
+# CORS
+# Comma-separated list of allowed origins (no spaces after commas)
+CORS_ORIGIN=http://localhost:5173
+
+# Logging
+LOG_LEVEL=info
+
+#File uploads configuration
+DOCUMENT_STORAGE_PROVIDER=local          # local | s3 | minio
+DOCUMENT_LOCAL_PATH=uploads/documents
+DOCUMENT_BASE_URL=http://localhost:3002

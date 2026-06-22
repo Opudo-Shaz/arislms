@@ -134,6 +134,70 @@ export const LOAN_TRANSACTION_TYPE = buildEnum({
   adjustment: 'secondary',
 })
 
+export const DOCUMENT_CATEGORY = buildEnum(
+  {
+    client_kyc: 'info',
+    loan_collateral: 'warning',
+    loan_supporting: 'secondary',
+    member_contribution: 'primary',
+    other: 'secondary',
+  },
+  {
+    client_kyc: 'Client KYC',
+    loan_collateral: 'Loan Collateral',
+    loan_supporting: 'Loan Supporting',
+    member_contribution: 'Member Contribution',
+    other: 'Other',
+  },
+)
+
+export const DOCUMENT_TYPE = buildEnum(
+  {
+    client_photo: 'info',
+    national_id: 'primary',
+    passport: 'primary',
+    driving_license: 'primary',
+    voters_card: 'secondary',
+    birth_certificate: 'secondary',
+    utility_bill: 'warning',
+    bank_statement: 'warning',
+    payslip: 'warning',
+    tax_certificate: 'secondary',
+    title_deed: 'success',
+    vehicle_logbook: 'success',
+    insurance_certificate: 'info',
+    valuation_report: 'info',
+    guarantor_id: 'warning',
+    business_permit: 'secondary',
+    other: 'secondary',
+  },
+  {
+    client_photo: 'Client Photo',
+    national_id: 'National ID',
+    passport: 'Passport',
+    driving_license: 'Driving License',
+    voters_card: "Voter's Card",
+    birth_certificate: 'Birth Certificate',
+    utility_bill: 'Utility Bill',
+    bank_statement: 'Bank Statement',
+    payslip: 'Payslip',
+    tax_certificate: 'Tax Certificate',
+    title_deed: 'Title Deed',
+    vehicle_logbook: 'Vehicle Logbook',
+    insurance_certificate: 'Insurance Certificate',
+    valuation_report: 'Valuation Report',
+    guarantor_id: 'Guarantor ID',
+    business_permit: 'Business Permit',
+    other: 'Other',
+  },
+)
+
+export const DOCUMENT_STATUS = buildEnum({
+  active: 'success',
+  archived: 'secondary',
+  deleted: 'danger',
+})
+
 /** Numeric backend role ids. */
 export const ROLES = {
   ADMIN: 1,

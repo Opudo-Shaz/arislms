@@ -20,6 +20,8 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+// NOTE: uploads/ is intentionally NOT served via express.static.
+// Files are served through the authenticated GET /api/documents/:id/download endpoint.
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -48,6 +50,7 @@ const creditScoreRoutes = require('./routes/creditScoreRoutes');
 const chartOfAccountRoutes = require('./routes/chartOfAccountRoutes');
 const ledgerRoutes = require('./routes/ledgerRoutes');
 const memberContributionRoutes = require('./routes/memberContributionRoutes');
+const documentRoutes = require('./routes/documentRoutes');
 
 
 app.use('/api/users', userRoutes);
@@ -64,6 +67,7 @@ app.use('/api/credit-scores', creditScoreRoutes);
 app.use('/api/chart-of-accounts', chartOfAccountRoutes);
 app.use('/api/ledger', ledgerRoutes);
 app.use('/api/member-contributions', memberContributionRoutes);
+app.use('/api/documents', documentRoutes);
 
 
 

@@ -11,3 +11,6 @@ FRONTEND_PORTAL_PLAN.md
 .env.*.local
 frontend/.env
 frontend/.env.local
+
+# Build output
+frontend/build/

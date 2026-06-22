@@ -27,6 +27,9 @@ class ClientResponseDto {
     // Include latest credit score if loaded via association
     const scores = client.creditScores;
     this.creditScore = scores && scores.length > 0 ? scores[0] : null;
+
+    // Include documents if loaded via association
+    this.documents = client.documents || [];
   }
 }
 

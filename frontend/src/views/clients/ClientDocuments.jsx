@@ -1,21 +1,17 @@
 /**
  * ClientDocuments
  *
- * KYC documents card: lists uploaded documents and provides an upload form
- * (type, file, notes).
- *
- * NOTE: The backend does not yet expose a client-documents endpoint, so
- * uploads are held in local component state only and are lost on reload.
- * When the API is available, replace the local state + handlers with a
- * `clientDocumentApi` module + TanStack Query hooks (list/upload/delete),
- * mirroring the clients/loan-products pattern.
+ * KYC documents card: lists all documents attached to a client and provides
+ * an upload form. Wired to the backend /api/documents endpoints via TanStack Query.
  *
  * @module views/clients/ClientDocuments
  */
 
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import PropTypes from 'prop-types'
 import {
+  CAlert,
+  CBadge,
   CButton,
   CCard,
   CCardBody,
@@ -27,22 +23,17 @@ import {
   CFormSelect,
   CFormTextarea,
   CRow,
+  CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilCloudUpload, cilFile, cilTrash } from '@coreui/icons'
+import { cilCloudUpload, cilExternalLink, cilFile, cilTrash } from '@coreui/icons'
 
-/** Supported KYC document types. */
-export const DOCUMENT_TYPES = [
-  { value: 'client_photo', label: 'Client Photo' },
-  { value: 'national_id', label: 'National ID' },
-  { value: 'passport', label: 'Passport' },
-  { value: 'driving_license', label: 'Driving License' },
-  { value: 'business_permit', label: 'Business Permit' },
-  { value: 'other', label: 'Other' },
-]
-
-const labelForType = (value) =>
-  DOCUMENT_TYPES.find((t) => t.value === value)?.label || value
+import ConfirmModal from '../../components/ConfirmModal'
+import StatusBadge from '../../components/StatusBadge'
+import { DOCUMENT_TYPE, DOCUMENT_STATUS } from '../../constants/enums'
+import { useClientDocuments, useUploadDocument, useDeleteDocument } from '../../hooks/useDocuments'
+import documentApi from '../../api/documentApi'
+import { formatDate } from '../../utils/format'
 
 const formatSize = (bytes) => {
   if (!bytes && bytes !== 0) return ''
@@ -51,131 +42,218 @@ const formatSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-const emptyForm = { type: 'national_id', notes: '', file: null, fileName: '' }
+const emptyForm = { documentType: 'national_id', description: '', file: null }
 
-const ClientDocuments = () => {
-  // TODO: replace with API-backed list once backend supports client documents.
-  const [documents, setDocuments] = useState([])
-  const [form, setForm] = useState(emptyForm)
-  const [error, setError] = useState(null)
+const ClientDocuments = ({ clientId }) => {
+  const { data: documents = [], isLoading, error } = useClientDocuments(clientId)
+  const uploadMutation  = useUploadDocument(clientId)
+  const deleteMutation  = useDeleteDocument(clientId)
+
+  const [form, setForm]           = useState(emptyForm)
+  const [formError, setFormError] = useState(null)
+  const [openingId, setOpeningId] = useState(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const fileInputRef = useRef(null)
 
   const handleFile = (e) => {
     const file = e.target.files?.[0] || null
-    setForm((f) => ({ ...f, file, fileName: file?.name || '' }))
+    setForm((f) => ({ ...f, file }))
   }
 
-  const handleUpload = (e) => {
+  const handleUpload = async (e) => {
     e.preventDefault()
-    if (!form.file) {
-      setError('Please choose a file to upload.')
-      return
+    if (!form.file) { setFormError('Please choose a file to upload.'); return }
+    setFormError(null)
+
+    const fd = new FormData()
+    fd.append('file', form.file)
+    fd.append('documentType', form.documentType)
+    fd.append('documentCategory', 'client_kyc')
+    fd.append('clientId', clientId)
+    if (form.description.trim()) fd.append('description', form.description.trim())
+
+    try {
+      await uploadMutation.mutateAsync(fd)
+      setForm(emptyForm)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    } catch (err) {
+      setFormError(err.message || 'Upload failed')
     }
-    setError(null)
-    setDocuments((docs) => [
-      ...docs,
-      {
-        id: `${Date.now()}-${form.fileName}`,
-        type: form.type,
-        fileName: form.fileName,
-        size: form.file.size,
-        notes: form.notes.trim(),
-        url: URL.createObjectURL(form.file),
-        uploadedAt: new Date().toISOString(),
-      },
-    ])
-    setForm(emptyForm)
-    // Reset the native file input value.
-    e.target.reset()
   }
 
-  const removeDocument = (docId) =>
-    setDocuments((docs) => {
-      const target = docs.find((d) => d.id === docId)
-      if (target?.url) URL.revokeObjectURL(target.url)
-      return docs.filter((d) => d.id !== docId)
-    })
+  const handleView = async (doc) => {
+    setOpeningId(doc.id)
+    try {
+      await documentApi.openDocumentInTab(doc.id, doc.mimeType)
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to open document', err)
+    } finally {
+      setOpeningId(null)
+    }
+  }
+
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(confirmDeleteId)
+    } finally {
+      setConfirmDeleteId(null)
+    }
+  }
 
   return (
-    <CCard className="mb-4">
-      <CCardHeader className="d-flex justify-content-between align-items-center">
-        <strong>KYC Documents</strong>
-        <small className="text-body-secondary">Stored locally until backend support is added</small>
-      </CCardHeader>
-      <CCardBody>
-        {documents.length === 0 ? (
-          <p className="text-body-secondary">No documents uploaded yet.</p>
-        ) : (
-          <div className="vstack gap-2 mb-4">
-            {documents.map((doc) => (
-              <div
-                key={doc.id}
-                className="d-flex align-items-start justify-content-between border rounded p-2"
-              >
-                <div className="d-flex gap-2">
-                  <CIcon icon={cilFile} size="lg" className="text-body-secondary mt-1" />
-                  <div>
-                    <div className="fw-semibold">{labelForType(doc.type)}</div>
-                    <a href={doc.url} target="_blank" rel="noreferrer" className="small">
-                      {doc.fileName}
-                    </a>{' '}
-                    <span className="small text-body-secondary">{formatSize(doc.size)}</span>
-                    {doc.notes && <div className="small text-body-secondary">{doc.notes}</div>}
+    <>
+      <CCard className="mb-4">
+        <CCardHeader>
+          <strong>KYC Documents</strong>
+          {documents.length > 0 && (
+            <CBadge color="secondary" className="ms-2">{documents.length}</CBadge>
+          )}
+        </CCardHeader>
+        <CCardBody>
+          {isLoading && (
+            <div className="text-center py-3">
+              <CSpinner size="sm" color="primary" />
+            </div>
+          )}
+
+          {!isLoading && error && (
+            <CAlert color="danger" className="mb-3">{error.message || 'Failed to load documents'}</CAlert>
+          )}
+
+          {!isLoading && !error && documents.length === 0 && (
+            <p className="text-body-secondary mb-4">No documents uploaded yet.</p>
+          )}
+
+          {documents.length > 0 && (
+            <div className="vstack gap-2 mb-4">
+              {documents.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="d-flex align-items-start justify-content-between border rounded p-2"
+                >
+                  <div className="d-flex gap-2 overflow-hidden">
+                    <CIcon icon={cilFile} size="lg" className="text-body-secondary mt-1 flex-shrink-0" />
+                    <div className="overflow-hidden">
+                      <div className="d-flex align-items-center gap-2 flex-wrap">
+                        <StatusBadge enumDef={DOCUMENT_TYPE} value={doc.documentType} />
+                        <StatusBadge enumDef={DOCUMENT_STATUS} value={doc.status} />
+                      </div>
+                      <div
+                        className="small text-truncate text-body-secondary mt-1"
+                        title={doc.originalName}
+                      >
+                        {doc.originalName}
+                        {doc.fileSize ? (
+                          <span className="ms-2">{formatSize(doc.fileSize)}</span>
+                        ) : null}
+                      </div>
+                      {doc.description && (
+                        <div className="small text-body-secondary">{doc.description}</div>
+                      )}
+                      <div className="small text-body-secondary">{formatDate(doc.createdAt)}</div>
+                    </div>
+                  </div>
+
+                  <div className="d-flex gap-1 flex-shrink-0 ms-2">
+                    <CButton
+                      size="sm"
+                      color="primary"
+                      variant="ghost"
+                      title="View / Download"
+                      disabled={openingId === doc.id}
+                      onClick={() => handleView(doc)}
+                    >
+                      {openingId === doc.id
+                        ? <CSpinner size="sm" />
+                        : <CIcon icon={cilExternalLink} />}
+                    </CButton>
+                    <CButton
+                      size="sm"
+                      color="danger"
+                      variant="ghost"
+                      title="Delete"
+                      onClick={() => setConfirmDeleteId(doc.id)}
+                    >
+                      <CIcon icon={cilTrash} />
+                    </CButton>
                   </div>
                 </div>
-                <CButton
-                  size="sm"
-                  color="danger"
-                  variant="ghost"
-                  onClick={() => removeDocument(doc.id)}
-                >
-                  <CIcon icon={cilTrash} />
-                </CButton>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
 
-        <CForm onSubmit={handleUpload}>
-          <CRow className="g-3">
-            <CCol md={4}>
-              <CFormLabel>Document type</CFormLabel>
-              <CFormSelect
-                value={form.type}
-                onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
-              >
-                {DOCUMENT_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </CFormSelect>
-            </CCol>
-            <CCol md={8}>
-              <CFormLabel>File</CFormLabel>
-              <CFormInput type="file" onChange={handleFile} />
-            </CCol>
-            <CCol xs={12}>
-              <CFormLabel>Notes</CFormLabel>
-              <CFormTextarea
-                rows={2}
-                value={form.notes}
-                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              />
-            </CCol>
-          </CRow>
-          {error && <div className="text-danger small mt-2">{error}</div>}
-          <CButton type="submit" color="primary" className="mt-3">
-            <CIcon icon={cilCloudUpload} className="me-1" />
-            Upload Document
-          </CButton>
-        </CForm>
-      </CCardBody>
-    </CCard>
+          {/* Upload form */}
+          <CForm onSubmit={handleUpload}>
+            <CRow className="g-3">
+              <CCol md={5}>
+                <CFormLabel>Document type</CFormLabel>
+                <CFormSelect
+                  value={form.documentType}
+                  onChange={(e) => setForm((f) => ({ ...f, documentType: e.target.value }))}
+                >
+                  {DOCUMENT_TYPE.values.map((v) => (
+                    <option key={v} value={v}>{DOCUMENT_TYPE.labels[v]}</option>
+                  ))}
+                </CFormSelect>
+              </CCol>
+              <CCol md={7}>
+                <CFormLabel>File</CFormLabel>
+                <CFormInput
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFile}
+                  accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx"
+                />
+              </CCol>
+              <CCol xs={12}>
+                <CFormLabel>Notes <span className="text-body-secondary">(optional)</span></CFormLabel>
+                <CFormTextarea
+                  rows={2}
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                />
+              </CCol>
+            </CRow>
+
+            {formError && <div className="text-danger small mt-2">{formError}</div>}
+            {uploadMutation.error && !formError && (
+              <div className="text-danger small mt-2">
+                {uploadMutation.error.message || 'Upload failed'}
+              </div>
+            )}
+
+            <CButton
+              type="submit"
+              color="primary"
+              className="mt-3"
+              disabled={uploadMutation.isPending}
+            >
+              {uploadMutation.isPending
+                ? <CSpinner size="sm" className="me-1" />
+                : <CIcon icon={cilCloudUpload} className="me-1" />}
+              Upload Document
+            </CButton>
+          </CForm>
+        </CCardBody>
+      </CCard>
+
+      <ConfirmModal
+        visible={Boolean(confirmDeleteId)}
+        title="Delete Document"
+        body="Delete this document? The file will be permanently removed."
+        confirmText="Delete"
+        confirmColor="danger"
+        loading={deleteMutation.isPending}
+        onConfirm={handleDelete}
+        onClose={() => setConfirmDeleteId(null)}
+      />
+    </>
   )
 }
 
 ClientDocuments.propTypes = {
-  clientId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  clientId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
 }
 
 export default ClientDocuments

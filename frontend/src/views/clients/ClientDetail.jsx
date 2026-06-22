@@ -29,6 +29,7 @@ import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
 import ClientDocuments from './ClientDocuments'
 import { useClient, useClientAction, useDeleteClient } from '../../hooks/useClients'
+import { useDocumentBlobUrl } from '../../hooks/useDocuments'
 import { CLIENT_STATUS, KYC_STATUS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
@@ -107,6 +108,10 @@ const ClientDetail = () => {
   const action = useClientAction()
   const deleteMutation = useDeleteClient()
 
+  // Derive the client photo from the documents array (loaded with the client record).
+  const photoDoc = client?.documents?.find((d) => d.documentType === 'client_photo')
+  const clientPhotoUrl = useDocumentBlobUrl(photoDoc?.id)
+
   const [activeAction, setActiveAction] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [actionError, setActionError] = useState(null)
@@ -157,9 +162,10 @@ const ClientDetail = () => {
                   color="secondary"
                   textColor="white"
                   size="md"
-                  src={client.photoUrl || undefined}
+                  src={clientPhotoUrl || undefined}
+                  style={{ width: 40, height: 40, minWidth: 40, objectFit: 'cover', borderRadius: '50%', overflow: 'hidden' }}
                 >
-                  {!client.photoUrl &&
+                  {!clientPhotoUrl &&
                     `${client.firstName?.[0] || ''}${client.lastName?.[0] || ''}`.toUpperCase()}
                 </CAvatar>
                 <strong>

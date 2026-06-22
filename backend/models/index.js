@@ -16,6 +16,7 @@ const JournalEntryLine = require('./journalEntryLineModel');
 const MemberContribution = require('./memberContributionModel');
 const LoanTransaction = require('./loanTransactionModel');
 const Collateral = require('./collateralModel');
+const Document   = require('./documentModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
@@ -111,6 +112,16 @@ MemberContribution.belongsTo(Client, { foreignKey: 'client_id', as: 'client' });
 MemberContribution.belongsTo(JournalEntry, { foreignKey: 'journal_entry_id', as: 'journalEntry' });
 Client.hasMany(MemberContribution, { foreignKey: 'client_id', as: 'contributions' });
 
+// Document associations
+Client.hasMany(Document, { foreignKey: 'client_id', as: 'documents' });
+Document.belongsTo(Client, { foreignKey: 'client_id' });
+
+Loan.hasMany(Document, { foreignKey: 'loan_id', as: 'documents' });
+Document.belongsTo(Loan, { foreignKey: 'loan_id' });
+
+Collateral.hasMany(Document, { foreignKey: 'collateral_id', as: 'documents' });
+Document.belongsTo(Collateral, { foreignKey: 'collateral_id' });
+
 module.exports = {
   sequelize,
   Role,
@@ -127,4 +138,5 @@ module.exports = {
   MemberContribution,
   LoanTransaction,
   Collateral,
+  Document,
 };

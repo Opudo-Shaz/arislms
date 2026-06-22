@@ -42,3 +42,6 @@ migrations/
 # Cache
 .cache/
 .parcel-cache/
+
+# Uploaded documents (local storage)
+uploads/
