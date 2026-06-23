@@ -36,10 +36,7 @@ import {
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
-  cilBell,
   cilContrast,
-  cilEnvelopeOpen,
-  cilList,
   cilMenu,
   cilMoon,
   cilSun,
@@ -47,6 +44,7 @@ import {
 
 import { AppBreadcrumb } from './index'
 import { AppHeaderDropdown } from './header/index'
+import AppHeaderNotifications from './header/AppHeaderNotifications'
 
 /**
  * AppHeader functional component
@@ -99,21 +97,7 @@ const AppHeader = () => {
           </CNavItem>
         </CHeaderNav>
         <CHeaderNav className="ms-auto">
-          <CNavItem>
-            <CNavLink href="#">
-              <CIcon icon={cilBell} size="lg" />
-            </CNavLink>
-          </CNavItem>
-          <CNavItem>
-            <CNavLink href="#">
-              <CIcon icon={cilList} size="lg" />
-            </CNavLink>
-          </CNavItem>
-          <CNavItem>
-            <CNavLink href="#">
-              <CIcon icon={cilEnvelopeOpen} size="lg" />
-            </CNavLink>
-          </CNavItem>
+          <AppHeaderNotifications />
         </CHeaderNav>
         <CHeaderNav>
           <li className="nav-item py-1">

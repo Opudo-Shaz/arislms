@@ -17,9 +17,9 @@ class AuditLogger {
       }
 
       const allowedActions = [
-        'CREATE', 'UPDATE', 'DELETE', 'UPDATE_PRINCIPAL', 'DISBURSE', 'REVERSE',
+        'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'UPDATE_PRINCIPAL', 'DISBURSE', 'REVERSE',
         'KYC_VERIFY', 'KYC_REQUEST_INFO', 'KYC_REJECT',
-        'ACTIVATE', 'DEACTIVATE', 'SUSPEND', 'BLACKLIST'
+        'ACTIVATE', 'DEACTIVATE', 'SUSPEND', 'BLACKLIST', 'RESET_PASSWORD'
       ];
       if (!allowedActions.includes(action)) {
         throw new Error(`Invalid audit action: ${action}`);

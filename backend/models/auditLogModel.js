@@ -20,9 +20,9 @@ const AuditLog = sequelize.define('AuditLog', {
     allowNull: false,
     validate: {
       isIn: [[
-        'CREATE', 'UPDATE', 'DELETE', 'DISBURSE', 'REVERSE',
+        'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'DISBURSE', 'REVERSE',
         'UPDATE_PRINCIPAL', 'KYC_VERIFY', 'KYC_REQUEST_INFO', 'KYC_REJECT',
-        'ACTIVATE', 'DEACTIVATE', 'SUSPEND', 'BLACKLIST'
+        'ACTIVATE', 'DEACTIVATE', 'SUSPEND', 'BLACKLIST', 'RESET_PASSWORD'
       ]],
     },
   },

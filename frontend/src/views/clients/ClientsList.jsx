@@ -1,14 +1,14 @@
 /**
  * ClientsList
  *
- * Filterable table of clients with quick filters (search, status, KYC status)
- * and a "KYC queue" toggle for clients awaiting verification. Rows link to the
- * client detail page.
+ * Filterable, server-side paginated table of clients. Filters (search, status,
+ * KYC status, KYC queue) are sent as query params to the backend so results are
+ * always accurate across pages. Rows link to the client detail page.
  *
  * @module views/clients/ClientsList
  */
 
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CButton,
@@ -18,6 +18,8 @@ import {
   CCol,
   CFormInput,
   CFormSelect,
+  CPagination,
+  CPaginationItem,
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
@@ -28,34 +30,35 @@ import StatusBadge from '../../components/StatusBadge'
 import { useClients } from '../../hooks/useClients'
 import { CLIENT_STATUS, KYC_STATUS } from '../../constants/enums'
 
-/** Statuses that represent a pending KYC review. */
-const KYC_QUEUE_STATUSES = ['pending', 'pending_kyc_reverification']
+const PAGE_SIZE = 20
 
 const ClientsList = () => {
   const navigate = useNavigate()
-  const { data: clients = [], isLoading, error, refetch, isFetching } = useClients()
 
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [kycStatus, setKycStatus] = useState('')
   const [queueOnly, setQueueOnly] = useState(false)
+  const [page, setPage] = useState(1)
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    return clients.filter((c) => {
-      if (status && c.status !== status) return false
-      if (kycStatus && c.kycStatus !== kycStatus) return false
-      if (queueOnly && !KYC_QUEUE_STATUSES.includes(c.status)) return false
-      if (term) {
-        const haystack = [c.firstName, c.lastName, c.email, c.phone, c.accountNumber]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-        if (!haystack.includes(term)) return false
-      }
-      return true
-    })
-  }, [clients, search, status, kycStatus, queueOnly])
+  const resetPageAnd = (setter) => (value) => {
+    setter(value)
+    setPage(1)
+  }
+
+  const params = {
+    page,
+    limit: PAGE_SIZE,
+    search: search.trim() || undefined,
+    status: queueOnly ? undefined : status || undefined,
+    kycStatus: kycStatus || undefined,
+    queueOnly: queueOnly ? 'true' : undefined,
+  }
+
+  const { data, isLoading, error, refetch, isFetching } = useClients(params)
+  const clients = data?.clients ?? []
+  const total = data?.pagination?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const columns = [
     {
@@ -115,11 +118,15 @@ const ClientsList = () => {
             <CFormInput
               placeholder="Search name, email, phone…"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => resetPageAnd(setSearch)(e.target.value)}
             />
           </CCol>
           <CCol md={3}>
-            <CFormSelect value={status} onChange={(e) => setStatus(e.target.value)}>
+            <CFormSelect
+              value={status}
+              onChange={(e) => resetPageAnd(setStatus)(e.target.value)}
+              disabled={queueOnly}
+            >
               <option value="">All statuses</option>
               {CLIENT_STATUS.values.map((v) => (
                 <option key={v} value={v}>
@@ -129,7 +136,10 @@ const ClientsList = () => {
             </CFormSelect>
           </CCol>
           <CCol md={3}>
-            <CFormSelect value={kycStatus} onChange={(e) => setKycStatus(e.target.value)}>
+            <CFormSelect
+              value={kycStatus}
+              onChange={(e) => resetPageAnd(setKycStatus)(e.target.value)}
+            >
               <option value="">All KYC</option>
               {KYC_STATUS.values.map((v) => (
                 <option key={v} value={v}>
@@ -142,7 +152,11 @@ const ClientsList = () => {
             <CButton
               color={queueOnly ? 'warning' : 'light'}
               className="w-100"
-              onClick={() => setQueueOnly((v) => !v)}
+              onClick={() => {
+                setQueueOnly((v) => !v)
+                setStatus('')
+                setPage(1)
+              }}
             >
               KYC Queue
             </CButton>
@@ -151,12 +165,31 @@ const ClientsList = () => {
 
         <DataTable
           columns={columns}
-          rows={filtered}
+          rows={clients}
           loading={isLoading}
           error={error}
           emptyMessage="No clients match your filters."
           onRowClick={(row) => navigate(`/clients/${row.id}`)}
         />
+
+        {totalPages > 1 && (
+          <div className="d-flex justify-content-between align-items-center mt-3">
+            <span className="small text-body-secondary">
+              {total} clients · page {page} of {totalPages}
+            </span>
+            <CPagination className="mb-0">
+              <CPaginationItem disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                Previous
+              </CPaginationItem>
+              <CPaginationItem
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </CPaginationItem>
+            </CPagination>
+          </div>
+        )}
       </CCardBody>
     </CCard>
   )

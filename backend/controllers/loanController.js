@@ -9,44 +9,44 @@ const missedPaymentService = require('../utils/missedPaymentService');
 exports.getAllLoans = async (req, res) => {
   try {
     const userId = getUserId(req);
-
     logger.info(`User ${userId} fetching all loans`);
 
-    const loans = await loanService.getAllLoans(req.user.role, userId);
-    const result = loans.map(l => new LoanResponseDto(l));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const { status, search } = req.query;
+
+    const result = await loanService.getAllLoans({ role: req.user.role, userId, page, limit, status, search });
 
     return res.status(200).json({
       success: true,
-      data: result
+      data: result.loans.map(l => new LoanResponseDto(l)),
+      pagination: { total: result.total, page: result.page, limit: result.limit, pages: result.pages },
     });
   } catch (error) {
     logger.error(`GetAllLoans Error: ${error.message}`);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error fetching loans'
-    });
+    return res.status(500).json({ success: false, message: 'Server error fetching loans' });
   }
 };
 
 exports.getMyLoans = async (req, res) => {
   try {
     const userId = getUserId(req);
-
     logger.info(`User ${userId} fetching own loans`);
 
-    const loans = await loanService.getAllLoans('user', userId);
-    const result = loans.map(l => new LoanResponseDto(l));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const { status, search } = req.query;
+
+    const result = await loanService.getAllLoans({ role: 'user', userId, page, limit, status, search });
 
     return res.status(200).json({
       success: true,
-      data: result
+      data: result.loans.map(l => new LoanResponseDto(l)),
+      pagination: { total: result.total, page: result.page, limit: result.limit, pages: result.pages },
     });
   } catch (error) {
     logger.error(`GetMyLoans Error: ${error.message}`);
-    return res.status(500).json({
-      success: false,
-      message: 'Error fetching your loans'
-    });
+    return res.status(500).json({ success: false, message: 'Error fetching your loans' });
   }
 };
 

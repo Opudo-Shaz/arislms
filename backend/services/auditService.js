@@ -1,4 +1,5 @@
 const AuditLog = require('../models/auditLogModel');
+const User = require('../models/userModel');
 
 class AuditService {
   /**
@@ -49,6 +50,7 @@ class AuditService {
           entity_type: entityType,
           entity_id: entityId,
         },
+        include: [{ model: User, as: 'actor', attributes: ['id', 'first_name', 'last_name'], required: false }],
         limit,
         offset,
         order: [['occurred_at', order]],
@@ -73,6 +75,7 @@ class AuditService {
         where: {
           actor_id: actorId,
         },
+        include: [{ model: User, as: 'actor', attributes: ['id', 'first_name', 'last_name'], required: false }],
         limit,
         offset,
         order: [['occurred_at', order]],
@@ -101,6 +104,7 @@ class AuditService {
 
       const { rows, count } = await AuditLog.findAndCountAll({
         where,
+        include: [{ model: User, as: 'actor', attributes: ['id', 'first_name', 'last_name'], required: false }],
         limit,
         offset,
         order: [['occurred_at', order]],
@@ -114,6 +118,43 @@ class AuditService {
       };
     } catch (error) {
       console.error('Error retrieving audit logs:', error);
+      throw error;
+    }
+  }
+  /**
+   * Get a map of action -> actor full name for a specific entity.
+   * Only the earliest occurrence of each action is used.
+   * @param {string} entityType - Entity type (e.g. 'LOAN')
+   * @param {string|number} entityId - Entity ID
+   * @param {string[]} actions - Actions to look up (e.g. ['APPROVE', 'DISBURSE'])
+   * @returns {Promise<Object>} Map of action -> actor name (or null if not found)
+   */
+  static async getActorsByActions(entityType, entityId, actions) {
+    try {
+      const rows = await AuditLog.findAll({
+        where: { entity_type: entityType, entity_id: String(entityId), action: actions },
+        order: [['occurred_at', 'ASC']]
+      });
+
+      if (!rows.length) return {};
+
+      const actorIds = [...new Set(rows.map(r => r.actor_id).filter(Boolean))];
+      const users = await User.findAll({
+        where: { id: actorIds },
+        attributes: ['id', 'first_name', 'last_name']
+      });
+      const nameMap = Object.fromEntries(
+        users.map(u => [String(u.id), `${u.first_name} ${u.last_name}`.trim()])
+      );
+
+      const result = {};
+      for (const action of actions) {
+        const row = rows.find(r => r.action === action);
+        result[action] = row ? (nameMap[String(row.actor_id)] ?? null) : null;
+      }
+      return result;
+    } catch (error) {
+      console.error('Error in getActorsByActions:', error);
       throw error;
     }
   }

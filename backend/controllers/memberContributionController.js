@@ -7,10 +7,15 @@ const ContributionType = require('../enums/contributionType');
 const memberContributionController = {
   async getAll(req, res) {
     try {
-      const records = await memberContributionService.getAllContributions();
+      const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 20));
+      const { type, search } = req.query;
+
+      const result = await memberContributionService.getAllContributions({ page, limit, type, search });
       return res.status(200).json({
         success: true,
-        data: records.map(r => new MemberContributionResponseDto(r)),
+        data: result.records.map(r => new MemberContributionResponseDto(r)),
+        pagination: { total: result.total, page: result.page, limit: result.limit, pages: result.pages },
       });
     } catch (err) {
       logger.error(`GetAllContributions Error: ${err.message}`);

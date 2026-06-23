@@ -10,10 +10,16 @@
 
 import http from './http'
 
-/** @returns {Promise<object[]>} All clients. */
-export const listClients = async () => {
-  const res = await http.get('/clients')
-  return res?.data ?? []
+/** @returns {Promise<{clients: object[], pagination: object}>} Paginated clients. */
+export const listClients = async (params = {}) => {
+  const clean = Object.fromEntries(
+    Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
+  )
+  const res = await http.get('/clients', { params: clean })
+  return {
+    clients: res?.data ?? [],
+    pagination: res?.pagination ?? { total: 0, page: 1, limit: 20, pages: 0 },
+  }
 }
 
 /** @param {number|string} id @returns {Promise<object>} */

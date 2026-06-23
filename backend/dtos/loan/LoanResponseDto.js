@@ -6,6 +6,9 @@ function LoanResponseDto(loan) {
   return {
     id: loan.id,
     clientId: loan.clientId,
+    client: loan.client
+      ? { id: loan.client.id, firstName: loan.client.firstName, lastName: loan.client.lastName }
+      : null,
     loanProductId: loan.loanProductId,
     principalAmount: loan.principalAmount,
     currency: loan.currency,
@@ -18,8 +21,8 @@ function LoanResponseDto(loan) {
     approvalDate: loan.approvalDate,
     installmentAmount: loan.installmentAmount,
     outstandingBalance: loan.outstandingBalance,
-    totalPayments: loan.totalPayments,
-    paymentsMade: loan.paymentsMade,
+    amountRepaid: loan.amountRepaid,
+    noOfRepayments: loan.noOfRepayments,
     fees: loan.fees,
     penalties: loan.penalties,
     collateral: loan.collateral,
@@ -34,6 +37,8 @@ function LoanResponseDto(loan) {
     repaymentSchedules: loan.repaymentSchedules
       ? RepaymentScheduleResponseDto.fromArray(loan.repaymentSchedules)
       : [],
+    approvedBy: loan.approvedByName ?? null,
+    disbursedBy: loan.disbursedByName ?? null,
     createdAt: loan.createdAt,
     updatedAt: loan.updatedAt
   };

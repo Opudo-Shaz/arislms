@@ -19,16 +19,19 @@ import {
   CCardBody,
   CCardHeader,
   CCol,
+  CPopover,
+  CTooltip,
   CRow,
   CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPencil, cilTrash } from '@coreui/icons'
+import { cilInfo, cilPencil, cilPlus, cilReload, cilTrash } from '@coreui/icons'
 
 import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
 import ClientDocuments from './ClientDocuments'
 import { useClient, useClientAction, useDeleteClient } from '../../hooks/useClients'
+import { useRefreshCreditScore } from '../../hooks/useCreditScores'
 import { useDocumentBlobUrl } from '../../hooks/useDocuments'
 import { CLIENT_STATUS, KYC_STATUS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
@@ -107,6 +110,7 @@ const ClientDetail = () => {
   const { data: client, isLoading, error } = useClient(id)
   const action = useClientAction()
   const deleteMutation = useDeleteClient()
+  const refreshScore = useRefreshCreditScore(id)
 
   // Derive the client photo from the documents array (loaded with the client record).
   const photoDoc = client?.documents?.find((d) => d.documentType === 'client_photo')
@@ -181,6 +185,23 @@ const ClientDetail = () => {
                   <CIcon icon={cilPencil} className="me-1" />
                   Edit
                 </CButton>
+                {client.kycStatus === 'verified' && client.status === 'active' && (
+                  <CButton
+                    color="success"
+                    size="sm"
+                    onClick={() =>
+                      navigate('/loans/new', {
+                        state: {
+                          clientId: client.id,
+                          clientName: `${client.firstName} ${client.lastName}`.trim(),
+                        },
+                      })
+                    }
+                  >
+                    <CIcon icon={cilPlus} className="me-1" />
+                    New Loan
+                  </CButton>
+                )}
                 <CButton color="danger" size="sm" variant="outline" onClick={() => setConfirmDelete(true)}>
                   <CIcon icon={cilTrash} className="me-1" />
                   Delete
@@ -189,14 +210,26 @@ const ClientDetail = () => {
             </CCardHeader>
             <CCardBody>
               {actionError && (
-                <CAlert color="danger">{actionError.message || 'Action failed.'}</CAlert>
+                <CAlert color="danger" dismissible onClose={() => setActionError(null)}>{actionError.message || 'Action failed.'}</CAlert>
               )}
               <CRow>
                 <Field label="Status">
                   <StatusBadge enumDef={CLIENT_STATUS} value={client.status} />
                 </Field>
                 <Field label="KYC Status">
-                  <StatusBadge enumDef={KYC_STATUS} value={client.kycStatus} />
+                  <div className="d-flex align-items-center gap-2">
+                    <StatusBadge enumDef={KYC_STATUS} value={client.kycStatus} />
+                    {client.kycNotes && (
+                      <CPopover
+                        title="KYC Notes"
+                        content={client.kycNotes}
+                        placement="right"
+                        trigger={['hover', 'focus']}
+                      >
+                        <CIcon icon={cilInfo} className="text-body-secondary" style={{ cursor: 'pointer' }} />
+                      </CPopover>
+                    )}
+                  </div>
                 </Field>
                 <Field label="Account Number">{client.accountNumber}</Field>
                 <Field label="Email">{client.email}</Field>
@@ -222,6 +255,8 @@ const ClientDetail = () => {
                     : '—'}
                 </Field>
                 <Field label="KYC Verified At">{formatDate(client.kycVerifiedAt)}</Field>
+                <Field label="ID Document Type">{client.idDocumentType || '—'}</Field>
+                <Field label="ID Document Number">{client.idDocumentNumber || '—'}</Field>
               </CRow>
             </CCardBody>
           </CCard>
@@ -274,8 +309,20 @@ const ClientDetail = () => {
 
           {client.creditScore && (
             <CCard className="mb-4">
-              <CCardHeader>
+              <CCardHeader className="d-flex justify-content-between align-items-center">
                 <strong>Latest Credit Score</strong>
+                <CTooltip content="Refresh credit score" placement="left">
+                  <CButton
+                    color="primary"
+                    size="sm"
+                    disabled={refreshScore.isPending}
+                    onClick={() => refreshScore.mutate()}
+                  >
+                    {refreshScore.isPending
+                      ? <CSpinner size="sm" />
+                      : <CIcon icon={cilReload} />}
+                  </CButton>
+                </CTooltip>
               </CCardHeader>
               <CCardBody>
                 <div className="d-flex align-items-baseline gap-2">

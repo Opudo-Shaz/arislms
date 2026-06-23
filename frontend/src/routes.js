@@ -4,14 +4,12 @@
  * Protected routes rendered inside `DefaultLayout` via `AppContent`.
  * Each entry: { path, name, element, [exact] }.
  *
- * Modules not yet implemented use `ModulePlaceholder` and are replaced with
- * real screens in their respective build phases (see FRONTEND_PORTAL_PLAN.md).
+ * All LMS modules are implemented (see FRONTEND_PORTAL_PLAN.md build phases).
  *
  * @module routes
  */
 
 import React from 'react'
-import ModulePlaceholder from './views/ModulePlaceholder'
 
 // Implemented
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
@@ -19,18 +17,23 @@ const ClientsList = React.lazy(() => import('./views/clients/ClientsList'))
 const ClientForm = React.lazy(() => import('./views/clients/ClientForm'))
 const ClientDetail = React.lazy(() => import('./views/clients/ClientDetail'))
 const LoanProductsList = React.lazy(() => import('./views/loanProducts/LoanProductsList'))
-
-/**
- * Factory for a phase placeholder route element.
- * @param {string} title
- * @param {string} phase
- * @returns {() => JSX.Element}
- */
-const placeholder =
-  (title, phase) =>
-  // eslint-disable-next-line react/display-name
-  () =>
-    React.createElement(ModulePlaceholder, { title, phase })
+const LoansList = React.lazy(() => import('./views/loans/LoansList'))
+const LoanDetail = React.lazy(() => import('./views/loans/LoanDetail'))
+const LoanApplicationForm = React.lazy(() => import('./views/loans/LoanApplicationForm'))
+const LoanApprovals = React.lazy(() => import('./views/loans/LoanApprovals'))
+const PaymentsList = React.lazy(() => import('./views/payments/PaymentsList'))
+const CollateralsList = React.lazy(() => import('./views/collaterals/CollateralsList'))
+const ChartOfAccountsList = React.lazy(() => import('./views/accounting/ChartOfAccountsList'))
+const JournalEntriesList = React.lazy(() => import('./views/accounting/JournalEntriesList'))
+const TrialBalance = React.lazy(() => import('./views/accounting/TrialBalance'))
+const MemberContributionsList = React.lazy(
+  () => import('./views/memberContributions/MemberContributionsList'),
+)
+const UsersList = React.lazy(() => import('./views/admin/UsersList'))
+const RolesList = React.lazy(() => import('./views/admin/RolesList'))
+const NotificationsList = React.lazy(() => import('./views/notifications/NotificationsList'))
+const AuditTrail = React.lazy(() => import('./views/reports/AuditTrail'))
+const PortfolioAging = React.lazy(() => import('./views/reports/PortfolioAging'))
 
 export const routes = [
   { path: '/', exact: true, name: 'Home' },
@@ -43,17 +46,15 @@ export const routes = [
   { path: '/clients/:id/edit', name: 'Edit Client', element: ClientForm },
 
   // Loans (Phase 2)
-  { path: '/loans', name: 'Loans', element: placeholder('Loans', 'Phase 2'), exact: true },
+  { path: '/loans', name: 'Loans', element: LoansList, exact: true },
   {
-    path: '/loans/approvals',
-    name: 'Approval Queue',
-    element: placeholder('Loan Approval Queue', 'Phase 2'),
+    path: '/loans/my',
+    name: 'My Loans',
+    element: () => React.createElement(LoansList, { scope: 'mine' }),
   },
-  {
-    path: '/loans/new',
-    name: 'New Application',
-    element: placeholder('New Loan Application', 'Phase 2'),
-  },
+  { path: '/loans/approvals', name: 'Approval Queue', element: LoanApprovals },
+  { path: '/loans/new', name: 'New Application', element: LoanApplicationForm },
+  { path: '/loans/:id', name: 'Loan Detail', element: LoanDetail, exact: true },
 
   // Loan Products (Phase 1)
   {
@@ -63,58 +64,58 @@ export const routes = [
   },
 
   // Payments & Collaterals (Phase 3)
-  { path: '/payments', name: 'Payments', element: placeholder('Payments', 'Phase 3') },
-  { path: '/collaterals', name: 'Collaterals', element: placeholder('Collaterals', 'Phase 3') },
+  { path: '/payments', name: 'Payments', element: PaymentsList },
+  { path: '/collaterals', name: 'Collaterals', element: CollateralsList },
 
   // Member Contributions (Phase 4)
   {
     path: '/member-contributions',
     name: 'Member Contributions',
-    element: placeholder('Member Contributions', 'Phase 4'),
+    element: MemberContributionsList,
   },
 
   // Accounting (Phase 4)
   {
     path: '/accounting/chart-of-accounts',
     name: 'Chart of Accounts',
-    element: placeholder('Chart of Accounts', 'Phase 4'),
+    element: ChartOfAccountsList,
   },
   {
     path: '/accounting/ledger',
     name: 'Journal Entries',
-    element: placeholder('Journal Entries (Ledger)', 'Phase 4'),
+    element: JournalEntriesList,
   },
   {
     path: '/accounting/trial-balance',
     name: 'Trial Balance',
-    element: placeholder('Trial Balance', 'Phase 4'),
+    element: TrialBalance,
   },
 
   // Reports (Phase 5)
   {
     path: '/reports/portfolio-aging',
     name: 'Portfolio Aging',
-    element: placeholder('Portfolio Aging', 'Phase 5'),
+    element: PortfolioAging,
   },
   {
     path: '/reports/audit-trail',
     name: 'Audit Trail',
-    element: placeholder('Audit Trail', 'Phase 5'),
+    element: AuditTrail,
   },
 
   // Administration (Phase 5)
-  { path: '/admin/users', name: 'Users', element: placeholder('Users', 'Phase 5') },
+  { path: '/admin/users', name: 'Users', element: UsersList },
   {
     path: '/admin/roles',
     name: 'Roles & Permissions',
-    element: placeholder('Roles & Permissions', 'Phase 5'),
+    element: RolesList,
   },
 
   // Notifications (Phase 5)
   {
     path: '/notifications',
     name: 'Notifications',
-    element: placeholder('Notifications', 'Phase 5'),
+    element: NotificationsList,
   },
 ]
 

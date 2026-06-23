@@ -122,6 +122,37 @@ export const JOURNAL_ENTRY_STATUS = buildEnum(
   { DRAFT: 'Draft', POSTED: 'Posted', REVERSED: 'Reversed' },
 )
 
+/** Source/origin of a journal entry (used as a ledger filter). */
+export const LEDGER_SOURCE_TYPE = buildEnum(
+  {
+    LOAN_DISBURSEMENT: 'primary',
+    PAYMENT: 'success',
+    CONTRIBUTION: 'info',
+    MANUAL: 'secondary',
+    FEE: 'warning',
+    EXPENSE: 'danger',
+    REVERSAL: 'dark',
+  },
+  {
+    LOAN_DISBURSEMENT: 'Loan Disbursement',
+    PAYMENT: 'Payment',
+    CONTRIBUTION: 'Contribution',
+    MANUAL: 'Manual',
+    FEE: 'Fee',
+    EXPENSE: 'Expense',
+    REVERSAL: 'Reversal',
+  },
+)
+
+/** Source types a user may select when posting a manual journal entry. */
+export const MANUAL_SOURCE_TYPES = ['MANUAL', 'EXPENSE']
+
+/** Normal balance side of a ledger account. */
+export const NORMAL_BALANCE = buildEnum(
+  { DEBIT: 'primary', CREDIT: 'info' },
+  { DEBIT: 'Debit', CREDIT: 'Credit' },
+)
+
 export const LOAN_TRANSACTION_TYPE = buildEnum({
   disbursement: 'primary',
   repayment: 'success',
@@ -200,25 +231,129 @@ export const CLIENT_KYC_DOCUMENT_TYPES = [
   'other',
 ]
 
+/** Document types valid for loan supporting / collateral documents. */
+export const LOAN_DOCUMENT_TYPES = [
+  'title_deed',
+  'vehicle_logbook',
+  'insurance_certificate',
+  'valuation_report',
+  'bank_statement',
+  'payslip',
+  'tax_certificate',
+  'business_permit',
+  'guarantor_id',
+  'other',
+]
+
 export const DOCUMENT_STATUS = buildEnum({
   active: 'success',
   archived: 'secondary',
   deleted: 'danger',
 })
 
+/** Repayment schedule installment status: pending, paid, overdue, partial. */
+export const REPAYMENT_SCHEDULE_STATUS = buildEnum({
+  pending: 'secondary',
+  paid: 'success',
+  partial: 'warning',
+  overdue: 'danger',
+})
+
+/** Payment record status (free-text on the backend; common values mapped). */
+export const PAYMENT_STATUS = buildEnum({
+  completed: 'success',
+  pending: 'secondary',
+  failed: 'danger',
+  reversed: 'dark',
+})
+
+/**
+ * Payment methods. The backend stores this as a free string (max 32 chars);
+ * these are the supported options offered in the record-payment form.
+ */
+export const PAYMENT_METHOD = buildEnum(
+  {
+    MPESA: 'success',
+    CASH: 'secondary',
+    BANK_TRANSFER: 'info',
+    CHEQUE: 'warning',
+    CARD: 'primary',
+    OTHER: 'secondary',
+  },
+  {
+    MPESA: 'M-Pesa',
+    CASH: 'Cash',
+    BANK_TRANSFER: 'Bank Transfer',
+    CHEQUE: 'Cheque',
+    CARD: 'Card',
+    OTHER: 'Other',
+  },
+)
+
+/** Audit log action types (see backend/models/auditLogModel.js). */
+export const AUDIT_ACTION = buildEnum(
+  {
+    CREATE: 'success',
+    UPDATE: 'info',
+    DELETE: 'danger',
+    APPROVE: 'primary',
+    DISBURSE: 'primary',
+    REVERSE: 'warning',
+    UPDATE_PRINCIPAL: 'warning',
+    KYC_VERIFY: 'success',
+    KYC_REQUEST_INFO: 'info',
+    KYC_REJECT: 'danger',
+    ACTIVATE: 'success',
+    DEACTIVATE: 'secondary',
+    SUSPEND: 'warning',
+    BLACKLIST: 'danger',
+    RESET_PASSWORD: 'warning',
+  },
+  {
+    UPDATE_PRINCIPAL: 'Update Principal',
+    KYC_VERIFY: 'KYC Verify',
+    KYC_REQUEST_INFO: 'KYC Request Info',
+    KYC_REJECT: 'KYC Reject',
+    RESET_PASSWORD: 'Reset Password',
+  },
+)
+
+/** Audit actor types. */
+export const ACTOR_TYPE = buildEnum(
+  { USER: 'primary', SERVICE: 'info', SYSTEM: 'secondary' },
+  { USER: 'User', SERVICE: 'Service', SYSTEM: 'System' },
+)
+
+/** Notification types (see backend/models/notificationModel.js). */
+export const NOTIFICATION_TYPE = buildEnum(
+  {
+    info: 'info',
+    loan: 'primary',
+    payment: 'success',
+    warning: 'warning',
+    reminder: 'secondary',
+  },
+  { info: 'Info', loan: 'Loan', payment: 'Payment', warning: 'Warning', reminder: 'Reminder' },
+)
+
 /** Numeric backend role ids. */
 export const ROLES = {
   ADMIN: 1,
   MANAGER: 2,
   LIMITED: 3,
-}
-
-/** Convenience role groups for `RequireRole`. */
+}/** Convenience role groups for `RequireRole`. */
 export const ROLE_GROUPS = {
   /** Admin + manager (privileged write operations). */
   STAFF: [ROLES.ADMIN, ROLES.MANAGER],
   /** Any authenticated role. */
   ALL: [ROLES.ADMIN, ROLES.MANAGER, ROLES.LIMITED],
+}
+
+/** Fallback display labels for the built-in numeric role ids. */
+export const ROLE_LABELS = {
+  [ROLES.ADMIN]: 'Admin',
+  [ROLES.MANAGER]: 'Manager',
+  [ROLES.LIMITED]: 'Limited',
 }
 
 /**

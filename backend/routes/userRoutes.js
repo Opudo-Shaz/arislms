@@ -1,5 +1,5 @@
 const express = require('express');
-const { getUsers, getUser, createUser, updateUser, deleteUser } = require('../controllers/userController');
+const { getUsers, getUser, createUser, updateUser, deleteUser, resetUserPassword } = require('../controllers/userController');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -92,6 +92,49 @@ router.get('/:id', authenticate, getUser);
  *               email: alice@test.com
  *               role: admin
  */
+/**
+ * @openapi
+ * /api/users/reset-password:
+ *   post:
+ *     summary: Reset a user's password (super admin only)
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - email
+ *               - newPassword
+ *             properties:
+ *               userId:
+ *                 type: integer
+ *                 example: 5
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@test.com
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 8
+ *                 example: TempPass123
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: User not found or email mismatch
+ */
+router.post('/reset-password', authenticate, authorize([1]), resetUserPassword);
+
 router.post('/', authenticate, authorize([1,2]), createUser);
 
 /**

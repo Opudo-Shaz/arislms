@@ -7,7 +7,7 @@
  * @module hooks/useClients
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clientApi from '../api/clientApi'
 
 export const clientKeys = {
@@ -16,11 +16,13 @@ export const clientKeys = {
   detail: (id) => [...clientKeys.all, 'detail', String(id)],
 }
 
-/** List all clients. */
-export const useClients = () =>
+/** List clients (paginated + filtered). Returns {clients, pagination}. */
+export const useClients = (params = {}, queryOptions = {}) =>
   useQuery({
-    queryKey: clientKeys.lists(),
-    queryFn: clientApi.listClients,
+    queryKey: [...clientKeys.lists(), params],
+    queryFn: () => clientApi.listClients(params),
+    placeholderData: keepPreviousData,
+    ...queryOptions,
   })
 
 /** Fetch a single client by id. */

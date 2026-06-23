@@ -94,8 +94,8 @@ const Loan = sequelize.define('Loan', {
 User.hasMany(Loan, { foreignKey: 'created_by' });
 Loan.belongsTo(User, { foreignKey: 'created_by' });
 
-Client.hasMany(Loan, { foreignKey: 'client_id' });
-Loan.belongsTo(User, { foreignKey: 'client_id' });
+Client.hasMany(Loan, { foreignKey: 'client_id', as: 'loans' });
+Loan.belongsTo(Client, { foreignKey: 'client_id', as: 'client' });
 
 LoanProduct.hasMany(Loan, { foreignKey: 'loan_product_id' });
 Loan.belongsTo(LoanProduct, { foreignKey: 'loan_product_id' });

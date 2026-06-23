@@ -1,8 +1,10 @@
 const { v4: uuidv4 } = require('uuid');
+const { Op } = require('sequelize');
 const Payment = require('../models/paymentModel');
 const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
 const RepaymentSchedule = require('../models/repaymentScheduleModel');
+const User = require('../models/userModel');
 const sequelize = require('../config/sequalize_db');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
@@ -121,22 +123,39 @@ const paymentService = {
     }
   },
 
-  async getAllPayments(role, userId) {
+  async getAllPayments({ role, userId, page = 1, limit = 20, method } = {}) {
   try {
     logger.info(`paymentService.getAllPayments called by user ${userId} (role: ${role})`);
 
-    // Admin roles are 1 and 2
-    if ([1, 2].includes(Number(role))) {
-      return await Payment.findAll({ include: [{ model: Loan }] });
-    }
+    const processorInclude = {
+      model: User,
+      attributes: ['id', 'first_name', 'last_name', 'email'],
+      required: false,
+    };
 
-    // Normal users: fetch only payments for their loans (by clientId)
-    return await Payment.findAll({
-      include: [{
-        model: Loan,
-        where: { clientId: userId }
-      }]
+    const loanWhere = [1, 2].includes(Number(role)) ? {} : { clientId: userId };
+    const loanInclude = {
+      model: Loan,
+      required: ![1, 2].includes(Number(role)),
+      where: Object.keys(loanWhere).length ? loanWhere : undefined,
+      include: [{ association: 'client', required: false, attributes: ['id', 'firstName', 'lastName'] }],
+    };
+
+    const where = {};
+    if (method) where.paymentMethod = method;
+
+    const offset = (page - 1) * limit;
+    const { count, rows } = await Payment.findAndCountAll({
+      where,
+      limit,
+      offset,
+      order: [['created_at', 'DESC']],
+      distinct: true,
+      include: [loanInclude, processorInclude],
     });
+
+    logger.info(`Retrieved ${rows.length} payments (page=${page}, total=${count})`);
+    return { total: count, page, limit, pages: Math.ceil(count / limit), payments: rows };
   } catch (err) {
     logger.error(`Error in getAllPayments: ${err.message}`);
     throw err;
@@ -146,7 +165,14 @@ const paymentService = {
 async getPaymentsByLoan(loanId) {
   try {
     logger.info(`Fetching payments for loan ${loanId}`);
-    return await Payment.findAll({ where: { loanId } });
+    return await Payment.findAll({
+      where: { loanId },
+      include: [{
+        model: User,
+        attributes: ['id', 'first_name', 'last_name', 'email'],
+        required: false,
+      }],
+    });
   } catch (err) {
     logger.error(`Error in getPaymentsByLoan: ${err.message}`);
     throw err;

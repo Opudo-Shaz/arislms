@@ -118,7 +118,7 @@ const ClientDocuments = ({ clientId }) => {
           )}
 
           {!isLoading && error && (
-            <CAlert color="danger" className="mb-3">{error.message || 'Failed to load documents'}</CAlert>
+            <CAlert color="danger" className="mb-3" dismissible>{error.message || 'Failed to load documents'}</CAlert>
           )}
 
           {!isLoading && !error && documents.length === 0 && (

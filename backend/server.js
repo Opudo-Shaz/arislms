@@ -51,6 +51,7 @@ const chartOfAccountRoutes = require('./routes/chartOfAccountRoutes');
 const ledgerRoutes = require('./routes/ledgerRoutes');
 const memberContributionRoutes = require('./routes/memberContributionRoutes');
 const documentRoutes = require('./routes/documentRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 
 app.use('/api/users', userRoutes);
@@ -68,6 +69,7 @@ app.use('/api/chart-of-accounts', chartOfAccountRoutes);
 app.use('/api/ledger', ledgerRoutes);
 app.use('/api/member-contributions', memberContributionRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/reports', reportRoutes);
 
 
 

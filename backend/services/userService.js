@@ -152,10 +152,44 @@ const deleteUser = async (id, deletorId = null, userAgent = 'unknown') => {
   }
 };
 
+const resetUserPassword = async (userId, email, newPassword, actorId = null, userAgent = 'unknown') => {
+  try {
+    const user = await User.findOne({ where: { id: userId, email } });
+    if (!user) {
+      const err = new Error('User not found or email does not match');
+      err.status = 404;
+      throw err;
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    await user.update({ password: hashedPassword });
+
+    await AuditLogger.log({
+      entityType: 'USER',
+      entityId: userId,
+      action: 'RESET_PASSWORD',
+      data: { email, resetBy: actorId },
+      actorId: actorId || 'system',
+      options: {
+        actorType: 'USER',
+        source: userAgent
+      }
+    });
+
+    logger.warn(`Password reset for user id=${userId} (${email}) by actor ${actorId}`);
+    return user;
+  } catch (error) {
+    logger.error(`Error in resetUserPassword (${userId}): ${error.message}`);
+    throw error;
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
   createUser,
   updateUser,
   deleteUser,
+  resetUserPassword,
 };

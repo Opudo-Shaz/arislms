@@ -1,7 +1,9 @@
 const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
 const sequelize = require('../config/sequalize_db');
+const { Op } = require('sequelize');
 const User = require('../models/userModel');
+const AuditService = require('./auditService');
 const Client = require('../models/clientModel');
 const RepaymentSchedule = require('../models/repaymentScheduleModel');
 const CreditScore = require('../models/creditScoreModel');
@@ -17,6 +19,8 @@ const ledgerService = require('./ledgerService');
 const collateralService = require('./collateralService');
 const { emitLoanTransaction } = require('../utils/loanTransactionEmitter');
 const LoanTransactionType = require('../enums/loanTransactionType');
+const Document = require('../models/documentModel');
+const DocumentCategory = require('../enums/documentCategory');
 
 // Calculates monthly payment
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
@@ -39,33 +43,37 @@ function calculateMonthlyPayment(principal, interestRate, termMonths, interestTy
 
 const loanService = {
 
-  // Admin: get all loans, User: get own loans
-  async getAllLoans(role, userId) {
+  // Get loans (paginated + filtered); admin sees all, others see own
+  async getAllLoans({ role, userId, page = 1, limit = 20, status, search } = {}) {
     try {
       logger.info(`loanService.getAllLoans called by user ${userId} with role ${role}`);
-      if (isAdmin(role)) {
-        const loans = await Loan.findAll({
-          include: [
-            { association: 'repaymentSchedules', required: false },
-            { association: 'creditScore', required: false },
-            { association: 'collaterals', required: false },
-            { association: 'transactions', required: false }
-          ]
-        });
-        logger.info(`Retrieved ${loans.length} loans (admin)`);
-        return loans;
+      const where = {};
+      if (!isAdmin(role)) where.clientId = userId;
+      if (status) where.status = status;
+      if (search) {
+        where[Op.or] = [
+          { referenceCode: { [Op.iLike]: `%${search}%` } },
+          { '$client.first_name$': { [Op.iLike]: `%${search}%` } },
+          { '$client.last_name$': { [Op.iLike]: `%${search}%` } },
+        ];
       }
-      const loans = await Loan.findAll({ 
-        where: { clientId: userId },
+      const offset = (page - 1) * limit;
+      const { count, rows } = await Loan.findAndCountAll({
+        where,
+        limit,
+        offset,
+        order: [['created_at', 'DESC']],
+        distinct: true,
         include: [
+          { association: 'client', required: false, attributes: ['id', 'firstName', 'lastName'] },
           { association: 'repaymentSchedules', required: false },
           { association: 'creditScore', required: false },
           { association: 'collaterals', required: false },
-          { association: 'transactions', required: false }
-        ]
+          { association: 'transactions', required: false },
+        ],
       });
-      logger.info(`Retrieved ${loans.length} loans for user ${userId}`);
-      return loans;
+      logger.info(`Retrieved ${rows.length} loans (role=${role}, page=${page}, total=${count})`);
+      return { total: count, page, limit, pages: Math.ceil(count / limit), loans: rows };
     } catch (error) {
       logger.error(`Error in getAllLoans: ${error.message}`);
       throw error;
@@ -88,6 +96,12 @@ const loanService = {
       if (!isAdmin(role) && loan.clientId !== userId) {
         return 403; // Access denied
       }
+
+      // Fetch approver/disburser names from audit log
+      const actorMap = await AuditService.getActorsByActions('LOAN', id, ['APPROVE', 'DISBURSE']);
+      loan.approvedByName = actorMap['APPROVE'] ?? null;
+      loan.disbursedByName = actorMap['DISBURSE'] ?? null;
+      logger.info(`getLoanById actor names — approvedBy: ${loan.approvedByName}, disbursedBy: ${loan.disbursedByName}`);
 
       return loan;
     } catch (error) {
@@ -538,6 +552,28 @@ const loanService = {
       // Validate loan can be approved
       if (loan.status !== LoanStatus.PENDING && loan.status !== LoanStatus.IN_REVIEW && loan.status !== LoanStatus.UNDER_REVIEW) {
         throw new Error(`Loan cannot be approved. Current status: ${loan.status}. Loan must be pending, in_review, or under_review.`);
+      }
+
+      // If the loan product requires collateral, at least one collateral document must be uploaded
+      const product = await LoanProduct.findByPk(loan.loanProductId);
+      if (product && product.requiresCollateral) {
+        const collateralDocCount = await Document.count({
+          where: {
+            loanId: loan.id,
+            documentCategory: DocumentCategory.LOAN_COLLATERAL,
+            status: 'active',
+          },
+        });
+        if (collateralDocCount === 0) {
+          throw new Error(
+            'Loan cannot be approved. The loan product requires collateral but no collateral documents have been uploaded for this loan.'
+          );
+        }
+      }
+
+      // Approver must not be the same user who created the loan
+      if (approverId && loan.createdBy && Number(approverId) === Number(loan.createdBy)) {
+        throw new Error('Loan cannot be approved. The approver cannot be the same user who created the loan.');
       }
 
       // Parse and validate approval date
