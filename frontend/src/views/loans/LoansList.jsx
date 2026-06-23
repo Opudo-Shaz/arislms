@@ -1,17 +1,10 @@
 /**
- * LoansList
- *
- * Filterable table of loans. Supports two scopes:
- * - `all` (default): every loan (admin/manager) via `useLoans`.
- * - `mine`: the logged-in user's loans via `useMyLoans`.
- *
- * Client names are resolved from the Clients list (loans only carry a
- * `clientId`). Rows link to the loan detail page.
- *
+ * LoansList — server-side paginated, filterable loan table.
+ * scope='all': every loan (admin/manager). scope='mine': logged-in user's loans.
  * @module views/loans/LoansList
  */
 
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import PropTypes from 'prop-types'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -22,55 +15,48 @@ import {
   CCol,
   CFormInput,
   CFormSelect,
+  CPagination,
+  CPaginationItem,
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPlus, cilReload } from '@coreui/icons'
+import { cilReload } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
 import { useLoans, useMyLoans } from '../../hooks/useLoans'
-import { useClients } from '../../hooks/useClients'
 import { LOAN_STATUS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
+
+const PAGE_SIZE = 20
+
+const clientName = (row) =>
+  row.client ? `${row.client.firstName} ${row.client.lastName}`.trim() : `Client #${row.clientId}`
 
 const LoansList = ({ scope }) => {
   const navigate = useNavigate()
   const isMine = scope === 'mine'
 
-  const allLoansQuery = useLoans()
-  const myLoansQuery = useMyLoans()
-  const { data: loans = [], isLoading, error, refetch, isFetching } = isMine
-    ? myLoansQuery
-    : allLoansQuery
-
-  // Resolve client names (loans only carry clientId). Skipped for "mine".
-  const { data: clients = [] } = useClients()
-  const clientMap = useMemo(() => {
-    const map = {}
-    clients.forEach((c) => {
-      map[c.id] = `${c.firstName} ${c.lastName}`.trim()
-    })
-    return map
-  }, [clients])
-
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
+  const [page, setPage] = useState(1)
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    return loans.filter((l) => {
-      if (status && l.status !== status) return false
-      if (term) {
-        const haystack = [l.referenceCode, clientMap[l.clientId], l.principalAmount]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-        if (!haystack.includes(term)) return false
-      }
-      return true
-    })
-  }, [loans, status, search, clientMap])
+  const resetPageAnd = (setter) => (value) => { setter(value); setPage(1) }
+
+  const params = {
+    page,
+    limit: PAGE_SIZE,
+    status: status || undefined,
+    search: search.trim() || undefined,
+  }
+
+  const allLoansQuery = useLoans(params)
+  const myLoansQuery = useMyLoans(params)
+  const { data, isLoading, error, refetch, isFetching } = isMine ? myLoansQuery : allLoansQuery
+
+  const loans = data?.loans ?? []
+  const total = data?.pagination?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const columns = [
     {
@@ -80,9 +66,7 @@ const LoansList = ({ scope }) => {
         <div>
           <div className="fw-semibold">{row.referenceCode || `Loan #${row.id}`}</div>
           {!isMine && (
-            <div className="small text-body-secondary">
-              {clientMap[row.clientId] || `Client #${row.clientId}`}
-            </div>
+            <div className="small text-body-secondary">{clientName(row)}</div>
           )}
         </div>
       ),
@@ -118,28 +102,22 @@ const LoansList = ({ scope }) => {
     <CCard className="mb-4">
       <CCardHeader className="d-flex justify-content-between align-items-center">
         <strong>{isMine ? 'My Loans' : 'Loans'}</strong>
-        <div className="d-flex gap-2">
-          <CButton color="light" size="sm" onClick={() => refetch()} disabled={isFetching}>
-            <CIcon icon={cilReload} className="me-1" />
-            Refresh
-          </CButton>
-          <CButton color="primary" size="sm" onClick={() => navigate('/loans/new')}>
-            <CIcon icon={cilPlus} className="me-1" />
-            New Application
-          </CButton>
-        </div>
+        <CButton color="light" size="sm" onClick={() => refetch()} disabled={isFetching}>
+          <CIcon icon={cilReload} className="me-1" />
+          Refresh
+        </CButton>
       </CCardHeader>
       <CCardBody>
         <CRow className="g-2 mb-3">
           <CCol md={5}>
             <CFormInput
-              placeholder="Search reference, client…"
+              placeholder="Search reference, client name…"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => resetPageAnd(setSearch)(e.target.value)}
             />
           </CCol>
           <CCol md={4}>
-            <CFormSelect value={status} onChange={(e) => setStatus(e.target.value)}>
+            <CFormSelect value={status} onChange={(e) => resetPageAnd(setStatus)(e.target.value)}>
               <option value="">All statuses</option>
               {LOAN_STATUS.values.map((v) => (
                 <option key={v} value={v}>
@@ -152,12 +130,28 @@ const LoansList = ({ scope }) => {
 
         <DataTable
           columns={columns}
-          rows={filtered}
+          rows={loans}
           loading={isLoading}
           error={error}
           emptyMessage="No loans match your filters."
           onRowClick={(row) => navigate(`/loans/${row.id}`)}
         />
+
+        {totalPages > 1 && (
+          <div className="d-flex justify-content-between align-items-center mt-3">
+            <span className="small text-body-secondary">
+              {total} loans · page {page} of {totalPages}
+            </span>
+            <CPagination className="mb-0">
+              <CPaginationItem disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                Previous
+              </CPaginationItem>
+              <CPaginationItem disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                Next
+              </CPaginationItem>
+            </CPagination>
+          </div>
+        )}
       </CCardBody>
     </CCard>
   )

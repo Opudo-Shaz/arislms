@@ -1,6 +1,7 @@
 const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
 const sequelize = require('../config/sequalize_db');
+const { Op } = require('sequelize');
 const User = require('../models/userModel');
 const AuditService = require('./auditService');
 const Client = require('../models/clientModel');
@@ -42,33 +43,37 @@ function calculateMonthlyPayment(principal, interestRate, termMonths, interestTy
 
 const loanService = {
 
-  // Admin: get all loans, User: get own loans
-  async getAllLoans(role, userId) {
+  // Get loans (paginated + filtered); admin sees all, others see own
+  async getAllLoans({ role, userId, page = 1, limit = 20, status, search } = {}) {
     try {
       logger.info(`loanService.getAllLoans called by user ${userId} with role ${role}`);
-      if (isAdmin(role)) {
-        const loans = await Loan.findAll({
-          include: [
-            { association: 'repaymentSchedules', required: false },
-            { association: 'creditScore', required: false },
-            { association: 'collaterals', required: false },
-            { association: 'transactions', required: false }
-          ]
-        });
-        logger.info(`Retrieved ${loans.length} loans (admin)`);
-        return loans;
+      const where = {};
+      if (!isAdmin(role)) where.clientId = userId;
+      if (status) where.status = status;
+      if (search) {
+        where[Op.or] = [
+          { referenceCode: { [Op.iLike]: `%${search}%` } },
+          { '$client.first_name$': { [Op.iLike]: `%${search}%` } },
+          { '$client.last_name$': { [Op.iLike]: `%${search}%` } },
+        ];
       }
-      const loans = await Loan.findAll({ 
-        where: { clientId: userId },
+      const offset = (page - 1) * limit;
+      const { count, rows } = await Loan.findAndCountAll({
+        where,
+        limit,
+        offset,
+        order: [['created_at', 'DESC']],
+        distinct: true,
         include: [
+          { association: 'client', required: false, attributes: ['id', 'firstName', 'lastName'] },
           { association: 'repaymentSchedules', required: false },
           { association: 'creditScore', required: false },
           { association: 'collaterals', required: false },
-          { association: 'transactions', required: false }
-        ]
+          { association: 'transactions', required: false },
+        ],
       });
-      logger.info(`Retrieved ${loans.length} loans for user ${userId}`);
-      return loans;
+      logger.info(`Retrieved ${rows.length} loans (role=${role}, page=${page}, total=${count})`);
+      return { total: count, page, limit, pages: Math.ceil(count / limit), loans: rows };
     } catch (error) {
       logger.error(`Error in getAllLoans: ${error.message}`);
       throw error;

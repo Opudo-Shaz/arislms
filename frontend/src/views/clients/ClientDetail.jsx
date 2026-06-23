@@ -25,7 +25,7 @@ import {
   CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilInfo, cilPencil, cilReload, cilTrash } from '@coreui/icons'
+import { cilInfo, cilPencil, cilPlus, cilReload, cilTrash } from '@coreui/icons'
 
 import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -185,6 +185,23 @@ const ClientDetail = () => {
                   <CIcon icon={cilPencil} className="me-1" />
                   Edit
                 </CButton>
+                {client.kycStatus === 'verified' && client.status === 'active' && (
+                  <CButton
+                    color="success"
+                    size="sm"
+                    onClick={() =>
+                      navigate('/loans/new', {
+                        state: {
+                          clientId: client.id,
+                          clientName: `${client.firstName} ${client.lastName}`.trim(),
+                        },
+                      })
+                    }
+                  >
+                    <CIcon icon={cilPlus} className="me-1" />
+                    New Loan
+                  </CButton>
+                )}
                 <CButton color="danger" size="sm" variant="outline" onClick={() => setConfirmDelete(true)}>
                   <CIcon icon={cilTrash} className="me-1" />
                   Delete

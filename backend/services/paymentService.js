@@ -1,4 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
+const { Op } = require('sequelize');
 const Payment = require('../models/paymentModel');
 const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
@@ -122,7 +123,7 @@ const paymentService = {
     }
   },
 
-  async getAllPayments(role, userId) {
+  async getAllPayments({ role, userId, page = 1, limit = 20, method } = {}) {
   try {
     logger.info(`paymentService.getAllPayments called by user ${userId} (role: ${role})`);
 
@@ -132,18 +133,29 @@ const paymentService = {
       required: false,
     };
 
-    // Admin roles are 1 and 2
-    if ([1, 2].includes(Number(role))) {
-      return await Payment.findAll({ include: [{ model: Loan }, processorInclude] });
-    }
+    const loanWhere = [1, 2].includes(Number(role)) ? {} : { clientId: userId };
+    const loanInclude = {
+      model: Loan,
+      required: ![1, 2].includes(Number(role)),
+      where: Object.keys(loanWhere).length ? loanWhere : undefined,
+      include: [{ association: 'client', required: false, attributes: ['id', 'firstName', 'lastName'] }],
+    };
 
-    // Normal users: fetch only payments for their loans (by clientId)
-    return await Payment.findAll({
-      include: [{
-        model: Loan,
-        where: { clientId: userId }
-      }, processorInclude]
+    const where = {};
+    if (method) where.paymentMethod = method;
+
+    const offset = (page - 1) * limit;
+    const { count, rows } = await Payment.findAndCountAll({
+      where,
+      limit,
+      offset,
+      order: [['created_at', 'DESC']],
+      distinct: true,
+      include: [loanInclude, processorInclude],
     });
+
+    logger.info(`Retrieved ${rows.length} payments (page=${page}, total=${count})`);
+    return { total: count, page, limit, pages: Math.ceil(count / limit), payments: rows };
   } catch (err) {
     logger.error(`Error in getAllPayments: ${err.message}`);
     throw err;

@@ -66,11 +66,6 @@ const _nav = [
         name: 'Approval Queue',
         to: '/loans/approvals',
       },
-      {
-        component: CNavItem,
-        name: 'New Application',
-        to: '/loans/new',
-      },
     ],
   },
   {

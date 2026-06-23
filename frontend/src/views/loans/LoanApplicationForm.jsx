@@ -9,7 +9,7 @@
  */
 
 import React, { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, useLocation } from 'react-router-dom'
 import {
   CAlert,
   CButton,
@@ -27,7 +27,6 @@ import {
 } from '@coreui/react'
 
 import { useCreateLoan } from '../../hooks/useLoans'
-import { useClients } from '../../hooks/useClients'
 import { useLoanProducts } from '../../hooks/useLoanProducts'
 import { COLLATERAL_TYPE } from '../../constants/enums'
 import { formatCurrency, formatPercent } from '../../utils/format'
@@ -64,25 +63,27 @@ const toPayload = (form) => {
 
 const LoanApplicationForm = () => {
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Must be opened from ClientDetail — clientId + name supplied via router state.
+  const prefilledClientId = location.state?.clientId ?? null
+  const prefilledClientName = location.state?.clientName ?? null
+
   const createMutation = useCreateLoan()
-  const { data: clients = [], isLoading: loadingClients } = useClients()
   const { data: products = [], isLoading: loadingProducts } = useLoanProducts()
 
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState({ ...emptyForm, clientId: prefilledClientId ?? '' })
   const [errors, setErrors] = useState(null)
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
-
-  // Only clients with verified KYC and an active account may take a loan.
-  const eligibleClients = useMemo(
-    () => clients.filter((c) => c.kycStatus === 'verified' && c.status === 'active'),
-    [clients],
-  )
 
   const selectedProduct = useMemo(
     () => products.find((p) => String(p.id) === String(form.loanProductId)),
     [products, form.loanProductId],
   )
+
+  // Guard: redirect to clients if not opened from a client detail page.
+  if (!prefilledClientId) return <Navigate to="/clients" replace />
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -120,23 +121,29 @@ const LoanApplicationForm = () => {
           <CRow className="g-3">
             <CCol md={6}>
               <CFormLabel>Client *</CFormLabel>
-              <CFormSelect
-                value={form.clientId}
-                onChange={setField('clientId')}
-                required
-                disabled={loadingClients}
-              >
-                <option value="">Select a client…</option>
-                {eligibleClients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.firstName} {c.lastName}
-                    {c.accountNumber ? ` (${c.accountNumber})` : ''}
-                  </option>
-                ))}
-              </CFormSelect>
-              <div className="form-text">
-                Only clients with verified KYC and an active account are eligible.
-              </div>
+              {prefilledClientId ? (
+                <div className="form-control bg-body-secondary">{prefilledClientName || `Client #${prefilledClientId}`}</div>
+              ) : (
+                <>
+                  <CFormSelect
+                    value={form.clientId}
+                    onChange={setField('clientId')}
+                    required
+                    disabled={loadingClients}
+                  >
+                    <option value="">Select a client…</option>
+                    {eligibleClients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.firstName} {c.lastName}
+                        {c.accountNumber ? ` (${c.accountNumber})` : ''}
+                      </option>
+                    ))}
+                  </CFormSelect>
+                  <div className="form-text">
+                    Only clients with verified KYC and an active account are eligible.
+                  </div>
+                </>
+              )}
             </CCol>
             <CCol md={6}>
               <CFormLabel>Loan product *</CFormLabel>
@@ -240,7 +247,7 @@ const LoanApplicationForm = () => {
               type="button"
               color="secondary"
               variant="outline"
-              onClick={() => navigate('/loans')}
+              onClick={() => prefilledClientId ? navigate(-1) : navigate('/loans')}
               disabled={saving}
             >
               Cancel

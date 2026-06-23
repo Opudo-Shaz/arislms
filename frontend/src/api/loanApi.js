@@ -13,16 +13,22 @@
 
 import http from './http'
 
-/** @returns {Promise<object[]>} All loans (admin/manager). */
-export const listLoans = async () => {
-  const res = await http.get('/loans')
-  return res?.data ?? []
+/** @returns {Promise<{loans:object[],pagination:object}>} Paginated loans (admin/manager). */
+export const listLoans = async (params = {}) => {
+  const clean = Object.fromEntries(
+    Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
+  )
+  const res = await http.get('/loans', { params: clean })
+  return { loans: res?.data ?? [], pagination: res?.pagination ?? { total: 0, page: 1, limit: 20, pages: 0 } }
 }
 
-/** @returns {Promise<object[]>} Loans for the logged-in user. */
-export const listMyLoans = async () => {
-  const res = await http.get('/loans/my')
-  return res?.data ?? []
+/** @returns {Promise<{loans:object[],pagination:object}>} Paginated loans for the logged-in user. */
+export const listMyLoans = async (params = {}) => {
+  const clean = Object.fromEntries(
+    Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
+  )
+  const res = await http.get('/loans/my', { params: clean })
+  return { loans: res?.data ?? [], pagination: res?.pagination ?? { total: 0, page: 1, limit: 20, pages: 0 } }
 }
 
 /** @param {number|string} id @returns {Promise<object>} */

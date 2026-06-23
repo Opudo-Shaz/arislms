@@ -8,7 +8,7 @@
  * @module views/collaterals/CollateralsList
  */
 
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CButton,
@@ -27,7 +27,6 @@ import StatusBadge from '../../components/StatusBadge'
 import CollateralStatusModal from './CollateralStatusModal'
 import { useLoanCollaterals, useUpdateCollateralStatus } from '../../hooks/useCollaterals'
 import { useLoans } from '../../hooks/useLoans'
-import { useClients } from '../../hooks/useClients'
 import { useAuth } from '../../context/AuthContext'
 import { COLLATERAL_STATUS, COLLATERAL_TYPE, ROLES } from '../../constants/enums'
 import { formatCurrency } from '../../utils/format'
@@ -37,8 +36,8 @@ const CollateralsList = () => {
   const { role } = useAuth()
   const isAdmin = role === ROLES.ADMIN
 
-  const { data: loans = [] } = useLoans()
-  const { data: clients = [] } = useClients()
+  const { data: loansResult } = useLoans({ limit: 500 })
+  const loans = loansResult?.loans ?? []
 
   const [loanId, setLoanId] = useState('')
   const [editTarget, setEditTarget] = useState(null)
@@ -46,13 +45,9 @@ const CollateralsList = () => {
   const { data: collaterals = [], isLoading, error } = useLoanCollaterals(loanId)
   const updateMutation = useUpdateCollateralStatus()
 
-  const clientMap = useMemo(() => {
-    const map = {}
-    clients.forEach((c) => {
-      map[c.id] = `${c.firstName} ${c.lastName}`.trim()
-    })
-    return map
-  }, [clients])
+  const loanLabel = (l) =>
+    (l.referenceCode || `Loan #${l.id}`) +
+    (l.client ? ` — ${l.client.firstName} ${l.client.lastName}`.trim() : ` — Client #${l.clientId}`)
 
   const runUpdate = async (status, notes) => {
     try {
@@ -114,8 +109,7 @@ const CollateralsList = () => {
               <option value="">Select a loan…</option>
               {loans.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {(l.referenceCode || `Loan #${l.id}`) +
-                    ` — ${clientMap[l.clientId] || `Client #${l.clientId}`}`}
+                  {loanLabel(l)}
                 </option>
               ))}
             </CFormSelect>

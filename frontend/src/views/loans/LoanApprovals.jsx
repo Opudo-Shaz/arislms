@@ -23,7 +23,6 @@ import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
 import LoanActionModal from './LoanActionModal'
 import { useLoans, useLoanAction } from '../../hooks/useLoans'
-import { useClients } from '../../hooks/useClients'
 import { LOAN_STATUS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
@@ -38,20 +37,12 @@ const PENDING_STATUSES = [
 
 const LoanApprovals = () => {
   const navigate = useNavigate()
-  const { data: loans = [], isLoading, error, refetch, isFetching } = useLoans()
-  const { data: clients = [] } = useClients()
+  const { data: loansResult, isLoading, error, refetch, isFetching } = useLoans({ limit: 500 })
+  const loans = loansResult?.loans ?? []
   const approveAction = useLoanAction()
 
   const [target, setTarget] = useState(null)
   const [actionError, setActionError] = useState(null)
-
-  const clientMap = useMemo(() => {
-    const map = {}
-    clients.forEach((c) => {
-      map[c.id] = `${c.firstName} ${c.lastName}`.trim()
-    })
-    return map
-  }, [clients])
 
   const queue = useMemo(
     () => loans.filter((l) => PENDING_STATUSES.includes(l.status)),
@@ -68,6 +59,9 @@ const LoanApprovals = () => {
     }
   }
 
+  const clientName = (row) =>
+    row.client ? `${row.client.firstName} ${row.client.lastName}`.trim() : `Client #${row.clientId}`
+
   const columns = [
     {
       key: 'reference',
@@ -76,7 +70,7 @@ const LoanApprovals = () => {
         <div>
           <div className="fw-semibold">{row.referenceCode || `Loan #${row.id}`}</div>
           <div className="small text-body-secondary">
-            {clientMap[row.clientId] || `Client #${row.clientId}`}
+            {clientName(row)}
           </div>
         </div>
       ),

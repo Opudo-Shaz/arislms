@@ -30,6 +30,16 @@ class PaymentResponseDto {
 
     this.createdAt = model.createdAt;
     this.updatedAt = model.updatedAt;
+
+    const loan = model.Loan;
+    this.loan = loan ? {
+      id: loan.id,
+      referenceCode: loan.referenceCode,
+      clientId: loan.clientId,
+      client: loan.client
+        ? { id: loan.client.id, firstName: loan.client.firstName, lastName: loan.client.lastName }
+        : null,
+    } : null;
   }
 }
 

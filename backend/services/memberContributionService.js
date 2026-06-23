@@ -1,4 +1,5 @@
 const sequelize = require('../config/sequalize_db');
+const { Op } = require('sequelize');
 const MemberContribution = require('../models/memberContributionModel');
 const Client = require('../models/clientModel');
 const ledgerService = require('./ledgerService');
@@ -167,11 +168,26 @@ const memberContributionService = {
     };
   },
 
-  async getAllContributions() {
-    return MemberContribution.findAll({
-      include: [{ association: 'client' }, { association: 'journalEntry' }],
+  async getAllContributions({ page = 1, limit = 20, type, search } = {}) {
+    const where = {};
+    if (type) where.type = type;
+    if (search) {
+      where[Op.or] = [
+        { '$client.first_name$': { [Op.iLike]: `%${search}%` } },
+        { '$client.last_name$': { [Op.iLike]: `%${search}%` } },
+        { notes: { [Op.iLike]: `%${search}%` } },
+      ];
+    }
+    const offset = (page - 1) * limit;
+    const { count, rows } = await MemberContribution.findAndCountAll({
+      where,
+      limit,
+      offset,
       order: [['contribution_date', 'DESC']],
+      distinct: true,
+      include: [{ association: 'client' }, { association: 'journalEntry' }],
     });
+    return { total: count, page, limit, pages: Math.ceil(count / limit), records: rows };
   },
 
   async getContributionsByMember(clientId) {

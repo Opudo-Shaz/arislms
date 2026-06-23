@@ -79,21 +79,47 @@ const clientService = {
     }
   },
 
-  // ✅ Get all clients 
-  async getAllClients() {
+  // ✅ Get all clients (paginated + filtered)
+  async getAllClients({ page = 1, limit = 20, search, status, kycStatus, queueOnly } = {}) {
     try {
-      const clients = await Client.findAll({
+      const where = {};
+
+      if (queueOnly === 'true' || queueOnly === true) {
+        where.status = { [Op.in]: ['pending', 'pending_kyc_reverification'] };
+      } else if (status) {
+        where.status = status;
+      }
+
+      if (kycStatus) where.kycStatus = kycStatus;
+
+      if (search) {
+        where[Op.or] = [
+          { firstName: { [Op.iLike]: `%${search}%` } },
+          { lastName: { [Op.iLike]: `%${search}%` } },
+          { email: { [Op.iLike]: `%${search}%` } },
+          { phone: { [Op.iLike]: `%${search}%` } },
+          { accountNumber: { [Op.iLike]: `%${search}%` } },
+        ];
+      }
+
+      const offset = (page - 1) * limit;
+      const { count, rows } = await Client.findAndCountAll({
+        where,
+        limit,
+        offset,
+        order: [['created_at', 'DESC']],
         include: [{
           model: CreditScore,
           as: 'creditScores',
           required: false,
           order: [['created_at', 'DESC']],
           limit: 1,
-          separate: true
-        }]
+          separate: true,
+        }],
       });
-      logger.info(`Retrieved all clients`);
-      return clients;
+
+      logger.info(`Retrieved clients: page=${page}, limit=${limit}, total=${count}`);
+      return { total: count, page, limit, pages: Math.ceil(count / limit), clients: rows };
     } catch (error) {
       logger.error(`Error fetching clients: ${error.message}`);
       throw error;

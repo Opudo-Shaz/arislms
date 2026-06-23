@@ -10,10 +10,13 @@
 
 import http from './http'
 
-/** @returns {Promise<object[]>} All contributions and withdrawals. */
-export const listContributions = async () => {
-  const res = await http.get('/member-contributions')
-  return res?.data ?? []
+/** @returns {Promise<{records:object[],pagination:object}>} Paginated contributions. */
+export const listContributions = async (params = {}) => {
+  const clean = Object.fromEntries(
+    Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
+  )
+  const res = await http.get('/member-contributions', { params: clean })
+  return { records: res?.data ?? [], pagination: res?.pagination ?? { total: 0, page: 1, limit: 20, pages: 0 } }
 }
 
 /**

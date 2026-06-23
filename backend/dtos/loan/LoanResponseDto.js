@@ -6,6 +6,9 @@ function LoanResponseDto(loan) {
   return {
     id: loan.id,
     clientId: loan.clientId,
+    client: loan.client
+      ? { id: loan.client.id, firstName: loan.client.firstName, lastName: loan.client.lastName }
+      : null,
     loanProductId: loan.loanProductId,
     principalAmount: loan.principalAmount,
     currency: loan.currency,

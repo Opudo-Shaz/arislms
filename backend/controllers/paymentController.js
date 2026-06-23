@@ -9,27 +9,28 @@ const paymentController = {
   async getAll(req, res) {
     try {
       const userId = getUserId(req);
-
       logger.info(`User ${userId} fetching all payments`);
 
-      const payments = await paymentService.getAllPayments(
-        req.user.role,
-        userId
-      );
+      const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 20));
+      const { method } = req.query;
 
-      const result = payments.map(p => new PaymentResponseDto(p));
+      const result = await paymentService.getAllPayments({
+        role: req.user.role,
+        userId,
+        page,
+        limit,
+        method,
+      });
 
       return res.status(200).json({
         success: true,
-        data: result
+        data: result.payments.map(p => new PaymentResponseDto(p)),
+        pagination: { total: result.total, page: result.page, limit: result.limit, pages: result.pages },
       });
     } catch (error) {
       logger.error(`GetAllPayments Error: ${error.message}`);
-
-      return res.status(500).json({
-        success: false,
-        message: 'Error fetching payments'
-      });
+      return res.status(500).json({ success: false, message: 'Error fetching payments' });
     }
   },
 

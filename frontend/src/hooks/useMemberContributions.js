@@ -7,7 +7,7 @@
  * @module hooks/useMemberContributions
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import memberContributionApi from '../api/memberContributionApi'
 import { ledgerKeys } from './useLedger'
 
@@ -17,11 +17,12 @@ export const contributionKeys = {
   byMember: (clientId) => [...contributionKeys.all, 'member', String(clientId)],
 }
 
-/** List all contributions and withdrawals. */
-export const useContributions = () =>
+/** List all contributions and withdrawals. Returns {records, pagination}. */
+export const useContributions = (params = {}) =>
   useQuery({
-    queryKey: contributionKeys.lists(),
-    queryFn: memberContributionApi.listContributions,
+    queryKey: [...contributionKeys.lists(), params],
+    queryFn: () => memberContributionApi.listContributions(params),
+    placeholderData: keepPreviousData,
   })
 
 /** Get a member's contribution statement. */

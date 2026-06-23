@@ -36,7 +36,6 @@ import {
 
 import { useCreatePayment } from '../../hooks/usePayments'
 import { useLoans } from '../../hooks/useLoans'
-import { useClients } from '../../hooks/useClients'
 import { PAYMENT_METHOD } from '../../constants/enums'
 import { formatCurrency } from '../../utils/format'
 
@@ -65,15 +64,8 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
   const lockedLoan = Boolean(loan)
 
   // Loan selector data (only needed when no fixed loan is provided).
-  const { data: loans = [] } = useLoans()
-  const { data: clients = [] } = useClients()
-  const clientMap = useMemo(() => {
-    const map = {}
-    clients.forEach((c) => {
-      map[c.id] = `${c.firstName} ${c.lastName}`.trim()
-    })
-    return map
-  }, [clients])
+  const { data: loansResult } = useLoans({ limit: 500 })
+  const loans = loansResult?.loans ?? []
 
   const payableLoans = useMemo(
     () => loans.filter((l) => PAYABLE_STATUSES.includes(l.status)),
@@ -162,7 +154,7 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
                   {payableLoans.map((l) => (
                     <option key={l.id} value={l.id}>
                       {(l.referenceCode || `Loan #${l.id}`) +
-                        ` — ${clientMap[l.clientId] || `Client #${l.clientId}`}` +
+                        (l.client ? ` — ${l.client.firstName} ${l.client.lastName}`.trim() : ` — Client #${l.clientId}`) +
                         ` (${formatCurrency(l.outstandingBalance, l.currency)} due)`}
                     </option>
                   ))}

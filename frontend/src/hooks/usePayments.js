@@ -7,7 +7,7 @@
  * @module hooks/usePayments
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import paymentApi from '../api/paymentApi'
 import { loanKeys } from './useLoans'
 
@@ -17,11 +17,12 @@ export const paymentKeys = {
   byLoan: (loanId) => [...paymentKeys.all, 'loan', String(loanId)],
 }
 
-/** List all payments (admin/manager). */
-export const usePayments = () =>
+/** List all payments (admin/manager). Returns {payments, pagination}. */
+export const usePayments = (params = {}) =>
   useQuery({
-    queryKey: paymentKeys.lists(),
-    queryFn: paymentApi.listPayments,
+    queryKey: [...paymentKeys.lists(), params],
+    queryFn: () => paymentApi.listPayments(params),
+    placeholderData: keepPreviousData,
   })
 
 /** List payments for a single loan. */

@@ -7,28 +7,30 @@
  * @module hooks/useLoans
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import loanApi from '../api/loanApi'
 
 export const loanKeys = {
   all: ['loans'],
-  lists: () => [...loanKeys.all, 'list'],
-  mine: () => [...loanKeys.all, 'mine'],
+  lists: (params) => [...loanKeys.all, 'list', params],
+  mine: (params) => [...loanKeys.all, 'mine', params],
   detail: (id) => [...loanKeys.all, 'detail', String(id)],
 }
 
-/** List all loans (admin/manager). */
-export const useLoans = () =>
+/** List all loans (admin/manager). Returns {loans, pagination}. */
+export const useLoans = (params = {}) =>
   useQuery({
-    queryKey: loanKeys.lists(),
-    queryFn: loanApi.listLoans,
+    queryKey: loanKeys.lists(params),
+    queryFn: () => loanApi.listLoans(params),
+    placeholderData: keepPreviousData,
   })
 
-/** List loans belonging to the logged-in user. */
-export const useMyLoans = () =>
+/** List loans belonging to the logged-in user. Returns {loans, pagination}. */
+export const useMyLoans = (params = {}) =>
   useQuery({
-    queryKey: loanKeys.mine(),
-    queryFn: loanApi.listMyLoans,
+    queryKey: loanKeys.mine(params),
+    queryFn: () => loanApi.listMyLoans(params),
+    placeholderData: keepPreviousData,
   })
 
 /** Fetch a single loan by id (includes schedule, credit score, collaterals). */

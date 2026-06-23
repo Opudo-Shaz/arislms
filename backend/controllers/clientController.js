@@ -45,12 +45,21 @@ const clientController = {
       const userId = getUserId(req);
       logger.info(`User ${userId} fetching all clients`);
 
-      const clients = await clientService.getAllClients();
-      const result = clients.map(c => new ClientResponseDto(c));
+      const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 20));
+      const { search, status, kycStatus, queueOnly } = req.query;
+
+      const result = await clientService.getAllClients({ page, limit, search, status, kycStatus, queueOnly });
 
       return res.status(200).json({
         success: true,
-        data: result
+        data: result.clients.map(c => new ClientResponseDto(c)),
+        pagination: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          pages: result.pages,
+        },
       });
     } catch (error) {
       logger.error(`Get Clients Error: ${error.message}`);

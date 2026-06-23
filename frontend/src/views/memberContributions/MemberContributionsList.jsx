@@ -1,14 +1,9 @@
 /**
- * MemberContributionsList
- *
- * Lists all member contributions and withdrawals with type/search filters.
- * Each record carries an embedded `client`. Staff can record new entries and
- * open a member's full statement.
- *
+ * MemberContributionsList — server-side paginated contributions table.
  * @module views/memberContributions/MemberContributionsList
  */
 
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import {
   CButton,
   CCard,
@@ -17,6 +12,8 @@ import {
   CCol,
   CFormInput,
   CFormSelect,
+  CPagination,
+  CPaginationItem,
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
@@ -31,6 +28,8 @@ import { useAuth } from '../../context/AuthContext'
 import { CONTRIBUTION_TYPE, ROLE_GROUPS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
+const PAGE_SIZE = 20
+
 const memberName = (row) =>
   row.client ? `${row.client.firstName} ${row.client.lastName}`.trim() : `Client #${row.clientId}`
 
@@ -38,24 +37,20 @@ const MemberContributionsList = () => {
   const { role } = useAuth()
   const canManage = ROLE_GROUPS.STAFF.includes(role)
 
-  const { data: records = [], isLoading, error, refetch, isFetching } = useContributions()
-
   const [showForm, setShowForm] = useState(false)
   const [statementClient, setStatementClient] = useState(null)
   const [search, setSearch] = useState('')
   const [type, setType] = useState('')
+  const [page, setPage] = useState(1)
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    return records.filter((r) => {
-      if (type && r.type !== type) return false
-      if (term) {
-        const haystack = [memberName(r), r.amount, r.notes].filter(Boolean).join(' ').toLowerCase()
-        if (!haystack.includes(term)) return false
-      }
-      return true
-    })
-  }, [records, type, search])
+  const resetPageAnd = (setter) => (value) => { setter(value); setPage(1) }
+
+  const params = { page, limit: PAGE_SIZE, type: type || undefined, search: search.trim() || undefined }
+  const { data, isLoading, error, refetch, isFetching } = useContributions(params)
+
+  const records = data?.records ?? []
+  const total = data?.pagination?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const columns = [
     {
@@ -120,13 +115,13 @@ const MemberContributionsList = () => {
         <CRow className="g-2 mb-3">
           <CCol md={6}>
             <CFormInput
-              placeholder="Search member, notes…"
+              placeholder="Search member name, notes…"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => resetPageAnd(setSearch)(e.target.value)}
             />
           </CCol>
           <CCol md={4}>
-            <CFormSelect value={type} onChange={(e) => setType(e.target.value)}>
+            <CFormSelect value={type} onChange={(e) => resetPageAnd(setType)(e.target.value)}>
               <option value="">All types</option>
               {CONTRIBUTION_TYPE.values.map((v) => (
                 <option key={v} value={v}>
@@ -139,12 +134,28 @@ const MemberContributionsList = () => {
 
         <DataTable
           columns={columns}
-          rows={filtered}
+          rows={records}
           loading={isLoading}
           error={error}
           emptyMessage="No contributions match your filters."
           onRowClick={(row) => setStatementClient(row.clientId)}
         />
+
+        {totalPages > 1 && (
+          <div className="d-flex justify-content-between align-items-center mt-3">
+            <span className="small text-body-secondary">
+              {total} records · page {page} of {totalPages}
+            </span>
+            <CPagination className="mb-0">
+              <CPaginationItem disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                Previous
+              </CPaginationItem>
+              <CPaginationItem disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                Next
+              </CPaginationItem>
+            </CPagination>
+          </div>
+        )}
       </CCardBody>
 
       <MemberContributionForm visible={showForm} onClose={() => setShowForm(false)} />
@@ -159,3 +170,5 @@ const MemberContributionsList = () => {
 }
 
 export default MemberContributionsList
+
+

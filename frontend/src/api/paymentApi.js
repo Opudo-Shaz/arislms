@@ -10,10 +10,13 @@
 
 import http from './http'
 
-/** @returns {Promise<object[]>} All payments (admin/manager). */
-export const listPayments = async () => {
-  const res = await http.get('/payments')
-  return res?.data ?? []
+/** @returns {Promise<{payments:object[],pagination:object}>} Paginated payments (admin/manager). */
+export const listPayments = async (params = {}) => {
+  const clean = Object.fromEntries(
+    Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
+  )
+  const res = await http.get('/payments', { params: clean })
+  return { payments: res?.data ?? [], pagination: res?.pagination ?? { total: 0, page: 1, limit: 20, pages: 0 } }
 }
 
 /** @param {number|string} loanId @returns {Promise<object[]>} Payments for a loan. */

@@ -44,7 +44,8 @@ const buildForm = (clientId) => ({
 
 const MemberContributionForm = ({ visible, clientId, onClose }) => {
   const createMutation = useCreateContribution()
-  const { data: clients = [] } = useClients()
+  const { data: clientsResult } = useClients({ limit: 500 })
+  const clients = clientsResult?.clients ?? []
 
   const [form, setForm] = useState(buildForm(clientId))
   const [error, setError] = useState(null)
