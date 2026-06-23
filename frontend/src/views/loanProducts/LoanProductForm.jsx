@@ -134,7 +134,7 @@ const LoanProductForm = ({ visible, product, onClose }) => {
         </CModalHeader>
         <CModalBody>
           {error && (
-            <CAlert color="danger">
+            <CAlert color="danger" dismissible onClose={() => setError(null)}>
               <div>{error.message || 'Failed to save loan product.'}</div>
               {Array.isArray(error.data?.errors) && (
                 <ul className="mb-0 mt-2">

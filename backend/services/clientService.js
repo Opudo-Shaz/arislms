@@ -293,6 +293,13 @@ const clientService = {
       const client = await Client.findByPk(id);
       if (!client) throw Object.assign(new Error('Client not found'), { statusCode: 404 });
 
+      if (client.kycStatus !== KycStatus.VERIFIED) {
+        throw Object.assign(
+          new Error(`Client cannot be activated. KYC must be verified before activation (current KYC status: ${client.kycStatus}).`),
+          { statusCode: 422 }
+        );
+      }
+
       await client.update({ status: ClientStatus.ACTIVE, isActive: true });
 
       await AuditLogger.log({

@@ -122,6 +122,37 @@ export const JOURNAL_ENTRY_STATUS = buildEnum(
   { DRAFT: 'Draft', POSTED: 'Posted', REVERSED: 'Reversed' },
 )
 
+/** Source/origin of a journal entry (used as a ledger filter). */
+export const LEDGER_SOURCE_TYPE = buildEnum(
+  {
+    LOAN_DISBURSEMENT: 'primary',
+    PAYMENT: 'success',
+    CONTRIBUTION: 'info',
+    MANUAL: 'secondary',
+    FEE: 'warning',
+    EXPENSE: 'danger',
+    REVERSAL: 'dark',
+  },
+  {
+    LOAN_DISBURSEMENT: 'Loan Disbursement',
+    PAYMENT: 'Payment',
+    CONTRIBUTION: 'Contribution',
+    MANUAL: 'Manual',
+    FEE: 'Fee',
+    EXPENSE: 'Expense',
+    REVERSAL: 'Reversal',
+  },
+)
+
+/** Source types a user may select when posting a manual journal entry. */
+export const MANUAL_SOURCE_TYPES = ['MANUAL', 'EXPENSE']
+
+/** Normal balance side of a ledger account. */
+export const NORMAL_BALANCE = buildEnum(
+  { DEBIT: 'primary', CREDIT: 'info' },
+  { DEBIT: 'Debit', CREDIT: 'Credit' },
+)
+
 export const LOAN_TRANSACTION_TYPE = buildEnum({
   disbursement: 'primary',
   repayment: 'success',
@@ -200,11 +231,64 @@ export const CLIENT_KYC_DOCUMENT_TYPES = [
   'other',
 ]
 
+/** Document types valid for loan supporting / collateral documents. */
+export const LOAN_DOCUMENT_TYPES = [
+  'title_deed',
+  'vehicle_logbook',
+  'insurance_certificate',
+  'valuation_report',
+  'bank_statement',
+  'payslip',
+  'tax_certificate',
+  'business_permit',
+  'guarantor_id',
+  'other',
+]
+
 export const DOCUMENT_STATUS = buildEnum({
   active: 'success',
   archived: 'secondary',
   deleted: 'danger',
 })
+
+/** Repayment schedule installment status: pending, paid, overdue, partial. */
+export const REPAYMENT_SCHEDULE_STATUS = buildEnum({
+  pending: 'secondary',
+  paid: 'success',
+  partial: 'warning',
+  overdue: 'danger',
+})
+
+/** Payment record status (free-text on the backend; common values mapped). */
+export const PAYMENT_STATUS = buildEnum({
+  completed: 'success',
+  pending: 'secondary',
+  failed: 'danger',
+  reversed: 'dark',
+})
+
+/**
+ * Payment methods. The backend stores this as a free string (max 32 chars);
+ * these are the supported options offered in the record-payment form.
+ */
+export const PAYMENT_METHOD = buildEnum(
+  {
+    MPESA: 'success',
+    CASH: 'secondary',
+    BANK_TRANSFER: 'info',
+    CHEQUE: 'warning',
+    CARD: 'primary',
+    OTHER: 'secondary',
+  },
+  {
+    MPESA: 'M-Pesa',
+    CASH: 'Cash',
+    BANK_TRANSFER: 'Bank Transfer',
+    CHEQUE: 'Cheque',
+    CARD: 'Card',
+    OTHER: 'Other',
+  },
+)
 
 /** Numeric backend role ids. */
 export const ROLES = {

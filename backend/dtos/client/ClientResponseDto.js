@@ -14,6 +14,8 @@ class ClientResponseDto {
     this.employer = client.employer;
     this.monthlyIncome = client.monthlyIncome;
     this.address = client.address;
+    this.idDocumentType = client.idDocumentType;
+    this.idDocumentNumber = client.idDocumentNumber;
     this.preferredContactMethod = client.preferredContactMethod;
     this.isActive = client.isActive;
     this.status = client.status;

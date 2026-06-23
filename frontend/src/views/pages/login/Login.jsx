@@ -64,7 +64,7 @@ const Login = () => {
                     <h1>Login</h1>
                     <p className="text-body-secondary">Sign In to your account</p>
                     {error ? (
-                      <CAlert color="danger" className="py-2">
+                      <CAlert color="danger" className="py-2" dismissible onClose={() => setError('')}>
                         {error}
                       </CAlert>
                     ) : null}

@@ -32,6 +32,17 @@ const GENDERS = ['male', 'female', 'other']
 const CONTACT_METHODS = ['email', 'phone', 'sms']
 const ID_DOC_TYPES = ['national_id', 'passport', 'driving_license', 'alien_id']
 
+const EAC_COUNTRIES = [
+  'Kenya',
+  'Uganda',
+  'Tanzania',
+  'Rwanda',
+  'Burundi',
+  'South Sudan',
+  'Democratic Republic of Congo',
+  'Somalia',
+]
+
 const emptyForm = {
   accountNumber: '',
   firstName: '',
@@ -48,7 +59,7 @@ const emptyForm = {
   city: '',
   state: '',
   postalCode: '',
-  country: '',
+  country: 'Kenya',
   idDocumentType: 'national_id',
   idDocumentNumber: '',
   preferredContactMethod: '',
@@ -72,7 +83,7 @@ const toForm = (client) => ({
   city: client.address?.city || '',
   state: client.address?.state || '',
   postalCode: client.address?.postalCode || '',
-  country: client.address?.country || '',
+  country: client.address?.country || 'Kenya',
   idDocumentType: client.idDocumentType || 'national_id',
   idDocumentNumber: client.idDocumentNumber || '',
   preferredContactMethod: client.preferredContactMethod || '',
@@ -159,7 +170,7 @@ const ClientForm = () => {
       </CCardHeader>
       <CCardBody>
         {errors && (
-          <CAlert color="danger">
+          <CAlert color="danger" dismissible onClose={() => setErrors(null)}>
             <div>{errors.message || 'Failed to save client.'}</div>
             {Array.isArray(errors.data?.errors) && (
               <ul className="mb-0 mt-2">
@@ -272,7 +283,11 @@ const ClientForm = () => {
             </CCol>
             <CCol md={4}>
               <CFormLabel>Country *</CFormLabel>
-              <CFormInput value={form.country} onChange={setField('country')} required />
+              <CFormSelect value={form.country} onChange={setField('country')} required>
+                {EAC_COUNTRIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </CFormSelect>
             </CCol>
 
             <CCol xs={12}>

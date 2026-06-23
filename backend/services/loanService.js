@@ -2,6 +2,7 @@ const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
 const sequelize = require('../config/sequalize_db');
 const User = require('../models/userModel');
+const AuditService = require('./auditService');
 const Client = require('../models/clientModel');
 const RepaymentSchedule = require('../models/repaymentScheduleModel');
 const CreditScore = require('../models/creditScoreModel');
@@ -17,6 +18,8 @@ const ledgerService = require('./ledgerService');
 const collateralService = require('./collateralService');
 const { emitLoanTransaction } = require('../utils/loanTransactionEmitter');
 const LoanTransactionType = require('../enums/loanTransactionType');
+const Document = require('../models/documentModel');
+const DocumentCategory = require('../enums/documentCategory');
 
 // Calculates monthly payment
 function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
@@ -88,6 +91,12 @@ const loanService = {
       if (!isAdmin(role) && loan.clientId !== userId) {
         return 403; // Access denied
       }
+
+      // Fetch approver/disburser names from audit log
+      const actorMap = await AuditService.getActorsByActions('LOAN', id, ['APPROVE', 'DISBURSE']);
+      loan.approvedByName = actorMap['APPROVE'] ?? null;
+      loan.disbursedByName = actorMap['DISBURSE'] ?? null;
+      logger.info(`getLoanById actor names — approvedBy: ${loan.approvedByName}, disbursedBy: ${loan.disbursedByName}`);
 
       return loan;
     } catch (error) {
@@ -538,6 +547,28 @@ const loanService = {
       // Validate loan can be approved
       if (loan.status !== LoanStatus.PENDING && loan.status !== LoanStatus.IN_REVIEW && loan.status !== LoanStatus.UNDER_REVIEW) {
         throw new Error(`Loan cannot be approved. Current status: ${loan.status}. Loan must be pending, in_review, or under_review.`);
+      }
+
+      // If the loan product requires collateral, at least one collateral document must be uploaded
+      const product = await LoanProduct.findByPk(loan.loanProductId);
+      if (product && product.requiresCollateral) {
+        const collateralDocCount = await Document.count({
+          where: {
+            loanId: loan.id,
+            documentCategory: DocumentCategory.LOAN_COLLATERAL,
+            status: 'active',
+          },
+        });
+        if (collateralDocCount === 0) {
+          throw new Error(
+            'Loan cannot be approved. The loan product requires collateral but no collateral documents have been uploaded for this loan.'
+          );
+        }
+      }
+
+      // Approver must not be the same user who created the loan
+      if (approverId && loan.createdBy && Number(approverId) === Number(loan.createdBy)) {
+        throw new Error('Loan cannot be approved. The approver cannot be the same user who created the loan.');
       }
 
       // Parse and validate approval date

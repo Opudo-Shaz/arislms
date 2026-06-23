@@ -3,6 +3,7 @@ const Payment = require('../models/paymentModel');
 const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
 const RepaymentSchedule = require('../models/repaymentScheduleModel');
+const User = require('../models/userModel');
 const sequelize = require('../config/sequalize_db');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
@@ -125,9 +126,15 @@ const paymentService = {
   try {
     logger.info(`paymentService.getAllPayments called by user ${userId} (role: ${role})`);
 
+    const processorInclude = {
+      model: User,
+      attributes: ['id', 'first_name', 'last_name', 'email'],
+      required: false,
+    };
+
     // Admin roles are 1 and 2
     if ([1, 2].includes(Number(role))) {
-      return await Payment.findAll({ include: [{ model: Loan }] });
+      return await Payment.findAll({ include: [{ model: Loan }, processorInclude] });
     }
 
     // Normal users: fetch only payments for their loans (by clientId)
@@ -135,7 +142,7 @@ const paymentService = {
       include: [{
         model: Loan,
         where: { clientId: userId }
-      }]
+      }, processorInclude]
     });
   } catch (err) {
     logger.error(`Error in getAllPayments: ${err.message}`);
@@ -146,7 +153,14 @@ const paymentService = {
 async getPaymentsByLoan(loanId) {
   try {
     logger.info(`Fetching payments for loan ${loanId}`);
-    return await Payment.findAll({ where: { loanId } });
+    return await Payment.findAll({
+      where: { loanId },
+      include: [{
+        model: User,
+        attributes: ['id', 'first_name', 'last_name', 'email'],
+        required: false,
+      }],
+    });
   } catch (err) {
     logger.error(`Error in getPaymentsByLoan: ${err.message}`);
     throw err;

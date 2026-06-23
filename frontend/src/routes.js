@@ -19,6 +19,18 @@ const ClientsList = React.lazy(() => import('./views/clients/ClientsList'))
 const ClientForm = React.lazy(() => import('./views/clients/ClientForm'))
 const ClientDetail = React.lazy(() => import('./views/clients/ClientDetail'))
 const LoanProductsList = React.lazy(() => import('./views/loanProducts/LoanProductsList'))
+const LoansList = React.lazy(() => import('./views/loans/LoansList'))
+const LoanDetail = React.lazy(() => import('./views/loans/LoanDetail'))
+const LoanApplicationForm = React.lazy(() => import('./views/loans/LoanApplicationForm'))
+const LoanApprovals = React.lazy(() => import('./views/loans/LoanApprovals'))
+const PaymentsList = React.lazy(() => import('./views/payments/PaymentsList'))
+const CollateralsList = React.lazy(() => import('./views/collaterals/CollateralsList'))
+const ChartOfAccountsList = React.lazy(() => import('./views/accounting/ChartOfAccountsList'))
+const JournalEntriesList = React.lazy(() => import('./views/accounting/JournalEntriesList'))
+const TrialBalance = React.lazy(() => import('./views/accounting/TrialBalance'))
+const MemberContributionsList = React.lazy(
+  () => import('./views/memberContributions/MemberContributionsList'),
+)
 
 /**
  * Factory for a phase placeholder route element.
@@ -43,17 +55,15 @@ export const routes = [
   { path: '/clients/:id/edit', name: 'Edit Client', element: ClientForm },
 
   // Loans (Phase 2)
-  { path: '/loans', name: 'Loans', element: placeholder('Loans', 'Phase 2'), exact: true },
+  { path: '/loans', name: 'Loans', element: LoansList, exact: true },
   {
-    path: '/loans/approvals',
-    name: 'Approval Queue',
-    element: placeholder('Loan Approval Queue', 'Phase 2'),
+    path: '/loans/my',
+    name: 'My Loans',
+    element: () => React.createElement(LoansList, { scope: 'mine' }),
   },
-  {
-    path: '/loans/new',
-    name: 'New Application',
-    element: placeholder('New Loan Application', 'Phase 2'),
-  },
+  { path: '/loans/approvals', name: 'Approval Queue', element: LoanApprovals },
+  { path: '/loans/new', name: 'New Application', element: LoanApplicationForm },
+  { path: '/loans/:id', name: 'Loan Detail', element: LoanDetail, exact: true },
 
   // Loan Products (Phase 1)
   {
@@ -63,31 +73,31 @@ export const routes = [
   },
 
   // Payments & Collaterals (Phase 3)
-  { path: '/payments', name: 'Payments', element: placeholder('Payments', 'Phase 3') },
-  { path: '/collaterals', name: 'Collaterals', element: placeholder('Collaterals', 'Phase 3') },
+  { path: '/payments', name: 'Payments', element: PaymentsList },
+  { path: '/collaterals', name: 'Collaterals', element: CollateralsList },
 
   // Member Contributions (Phase 4)
   {
     path: '/member-contributions',
     name: 'Member Contributions',
-    element: placeholder('Member Contributions', 'Phase 4'),
+    element: MemberContributionsList,
   },
 
   // Accounting (Phase 4)
   {
     path: '/accounting/chart-of-accounts',
     name: 'Chart of Accounts',
-    element: placeholder('Chart of Accounts', 'Phase 4'),
+    element: ChartOfAccountsList,
   },
   {
     path: '/accounting/ledger',
     name: 'Journal Entries',
-    element: placeholder('Journal Entries (Ledger)', 'Phase 4'),
+    element: JournalEntriesList,
   },
   {
     path: '/accounting/trial-balance',
     name: 'Trial Balance',
-    element: placeholder('Trial Balance', 'Phase 4'),
+    element: TrialBalance,
   },
 
   // Reports (Phase 5)

@@ -135,6 +135,29 @@ class UserRequestDto {
       })
   });
 
+  // Joi validation schema for resetting a user password (super admin only)
+  static resetPasswordSchema = Joi.object({
+    userId: Joi.number().integer().positive().required()
+      .example(5)
+      .messages({
+        'any.required': 'User ID is required',
+        'number.base': 'User ID must be a number',
+        'number.integer': 'User ID must be an integer'
+      }),
+    email: Joi.string().email().required()
+      .example('user@test.com')
+      .messages({
+        'string.email': 'Email must be a valid email address',
+        'any.required': 'Email is required'
+      }),
+    newPassword: Joi.string().min(8).required()
+      .example('TempPass123')
+      .messages({
+        'string.min': 'New password must be at least 8 characters',
+        'any.required': 'New password is required'
+      })
+  });
+
   // Generate OpenAPI schema from Joi
   static getSwaggerSchema(create = true) {
     const { swagger } = j2s(create ? this.createSchema : this.updateSchema);
