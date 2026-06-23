@@ -50,6 +50,7 @@ if (User !== undefined && Role !== undefined) {
 if (User !== undefined && AuditLog !== undefined) {
   Role.hasMany(User, { foreignKey: 'role_id', sourceKey: 'id' });
   User.belongsTo(Role, { foreignKey: 'role_id', targetKey: 'id' });
+  AuditLog.belongsTo(User, { foreignKey: 'actor_id', as: 'actor', constraints: false });
 }
 
 // Repayment Schedule associations

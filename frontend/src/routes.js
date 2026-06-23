@@ -4,14 +4,12 @@
  * Protected routes rendered inside `DefaultLayout` via `AppContent`.
  * Each entry: { path, name, element, [exact] }.
  *
- * Modules not yet implemented use `ModulePlaceholder` and are replaced with
- * real screens in their respective build phases (see FRONTEND_PORTAL_PLAN.md).
+ * All LMS modules are implemented (see FRONTEND_PORTAL_PLAN.md build phases).
  *
  * @module routes
  */
 
 import React from 'react'
-import ModulePlaceholder from './views/ModulePlaceholder'
 
 // Implemented
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
@@ -31,18 +29,11 @@ const TrialBalance = React.lazy(() => import('./views/accounting/TrialBalance'))
 const MemberContributionsList = React.lazy(
   () => import('./views/memberContributions/MemberContributionsList'),
 )
-
-/**
- * Factory for a phase placeholder route element.
- * @param {string} title
- * @param {string} phase
- * @returns {() => JSX.Element}
- */
-const placeholder =
-  (title, phase) =>
-  // eslint-disable-next-line react/display-name
-  () =>
-    React.createElement(ModulePlaceholder, { title, phase })
+const UsersList = React.lazy(() => import('./views/admin/UsersList'))
+const RolesList = React.lazy(() => import('./views/admin/RolesList'))
+const NotificationsList = React.lazy(() => import('./views/notifications/NotificationsList'))
+const AuditTrail = React.lazy(() => import('./views/reports/AuditTrail'))
+const PortfolioAging = React.lazy(() => import('./views/reports/PortfolioAging'))
 
 export const routes = [
   { path: '/', exact: true, name: 'Home' },
@@ -104,27 +95,27 @@ export const routes = [
   {
     path: '/reports/portfolio-aging',
     name: 'Portfolio Aging',
-    element: placeholder('Portfolio Aging', 'Phase 5'),
+    element: PortfolioAging,
   },
   {
     path: '/reports/audit-trail',
     name: 'Audit Trail',
-    element: placeholder('Audit Trail', 'Phase 5'),
+    element: AuditTrail,
   },
 
   // Administration (Phase 5)
-  { path: '/admin/users', name: 'Users', element: placeholder('Users', 'Phase 5') },
+  { path: '/admin/users', name: 'Users', element: UsersList },
   {
     path: '/admin/roles',
     name: 'Roles & Permissions',
-    element: placeholder('Roles & Permissions', 'Phase 5'),
+    element: RolesList,
   },
 
   // Notifications (Phase 5)
   {
     path: '/notifications',
     name: 'Notifications',
-    element: placeholder('Notifications', 'Phase 5'),
+    element: NotificationsList,
   },
 ]
 

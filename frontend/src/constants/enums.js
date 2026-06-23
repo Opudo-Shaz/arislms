@@ -290,19 +290,70 @@ export const PAYMENT_METHOD = buildEnum(
   },
 )
 
+/** Audit log action types (see backend/models/auditLogModel.js). */
+export const AUDIT_ACTION = buildEnum(
+  {
+    CREATE: 'success',
+    UPDATE: 'info',
+    DELETE: 'danger',
+    APPROVE: 'primary',
+    DISBURSE: 'primary',
+    REVERSE: 'warning',
+    UPDATE_PRINCIPAL: 'warning',
+    KYC_VERIFY: 'success',
+    KYC_REQUEST_INFO: 'info',
+    KYC_REJECT: 'danger',
+    ACTIVATE: 'success',
+    DEACTIVATE: 'secondary',
+    SUSPEND: 'warning',
+    BLACKLIST: 'danger',
+    RESET_PASSWORD: 'warning',
+  },
+  {
+    UPDATE_PRINCIPAL: 'Update Principal',
+    KYC_VERIFY: 'KYC Verify',
+    KYC_REQUEST_INFO: 'KYC Request Info',
+    KYC_REJECT: 'KYC Reject',
+    RESET_PASSWORD: 'Reset Password',
+  },
+)
+
+/** Audit actor types. */
+export const ACTOR_TYPE = buildEnum(
+  { USER: 'primary', SERVICE: 'info', SYSTEM: 'secondary' },
+  { USER: 'User', SERVICE: 'Service', SYSTEM: 'System' },
+)
+
+/** Notification types (see backend/models/notificationModel.js). */
+export const NOTIFICATION_TYPE = buildEnum(
+  {
+    info: 'info',
+    loan: 'primary',
+    payment: 'success',
+    warning: 'warning',
+    reminder: 'secondary',
+  },
+  { info: 'Info', loan: 'Loan', payment: 'Payment', warning: 'Warning', reminder: 'Reminder' },
+)
+
 /** Numeric backend role ids. */
 export const ROLES = {
   ADMIN: 1,
   MANAGER: 2,
   LIMITED: 3,
-}
-
-/** Convenience role groups for `RequireRole`. */
+}/** Convenience role groups for `RequireRole`. */
 export const ROLE_GROUPS = {
   /** Admin + manager (privileged write operations). */
   STAFF: [ROLES.ADMIN, ROLES.MANAGER],
   /** Any authenticated role. */
   ALL: [ROLES.ADMIN, ROLES.MANAGER, ROLES.LIMITED],
+}
+
+/** Fallback display labels for the built-in numeric role ids. */
+export const ROLE_LABELS = {
+  [ROLES.ADMIN]: 'Admin',
+  [ROLES.MANAGER]: 'Manager',
+  [ROLES.LIMITED]: 'Limited',
 }
 
 /**

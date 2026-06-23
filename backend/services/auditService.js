@@ -50,6 +50,7 @@ class AuditService {
           entity_type: entityType,
           entity_id: entityId,
         },
+        include: [{ model: User, as: 'actor', attributes: ['id', 'first_name', 'last_name'], required: false }],
         limit,
         offset,
         order: [['occurred_at', order]],
@@ -74,6 +75,7 @@ class AuditService {
         where: {
           actor_id: actorId,
         },
+        include: [{ model: User, as: 'actor', attributes: ['id', 'first_name', 'last_name'], required: false }],
         limit,
         offset,
         order: [['occurred_at', order]],
@@ -102,6 +104,7 @@ class AuditService {
 
       const { rows, count } = await AuditLog.findAndCountAll({
         where,
+        include: [{ model: User, as: 'actor', attributes: ['id', 'first_name', 'last_name'], required: false }],
         limit,
         offset,
         order: [['occurred_at', order]],
