@@ -12,6 +12,7 @@ export const documentKeys = {
   all: ['documents'],
   byClient: (clientId) => [...documentKeys.all, 'client', String(clientId)],
   byLoan: (loanId) => [...documentKeys.all, 'loan', String(loanId)],
+  byUser: (userId) => [...documentKeys.all, 'user', String(userId)],
   blob: (id) => [...documentKeys.all, 'blob', String(id)],
 }
 
@@ -75,6 +76,25 @@ export const useDeleteDocument = (clientId, loanId) => {
     onSuccess: () => {
       if (clientId) qc.invalidateQueries({ queryKey: documentKeys.byClient(clientId) })
       if (loanId)   qc.invalidateQueries({ queryKey: documentKeys.byLoan(loanId) })
+    },
+  })
+}
+
+/** List all documents for a user (e.g. profile photo). */
+export const useUserDocuments = (userId) =>
+  useQuery({
+    queryKey: documentKeys.byUser(userId),
+    queryFn: () => documentApi.listUserDocuments(userId),
+    enabled: Boolean(userId),
+  })
+
+/** Upload a user profile document (photo). Invalidates user document list on success. */
+export const useUploadUserDocument = (userId) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (formData) => documentApi.uploadDocument(formData),
+    onSuccess: () => {
+      if (userId) qc.invalidateQueries({ queryKey: documentKeys.byUser(userId) })
     },
   })
 }

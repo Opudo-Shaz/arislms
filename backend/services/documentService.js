@@ -20,18 +20,21 @@ const documentService = {
   async uploadDocument(file, meta, actor, userAgent = 'unknown') {
     const actorId = actor?.id || null;
 
-    // Build a sub-path so files are grouped: <category>/<clientId|loanId>
-    const folder = meta.clientId
-      ? `${meta.documentCategory}/client_${meta.clientId}`
-      : meta.loanId
-        ? `${meta.documentCategory}/loan_${meta.loanId}`
-        : meta.documentCategory;
+    // Build a sub-path so files are grouped: <category>/<userId|clientId|loanId>
+    const folder = meta.userId
+      ? `${meta.documentCategory}/user_${meta.userId}`
+      : meta.clientId
+        ? `${meta.documentCategory}/client_${meta.clientId}`
+        : meta.loanId
+          ? `${meta.documentCategory}/loan_${meta.loanId}`
+          : meta.documentCategory;
 
     const { storedName, documentLink, fileSize, mimeType } = await provider.save(file, folder);
 
     const doc = await Document.create({
       documentType:     meta.documentType,
       documentCategory: meta.documentCategory,
+      userId:           meta.userId       || null,
       clientId:         meta.clientId     || null,
       loanId:           meta.loanId       || null,
       collateralId:     meta.collateralId || null,
@@ -68,6 +71,7 @@ const documentService = {
 
   async getAllDocuments(filters = {}) {
     const where = { status: { [Op.ne]: DocumentStatus.DELETED } };
+    if (filters.userId)           where.userId = filters.userId;
     if (filters.clientId)         where.clientId = filters.clientId;
     if (filters.loanId)           where.loanId   = filters.loanId;
     if (filters.collateralId)     where.collateralId = filters.collateralId;
@@ -88,6 +92,13 @@ const documentService = {
   async getDocumentsByLoan(loanId) {
     return Document.findAll({
       where: { loanId, status: { [Op.ne]: DocumentStatus.DELETED } },
+      order: [['created_at', 'DESC']],
+    });
+  },
+
+  async getDocumentsByUser(userId) {
+    return Document.findAll({
+      where: { userId, status: { [Op.ne]: DocumentStatus.DELETED } },
       order: [['created_at', 'DESC']],
     });
   },

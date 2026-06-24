@@ -22,12 +22,15 @@ import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
 import LoanProductForm from './LoanProductForm'
 import { useLoanProducts, useDeleteLoanProduct } from '../../hooks/useLoanProducts'
-import { INTEREST_TYPE } from '../../constants/enums'
+import { useAuth } from '../../context/AuthContext'
+import { INTEREST_TYPE, ROLE_GROUPS } from '../../constants/enums'
 import { formatCurrency, formatPercent } from '../../utils/format'
 
 const LoanProductsList = () => {
   const { data: products = [], isLoading, error, refetch, isFetching } = useLoanProducts()
   const deleteMutation = useDeleteLoanProduct()
+  const { role } = useAuth()
+  const canManage = ROLE_GROUPS.STAFF.includes(role)
 
   const [editing, setEditing] = useState(null) // product object, or {} for new
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -98,31 +101,33 @@ const LoanProductsList = () => {
       headerClassName: 'text-end',
       className: 'text-end text-nowrap',
       render: (row) => (
-        <>
-          <CButton
-            size="sm"
-            color="light"
-            className="me-2"
-            onClick={(e) => {
-              e.stopPropagation()
-              setEditing(row)
-            }}
-          >
-            <CIcon icon={cilPencil} />
-          </CButton>
-          <CButton
-            size="sm"
-            color="danger"
-            variant="outline"
-            onClick={(e) => {
-              e.stopPropagation()
-              setDeleteError(null)
-              setDeleteTarget(row)
-            }}
-          >
-            <CIcon icon={cilTrash} />
-          </CButton>
-        </>
+        canManage ? (
+          <>
+            <CButton
+              size="sm"
+              color="light"
+              className="me-2"
+              onClick={(e) => {
+                e.stopPropagation()
+                setEditing(row)
+              }}
+            >
+              <CIcon icon={cilPencil} />
+            </CButton>
+            <CButton
+              size="sm"
+              color="danger"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation()
+                setDeleteError(null)
+                setDeleteTarget(row)
+              }}
+            >
+              <CIcon icon={cilTrash} />
+            </CButton>
+          </>
+        ) : null
       ),
     },
   ]
@@ -136,10 +141,12 @@ const LoanProductsList = () => {
             <CIcon icon={cilReload} className="me-1" />
             Refresh
           </CButton>
-          <CButton color="primary" size="sm" onClick={() => setEditing({})}>
-            <CIcon icon={cilPlus} className="me-1" />
-            New Product
-          </CButton>
+          {canManage && (
+            <CButton color="primary" size="sm" onClick={() => setEditing({})}>
+              <CIcon icon={cilPlus} className="me-1" />
+              New Product
+            </CButton>
+          )}
         </div>
       </CCardHeader>
       <CCardBody>

@@ -6,6 +6,7 @@ class UserResponseDto {
     this.last_name = user.last_name;
     this.email = user.email;
     this.phone = user.phone;
+    this.id_number = user.id_number;
     this.role = user.role_id;
     this.created_at = user.created_at;
   }

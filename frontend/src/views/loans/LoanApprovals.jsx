@@ -23,7 +23,8 @@ import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
 import LoanActionModal from './LoanActionModal'
 import { useLoans, useLoanAction } from '../../hooks/useLoans'
-import { LOAN_STATUS } from '../../constants/enums'
+import { useAuth } from '../../context/AuthContext'
+import { LOAN_STATUS, ROLE_GROUPS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
 /** Loan statuses that still require an approval decision. */
@@ -37,6 +38,8 @@ const PENDING_STATUSES = [
 
 const LoanApprovals = () => {
   const navigate = useNavigate()
+  const { role } = useAuth()
+  const canManage = ROLE_GROUPS.STAFF.includes(role)
   const { data: loansResult, isLoading, error, refetch, isFetching } = useLoans({ limit: 500 })
   const loans = loansResult?.loans ?? []
   const approveAction = useLoanAction()
@@ -108,7 +111,7 @@ const LoanApprovals = () => {
       label: '',
       headerClassName: 'text-end',
       className: 'text-end text-nowrap',
-      render: (row) => (
+      render: (row) => canManage ? (
         <CButton
           size="sm"
           color="primary"
@@ -121,7 +124,7 @@ const LoanApprovals = () => {
           <CIcon icon={cilCheckAlt} className="me-1" />
           Approve
         </CButton>
-      ),
+      ) : null,
     },
   ]
 

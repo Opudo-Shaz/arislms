@@ -77,8 +77,26 @@ const updateUser = async (req, res) => {
   try {
     const userId = getUserId(req);
     const userAgent = req.headers['user-agent'];
+    const actorRole = req.user?.role;
+    const targetId = Number(req.params.id);
 
-    // Validate request payload with Joi schema
+    // Role 3 (limited) may only update their OWN record with restricted fields.
+    if (actorRole === 3) {
+      if (userId !== targetId) {
+        return res.status(403).json({ success: false, message: 'Access denied: you can only update your own profile' });
+      }
+      const validation = validateSync(req.body, UserRequestDto.selfUpdateSchema);
+      if (!validation.valid) {
+        logger.warn(`Self-update validation failed: ${JSON.stringify(validation.errors)}`);
+        return res.status(400).json({ success: false, message: 'Validation error', errors: validation.errors });
+      }
+      const updated = await userService.updateUser(targetId, validation.value, userId, userAgent);
+      if (!updated) return res.status(404).json({ message: 'User not found' });
+      logger.info(`User ${userId} updated own profile`);
+      return res.json(new UserResponseDto(updated));
+    }
+
+    // Admin / manager: full update schema
     const validation = validateSync(req.body, UserRequestDto.updateSchema);
     if (!validation.valid) {
       logger.warn(`User update validation failed: ${JSON.stringify(validation.errors)}`);
@@ -89,14 +107,14 @@ const updateUser = async (req, res) => {
       });
     }
 
-    const updated = await userService.updateUser(req.params.id, validation.value, userId, userAgent);
+    const updated = await userService.updateUser(targetId, validation.value, userId, userAgent);
 
     if (!updated) {
-      logger.warn(`User with ID ${req.params.id} not found`);
+      logger.warn(`User with ID ${targetId} not found`);
       return res.status(404).json({ message: 'User not found' });
     }
 
-    logger.info(`Updated user with ID ${req.params.id}`);
+    logger.info(`Updated user with ID ${targetId}`);
     res.json(new UserResponseDto(updated));
 
   } catch (err) {
@@ -165,6 +183,29 @@ const resetUserPassword = async (req, res) => {
   }
 };
 
+// Change own password — any authenticated user
+const changeOwnPassword = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+
+    const validation = validateSync(req.body, UserRequestDto.changePasswordSchema);
+    if (!validation.valid) {
+      return res.status(400).json({ success: false, message: 'Validation error', errors: validation.errors });
+    }
+
+    const { currentPassword, newPassword } = validation.value;
+    await userService.changeOwnPassword(userId, currentPassword, newPassword, userAgent);
+
+    logger.info(`User ${userId} changed own password`);
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (err) {
+    const status = err.status || 500;
+    logger.error(`Error changing password: ${err.message}`);
+    res.status(status).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getUsers,
   getUser,
@@ -172,4 +213,5 @@ module.exports = {
   updateUser,
   deleteUser,
   resetUserPassword,
+  changeOwnPassword,
 };

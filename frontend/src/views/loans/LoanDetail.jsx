@@ -51,6 +51,7 @@ import {
   REPAYMENT_SCHEDULE_STATUS,
   PAYMENT_STATUS,
   ROLES,
+  ROLE_GROUPS,
 } from '../../constants/enums'
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from '../../utils/format'
 
@@ -81,6 +82,7 @@ const LoanDetail = () => {
   const collateralStatusMutation = useUpdateCollateralStatus()
   const { role } = useAuth()
   const isAdmin = role === ROLES.ADMIN
+  const canManage = ROLE_GROUPS.STAFF.includes(role)
 
   const [activeTab, setActiveTab] = useState(0)
   const [actionType, setActionType] = useState(null) // 'approve' | 'disburse' | 'principal'
@@ -142,10 +144,11 @@ const LoanDetail = () => {
   const collaterals = loan.collaterals || []
 
   const scheduleColumns = [
-    { key: 'installmentNumber', label: '#', render: (r) => r.installmentNumber },
+    { key: 'installmentNumber', label: '#', render: (r) => (r.installmentNumber === 0 ? 'Fee' : r.installmentNumber) },
     { key: 'dueDate', label: 'Due', render: (r) => formatDate(r.dueDate) },
     { key: 'principalAmount', label: 'Principal', render: (r) => formatCurrency(r.principalAmount, loan.currency) },
     { key: 'interestAmount', label: 'Interest', render: (r) => formatCurrency(r.interestAmount, loan.currency) },
+    { key: 'feesAmount', label: 'Fees', render: (r) => formatCurrency(r.feesAmount, loan.currency) },
     { key: 'totalAmount', label: 'Total', render: (r) => formatCurrency(r.totalAmount, loan.currency) },
     { key: 'paidAmount', label: 'Paid', render: (r) => formatCurrency(r.paidAmount, loan.currency) },
     {
@@ -241,7 +244,7 @@ const LoanDetail = () => {
             </div>
           </div>
           <div className="d-flex gap-2 flex-wrap">
-            {canRecordPayment && (
+            {canManage && canRecordPayment && (
               <CButton
                 color="success"
                 size="sm"
@@ -251,7 +254,7 @@ const LoanDetail = () => {
                 Record Payment
               </CButton>
             )}
-            {canApprove && (
+            {canManage && canApprove && (
               <CButton
                 color="primary"
                 size="sm"
@@ -264,7 +267,7 @@ const LoanDetail = () => {
                 Approve
               </CButton>
             )}
-            {canDisburse && (
+            {canManage && canDisburse && (
               <CButton
                 color="success"
                 size="sm"
@@ -277,7 +280,7 @@ const LoanDetail = () => {
                 Disburse
               </CButton>
             )}
-            {canEditPrincipal && (
+            {canManage && canEditPrincipal && (
               <CButton
                 color="warning"
                 size="sm"
@@ -291,15 +294,17 @@ const LoanDetail = () => {
                 Principal
               </CButton>
             )}
-            <CButton
-              color="danger"
-              size="sm"
-              variant="outline"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <CIcon icon={cilTrash} className="me-1" />
-              Delete
-            </CButton>
+            {canManage && (
+              <CButton
+                color="danger"
+                size="sm"
+                variant="outline"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <CIcon icon={cilTrash} className="me-1" />
+                Delete
+              </CButton>
+            )}
           </div>
         </CCardHeader>
         <CCardBody>

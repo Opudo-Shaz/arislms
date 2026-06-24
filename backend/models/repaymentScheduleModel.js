@@ -47,11 +47,19 @@ const RepaymentSchedule = sequelize.define('RepaymentSchedule', {
     comment: 'Interest portion of the installment'
   },
 
+  feesAmount: {
+    type: DataTypes.DECIMAL(14,2),
+    allowNull: false,
+    defaultValue: 0,
+    field: 'fees_amount',
+    comment: 'Fees portion of the installment (collected upfront at disbursement)'
+  },
+
   totalAmount: { 
     type: DataTypes.DECIMAL(14,2), 
     allowNull: false, 
     field: 'total_amount',
-    comment: 'Total amount due for this installment (principal + interest)'
+    comment: 'Total amount due for this installment (principal + interest + fees)'
   },
 
   paidAmount: { 

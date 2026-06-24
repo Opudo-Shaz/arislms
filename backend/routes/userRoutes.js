@@ -1,5 +1,5 @@
 const express = require('express');
-const { getUsers, getUser, createUser, updateUser, deleteUser, resetUserPassword } = require('../controllers/userController');
+const { getUsers, getUser, createUser, updateUser, deleteUser, resetUserPassword, changeOwnPassword } = require('../controllers/userController');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -34,7 +34,7 @@ const router = express.Router();
  *                 email: john@test.com
  *                 role: admin
  */
-router.get('/', authenticate, authorize([1,2]), getUsers);
+router.get('/', authenticate, getUsers);
 
 /**
  * @openapi
@@ -135,6 +135,32 @@ router.get('/:id', authenticate, getUser);
  */
 router.post('/reset-password', authenticate, authorize([1]), resetUserPassword);
 
+/**
+ * @openapi
+ * /api/users/change-password:
+ *   post:
+ *     summary: Change own password (any authenticated user)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string, minLength: 8 }
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Wrong current password or validation error
+ */
+router.post('/change-password', authenticate, changeOwnPassword);
+
 router.post('/', authenticate, authorize([1,2]), createUser);
 
 /**
@@ -163,7 +189,7 @@ router.post('/', authenticate, authorize([1,2]), createUser);
  *       200:
  *         description: User updated successfully
  */
-router.put('/:id', authenticate, authorize([1,2]), updateUser);
+router.put('/:id', authenticate, updateUser);
 
 /**
  * @openapi

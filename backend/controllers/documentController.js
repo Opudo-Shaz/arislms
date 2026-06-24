@@ -7,25 +7,37 @@ const documentController = {
   // POST /api/documents  (multipart/form-data)
   async uploadDocument(req, res) {
     try {
-      const userId = getUserId(req);
+      const actorId = getUserId(req);
+      const actorRole = req.user?.role;
+
       if (!req.file) {
         return res.status(400).json({ success: false, message: 'No file provided' });
       }
 
-      const { documentType, documentCategory, clientId, loanId, collateralId, description, expiresAt } = req.body;
+      const { documentType, documentCategory, clientId, loanId, collateralId, userId, description, expiresAt } = req.body;
 
       if (!documentType || !documentCategory) {
         return res.status(400).json({ success: false, message: 'documentType and documentCategory are required' });
       }
-      if (!clientId && !loanId && !collateralId) {
-        return res.status(400).json({ success: false, message: 'At least one of clientId, loanId, or collateralId is required' });
+      if (!clientId && !loanId && !collateralId && !userId) {
+        return res.status(400).json({ success: false, message: 'At least one of clientId, loanId, collateralId, or userId is required' });
       }
 
-      logger.info(`User ${userId} uploading document [${documentCategory}/${documentType}]`);
+      // Role 3 (limited): may only upload user_photo for their own userId.
+      if (actorRole === 3) {
+        if (documentType !== 'user_photo') {
+          return res.status(403).json({ success: false, message: 'Access denied: you may only upload a user_photo document' });
+        }
+        if (String(userId) !== String(actorId)) {
+          return res.status(403).json({ success: false, message: 'Access denied: you can only upload documents for yourself' });
+        }
+      }
+
+      logger.info(`User ${actorId} uploading document [${documentCategory}/${documentType}]`);
 
       const doc = await documentService.uploadDocument(
         req.file,
-        { documentType, documentCategory, clientId, loanId, collateralId, description, expiresAt },
+        { documentType, documentCategory, clientId, loanId, collateralId, userId, description, expiresAt },
         req.user,
         req.headers['user-agent']
       );
@@ -106,6 +118,17 @@ const documentController = {
     } catch (error) {
       logger.error(`Delete Document Error: ${error.message}`);
       return res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    }
+  },
+
+  // GET /api/documents/user/:userId
+  async getDocumentsByUser(req, res) {
+    try {
+      const docs = await documentService.getDocumentsByUser(req.params.userId);
+      return res.status(200).json({ success: true, data: docs });
+    } catch (error) {
+      logger.error(`Get User Documents Error: ${error.message}`);
+      return res.status(500).json({ success: false, message: 'Unable to fetch user documents' });
     }
   },
 

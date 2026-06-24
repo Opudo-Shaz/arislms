@@ -63,3 +63,21 @@ export const useResetUserPassword = () =>
   useMutation({
     mutationFn: (payload) => userApi.resetUserPassword(payload),
   })
+
+/** Update current user's own profile (self-service). */
+export const useUpdateMe = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }) => userApi.updateMe(id, payload),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: userKeys.lists() })
+      qc.invalidateQueries({ queryKey: userKeys.detail(id) })
+    },
+  })
+}
+
+/** Change own password. */
+export const useChangePassword = () =>
+  useMutation({
+    mutationFn: (payload) => userApi.changePassword(payload),
+  })

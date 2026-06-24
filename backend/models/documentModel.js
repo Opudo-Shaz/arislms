@@ -19,9 +19,10 @@ const Document = sequelize.define('Document', {
     field: 'document_category',
   },
 
-  // References — both nullable; at least one should be set
-  clientId: { type: DataTypes.INTEGER, allowNull: true, field: 'client_id' },
-  loanId:   { type: DataTypes.INTEGER, allowNull: true, field: 'loan_id' },
+  // References — all nullable; at least one should be set
+  userId:       { type: DataTypes.INTEGER, allowNull: true, field: 'user_id' },
+  clientId:     { type: DataTypes.INTEGER, allowNull: true, field: 'client_id' },
+  loanId:       { type: DataTypes.INTEGER, allowNull: true, field: 'loan_id' },
   collateralId: { type: DataTypes.INTEGER, allowNull: true, field: 'collateral_id' },
 
   // File metadata

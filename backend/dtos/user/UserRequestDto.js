@@ -74,6 +74,7 @@ class UserRequestDto {
       .example('Password123!')
       .messages({
         'string.min': 'Password must be at least 8 characters',
+        'string.pattern.base': 'Password must contain at least one letter, one number, and one special character',
         'any.required': 'Password is required'
       })
   });
@@ -131,8 +132,48 @@ class UserRequestDto {
       .optional()
       .example('NewPassword456!')
       .messages({
-        'string.min': 'Password must be at least 8 characters'
+        'string.min': 'Password must be at least 8 characters',
+        'string.pattern.base': 'Password must contain at least one letter, one number, and one special character'
       })
+  });
+
+  // Joi validation schema for self-service profile update (role 3 limited users).
+  // Restricted to name + phone only — no role/email/id_number/password changes.
+  static selfUpdateSchema = Joi.object({
+    first_name: Joi.string().trim().min(2).max(100).optional()
+      .messages({
+        'string.min': 'First name must be at least 2 characters',
+        'string.max': 'First name cannot exceed 100 characters'
+      }),
+    middle_name: Joi.string().trim().min(2).max(100).allow(null, '').optional()
+      .messages({
+        'string.min': 'Middle name must be at least 2 characters',
+        'string.max': 'Middle name cannot exceed 100 characters'
+      }),
+    last_name: Joi.string().trim().min(2).max(100).optional()
+      .messages({
+        'string.min': 'Last name must be at least 2 characters',
+        'string.max': 'Last name cannot exceed 100 characters'
+      }),
+    phone: Joi.string().pattern(/^\d{7,}$/).allow(null, '').optional()
+      .messages({
+        'string.pattern.base': 'Phone must contain at least 7 digits'
+      }),
+  });
+
+  // Joi validation schema for self-service password change (any authenticated user).
+  static changePasswordSchema = Joi.object({
+    currentPassword: Joi.string().required()
+      .messages({ 'any.required': 'Current password is required' }),
+    newPassword: Joi.string()
+      .min(8)
+      .pattern(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).*$/)
+      .required()
+      .messages({
+        'string.min': 'New password must be at least 8 characters',
+        'string.pattern.base': 'New password must contain at least one letter, one number, and one special character',
+        'any.required': 'New password is required',
+      }),
   });
 
   // Joi validation schema for resetting a user password (super admin only)

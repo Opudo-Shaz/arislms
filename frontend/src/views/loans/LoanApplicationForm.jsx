@@ -28,7 +28,8 @@ import {
 
 import { useCreateLoan } from '../../hooks/useLoans'
 import { useLoanProducts } from '../../hooks/useLoanProducts'
-import { COLLATERAL_TYPE } from '../../constants/enums'
+import { useAuth } from '../../context/AuthContext'
+import { COLLATERAL_TYPE, ROLE_GROUPS } from '../../constants/enums'
 import { formatCurrency, formatPercent } from '../../utils/format'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -64,6 +65,7 @@ const toPayload = (form) => {
 const LoanApplicationForm = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { role } = useAuth()
 
   // Must be opened from ClientDetail — clientId + name supplied via router state.
   const prefilledClientId = location.state?.clientId ?? null
@@ -81,6 +83,9 @@ const LoanApplicationForm = () => {
     () => products.find((p) => String(p.id) === String(form.loanProductId)),
     [products, form.loanProductId],
   )
+
+  // Guard: redirect non-staff roles to unauthorized.
+  if (!ROLE_GROUPS.STAFF.includes(role)) return <Navigate to="/unauthorized" replace />
 
   // Guard: redirect to clients if not opened from a client detail page.
   if (!prefilledClientId) return <Navigate to="/clients" replace />

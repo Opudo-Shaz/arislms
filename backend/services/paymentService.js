@@ -133,10 +133,12 @@ const paymentService = {
       required: false,
     };
 
-    const loanWhere = [1, 2].includes(Number(role)) ? {} : { clientId: userId };
+    const staffRoles = [1, 2, 3];
+    const isStaff = staffRoles.includes(Number(role));
+    const loanWhere = isStaff ? {} : { clientId: userId };
     const loanInclude = {
       model: Loan,
-      required: ![1, 2].includes(Number(role)),
+      required: !isStaff,
       where: Object.keys(loanWhere).length ? loanWhere : undefined,
       include: [{ association: 'client', required: false, attributes: ['id', 'firstName', 'lastName'] }],
     };

@@ -13,23 +13,14 @@ import loanApi from '../api/loanApi'
 export const loanKeys = {
   all: ['loans'],
   lists: (params) => [...loanKeys.all, 'list', params],
-  mine: (params) => [...loanKeys.all, 'mine', params],
   detail: (id) => [...loanKeys.all, 'detail', String(id)],
 }
 
-/** List all loans (admin/manager). Returns {loans, pagination}. */
+/** List all loans. Returns {loans, pagination}. */
 export const useLoans = (params = {}) =>
   useQuery({
     queryKey: loanKeys.lists(params),
     queryFn: () => loanApi.listLoans(params),
-    placeholderData: keepPreviousData,
-  })
-
-/** List loans belonging to the logged-in user. Returns {loans, pagination}. */
-export const useMyLoans = (params = {}) =>
-  useQuery({
-    queryKey: loanKeys.mine(params),
-    queryFn: () => loanApi.listMyLoans(params),
     placeholderData: keepPreviousData,
   })
 

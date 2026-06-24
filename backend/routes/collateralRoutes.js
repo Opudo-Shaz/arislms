@@ -12,7 +12,7 @@ const router = express.Router();
  *     tags:
  *       - Collaterals
  */
-router.get('/loan/:loanId', authenticate, authorize([1, 2]), collateralController.getByLoan);
+router.get('/loan/:loanId', authenticate, collateralController.getByLoan);
 
 /**
  * @openapi

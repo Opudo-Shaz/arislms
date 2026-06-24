@@ -42,6 +42,15 @@ export const deleteUser = async (id) => http.delete(`/users/${id}`)
  */
 export const resetUserPassword = async (payload) => http.post('/users/reset-password', payload)
 
+/**
+ * Change the currently logged-in user's own password.
+ * @param {object} payload { currentPassword, newPassword }
+ * @returns {Promise<object>}
+ */
+export const changePassword = async (payload) => http.post('/users/change-password', payload)
+
+export const updateMe = async (id, payload) => http.put(`/users/${id}`, payload)
+
 export default {
   listUsers,
   getUser,
@@ -49,4 +58,6 @@ export default {
   updateUser,
   deleteUser,
   resetUserPassword,
+  updateMe,
+  changePassword,
 }

@@ -15,7 +15,20 @@ const RequireAuth = () => {
   const location = useLocation()
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />
+    // When redirecting to login, preserve only the pathname the user attempted to access
+    // This prevents stale state from previous sessions from affecting new users
+    return (
+      <Navigate 
+        to="/login" 
+        replace 
+        state={{ 
+          from: {
+            pathname: location.pathname,
+            search: location.search
+          }
+        }} 
+      />
+    )
   }
 
   return <Outlet />

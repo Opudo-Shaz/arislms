@@ -1,11 +1,9 @@
 /**
  * LoansList — server-side paginated, filterable loan table.
- * scope='all': every loan (admin/manager). scope='mine': logged-in user's loans.
  * @module views/loans/LoansList
  */
 
 import React, { useState } from 'react'
-import PropTypes from 'prop-types'
 import { useNavigate } from 'react-router-dom'
 import {
   CButton,
@@ -24,7 +22,7 @@ import { cilReload } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
-import { useLoans, useMyLoans } from '../../hooks/useLoans'
+import { useLoans } from '../../hooks/useLoans'
 import { LOAN_STATUS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
@@ -33,9 +31,8 @@ const PAGE_SIZE = 20
 const clientName = (row) =>
   row.client ? `${row.client.firstName} ${row.client.lastName}`.trim() : `Client #${row.clientId}`
 
-const LoansList = ({ scope }) => {
+const LoansList = () => {
   const navigate = useNavigate()
-  const isMine = scope === 'mine'
 
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
@@ -50,9 +47,7 @@ const LoansList = ({ scope }) => {
     search: search.trim() || undefined,
   }
 
-  const allLoansQuery = useLoans(params)
-  const myLoansQuery = useMyLoans(params)
-  const { data, isLoading, error, refetch, isFetching } = isMine ? myLoansQuery : allLoansQuery
+  const { data, isLoading, error, refetch, isFetching } = useLoans(params)
 
   const loans = data?.loans ?? []
   const total = data?.pagination?.total ?? 0
@@ -65,9 +60,7 @@ const LoansList = ({ scope }) => {
       render: (row) => (
         <div>
           <div className="fw-semibold">{row.referenceCode || `Loan #${row.id}`}</div>
-          {!isMine && (
-            <div className="small text-body-secondary">{clientName(row)}</div>
-          )}
+          <div className="small text-body-secondary">{clientName(row)}</div>
         </div>
       ),
     },
@@ -101,7 +94,7 @@ const LoansList = ({ scope }) => {
   return (
     <CCard className="mb-4">
       <CCardHeader className="d-flex justify-content-between align-items-center">
-        <strong>{isMine ? 'My Loans' : 'Loans'}</strong>
+        <strong>Loans</strong>
         <CButton color="light" size="sm" onClick={() => refetch()} disabled={isFetching}>
           <CIcon icon={cilReload} className="me-1" />
           Refresh
@@ -155,14 +148,6 @@ const LoansList = ({ scope }) => {
       </CCardBody>
     </CCard>
   )
-}
-
-LoansList.propTypes = {
-  scope: PropTypes.oneOf(['all', 'mine']),
-}
-
-LoansList.defaultProps = {
-  scope: 'all',
 }
 
 export default LoansList
