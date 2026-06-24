@@ -34,6 +34,7 @@ const RolesList = React.lazy(() => import('./views/admin/RolesList'))
 const NotificationsList = React.lazy(() => import('./views/notifications/NotificationsList'))
 const AuditTrail = React.lazy(() => import('./views/reports/AuditTrail'))
 const PortfolioAging = React.lazy(() => import('./views/reports/PortfolioAging'))
+const UserProfile = React.lazy(() => import('./views/profile/UserProfile'))
 
 export const routes = [
   { path: '/', exact: true, name: 'Home' },
@@ -47,11 +48,6 @@ export const routes = [
 
   // Loans (Phase 2)
   { path: '/loans', name: 'Loans', element: LoansList, exact: true },
-  {
-    path: '/loans/my',
-    name: 'My Loans',
-    element: () => React.createElement(LoansList, { scope: 'mine' }),
-  },
   { path: '/loans/approvals', name: 'Approval Queue', element: LoanApprovals },
   { path: '/loans/new', name: 'New Application', element: LoanApplicationForm },
   { path: '/loans/:id', name: 'Loan Detail', element: LoanDetail, exact: true },
@@ -117,6 +113,9 @@ export const routes = [
     name: 'Notifications',
     element: NotificationsList,
   },
+
+  // User profile
+  { path: '/profile', name: 'My Profile', element: UserProfile },
 ]
 
 export default routes

@@ -80,6 +80,7 @@ function generateAmortizationSchedule(options) {
         dueDate: dueDate.toISOString().split('T')[0],
         principalAmount: parseFloat(principalPerInstallment.toFixed(2)),
         interestAmount: parseFloat(interestPerInstallment.toFixed(2)),
+        feesAmount: 0,
         totalAmount: parseFloat(installmentAmount.toFixed(2)),
         remainingBalance: parseFloat(Math.max(0, remainingBalance).toFixed(2))
       });
@@ -107,6 +108,7 @@ function generateAmortizationSchedule(options) {
         dueDate: dueDate.toISOString().split('T')[0],
         principalAmount: parseFloat(finalPrincipal.toFixed(2)),
         interestAmount: parseFloat(interestPayment.toFixed(2)),
+        feesAmount: 0,
         totalAmount: parseFloat((finalPrincipal + interestPayment).toFixed(2)),
         remainingBalance: parseFloat(Math.max(0, finalRemaining).toFixed(2))
       });

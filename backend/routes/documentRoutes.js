@@ -55,7 +55,7 @@ const upload = multer({
  *       201:
  *         description: Document uploaded successfully
  */
-router.post('/', authenticate, authorize([1, 2]), upload.single('file'), documentController.uploadDocument);
+router.post('/', authenticate, upload.single('file'), documentController.uploadDocument);
 
 /**
  * @openapi
@@ -127,6 +127,25 @@ router.get('/client/:clientId', authenticate, authorize([1, 2, 3]), documentCont
  *         description: Loan documents
  */
 router.get('/loan/:loanId', authenticate, authorize([1, 2, 3]), documentController.getDocumentsByLoan);
+
+/**
+ * @openapi
+ * /api/documents/user/{userId}:
+ *   get:
+ *     summary: Get all documents for a user (e.g. profile photo)
+ *     tags: [Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: User documents
+ */
+router.get('/user/:userId', authenticate, documentController.getDocumentsByUser);
 
 /**
  * @openapi

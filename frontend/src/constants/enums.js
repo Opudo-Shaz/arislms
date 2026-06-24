@@ -167,6 +167,7 @@ export const LOAN_TRANSACTION_TYPE = buildEnum({
 
 export const DOCUMENT_CATEGORY = buildEnum(
   {
+    user_kyc: 'primary',
     client_kyc: 'info',
     loan_collateral: 'warning',
     loan_supporting: 'secondary',
@@ -174,6 +175,7 @@ export const DOCUMENT_CATEGORY = buildEnum(
     other: 'secondary',
   },
   {
+    user_kyc: 'User KYC',
     client_kyc: 'Client KYC',
     loan_collateral: 'Loan Collateral',
     loan_supporting: 'Loan Supporting',
@@ -184,6 +186,7 @@ export const DOCUMENT_CATEGORY = buildEnum(
 
 export const DOCUMENT_TYPE = buildEnum(
   {
+    user_photo: 'primary',
     client_photo: 'info',
     national_id: 'primary',
     passport: 'primary',
@@ -202,6 +205,7 @@ export const DOCUMENT_TYPE = buildEnum(
     other: 'secondary',
   },
   {
+    user_photo: 'User Photo',
     client_photo: 'Client Photo',
     national_id: 'National ID',
     passport: 'Passport',
@@ -220,6 +224,10 @@ export const DOCUMENT_TYPE = buildEnum(
     other: 'Other',
   },
 )
+
+/** Document type valid for user profile photos. */
+export const USER_PHOTO_DOCUMENT_TYPE = 'user_photo'
+export const USER_KYC_CATEGORY = 'user_kyc'
 
 /** Document types valid for the Client KYC category. */
 export const CLIENT_KYC_DOCUMENT_TYPES = [

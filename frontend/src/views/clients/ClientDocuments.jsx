@@ -32,6 +32,8 @@ import ConfirmModal from '../../components/ConfirmModal'
 import StatusBadge from '../../components/StatusBadge'
 import { DOCUMENT_TYPE, DOCUMENT_STATUS, CLIENT_KYC_DOCUMENT_TYPES } from '../../constants/enums'
 import { useClientDocuments, useUploadDocument, useDeleteDocument } from '../../hooks/useDocuments'
+import { useAuth } from '../../context/AuthContext'
+import { ROLE_GROUPS } from '../../constants/enums'
 import documentApi from '../../api/documentApi'
 import { formatDate } from '../../utils/format'
 
@@ -48,6 +50,8 @@ const ClientDocuments = ({ clientId }) => {
   const { data: documents = [], isLoading, error } = useClientDocuments(clientId)
   const uploadMutation  = useUploadDocument(clientId)
   const deleteMutation  = useDeleteDocument(clientId)
+  const { role } = useAuth()
+  const canManage = ROLE_GROUPS.STAFF.includes(role)
 
   const [form, setForm]           = useState(emptyForm)
   const [formError, setFormError] = useState(null)
@@ -168,15 +172,17 @@ const ClientDocuments = ({ clientId }) => {
                         ? <CSpinner size="sm" />
                         : <CIcon icon={cilExternalLink} />}
                     </CButton>
-                    <CButton
-                      size="sm"
-                      color="danger"
-                      variant="ghost"
-                      title="Delete"
-                      onClick={() => setConfirmDeleteId(doc.id)}
-                    >
-                      <CIcon icon={cilTrash} />
-                    </CButton>
+                    {canManage && (
+                      <CButton
+                        size="sm"
+                        color="danger"
+                        variant="ghost"
+                        title="Delete"
+                        onClick={() => setConfirmDeleteId(doc.id)}
+                      >
+                        <CIcon icon={cilTrash} />
+                      </CButton>
+                    )}
                   </div>
                 </div>
               ))}
@@ -184,6 +190,7 @@ const ClientDocuments = ({ clientId }) => {
           )}
 
           {/* Upload form */}
+          {canManage && (
           <CForm onSubmit={handleUpload}>
             <CRow className="g-3">
               <CCol md={5}>
@@ -235,6 +242,7 @@ const ClientDocuments = ({ clientId }) => {
               Upload Document
             </CButton>
           </CForm>
+          )}
         </CCardBody>
       </CCard>
 

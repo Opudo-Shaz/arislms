@@ -28,12 +28,15 @@ import { cilPlus, cilReload } from '@coreui/icons'
 import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
 import { useClients } from '../../hooks/useClients'
-import { CLIENT_STATUS, KYC_STATUS } from '../../constants/enums'
+import { useAuth } from '../../context/AuthContext'
+import { CLIENT_STATUS, KYC_STATUS, ROLE_GROUPS } from '../../constants/enums'
 
 const PAGE_SIZE = 20
 
 const ClientsList = () => {
   const navigate = useNavigate()
+  const { role } = useAuth()
+  const canManage = ROLE_GROUPS.STAFF.includes(role)
 
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
@@ -106,10 +109,12 @@ const ClientsList = () => {
             <CIcon icon={cilReload} className="me-1" />
             Refresh
           </CButton>
-          <CButton color="primary" size="sm" onClick={() => navigate('/clients/new')}>
-            <CIcon icon={cilPlus} className="me-1" />
-            New Client
-          </CButton>
+          {canManage && (
+            <CButton color="primary" size="sm" onClick={() => navigate('/clients/new')}>
+              <CIcon icon={cilPlus} className="me-1" />
+              New Client
+            </CButton>
+          )}
         </div>
       </CCardHeader>
       <CCardBody>

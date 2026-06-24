@@ -8,6 +8,7 @@ class RepaymentScheduleResponseDto {
     this.dueDate = schedule.dueDate;
     this.principalAmount = parseFloat(schedule.principalAmount);
     this.interestAmount = parseFloat(schedule.interestAmount);
+    this.feesAmount = parseFloat(schedule.feesAmount || 0);
     this.totalAmount = parseFloat(schedule.totalAmount);
     this.paidAmount = parseFloat(schedule.paidAmount || 0);
     this.paidDate = schedule.paidDate;

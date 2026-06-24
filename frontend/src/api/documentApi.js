@@ -73,9 +73,16 @@ export const deleteDocument = async (id) => {
   return res?.data
 }
 
+/** @param {number|string} userId @returns {Promise<object[]>} */
+export const listUserDocuments = async (userId) => {
+  const res = await http.get(`/documents/user/${userId}`)
+  return res?.data ?? []
+}
+
 const documentApi = {
   listClientDocuments,
   listLoanDocuments,
+  listUserDocuments,
   uploadDocument,
   downloadDocumentBlob,
   openDocumentInTab,

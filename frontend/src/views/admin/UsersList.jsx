@@ -8,6 +8,7 @@
  */
 
 import React, { useMemo, useState } from 'react'
+import { Navigate } from 'react-router-dom'
 import {
   CButton,
   CCard,
@@ -147,6 +148,8 @@ const UsersList = () => {
       // Error surfaced via mutation state; modal stays open.
     }
   }
+
+  if (!canManage) return <Navigate to="/unauthorized" replace />
 
   return (
     <CCard className="mb-4">

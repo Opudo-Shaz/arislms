@@ -28,7 +28,7 @@ const router = express.Router();
  *                 amount: 300
  *                 paymentDate: 2026-01-20
  */
-router.get('/', authenticate, authorize([1,2]), paymentController.getAll);
+router.get('/', authenticate, paymentController.getAll);
 
 /**
  * @openapi

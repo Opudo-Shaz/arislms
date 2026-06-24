@@ -110,7 +110,7 @@ const updateUser = async (id, data, updatorId = null, userAgent = 'unknown') => 
     });
 
   logger.info(
-    `User created: id=${newUser.id} name=${buildFullName(newUser)} by user ${creatorId}`
+    `User updated: id=${user.id} name=${buildFullName(user)} by user ${updatorId}`
   );
     return user;
   } catch (error) {
@@ -185,6 +185,38 @@ const resetUserPassword = async (userId, email, newPassword, actorId = null, use
   }
 };
 
+const changeOwnPassword = async (userId, currentPassword, newPassword, userAgent = 'unknown') => {
+  const user = await User.findByPk(userId);
+  if (!user) {
+    const err = new Error('User not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const match = await bcrypt.compare(currentPassword, user.password);
+  if (!match) {
+    const err = new Error('Current password is incorrect');
+    err.status = 400;
+    throw err;
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const hashed = await bcrypt.hash(newPassword, salt);
+  await user.update({ password: hashed });
+
+  await AuditLogger.log({
+    entityType: 'USER',
+    entityId: userId,
+    action: 'UPDATE',
+    data: { passwordChanged: true },
+    actorId: userId,
+    options: { actorType: 'USER', source: userAgent },
+  });
+
+  logger.info(`User ${userId} changed own password`);
+  return user;
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -192,4 +224,5 @@ module.exports = {
   updateUser,
   deleteUser,
   resetUserPassword,
+  changeOwnPassword,
 };

@@ -41,14 +41,62 @@ function calculateMonthlyPayment(principal, interestRate, termMonths, interestTy
   return (P * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1)).toFixed(2);
 }
 
+/**
+ * Builds repayment-schedule DB rows from amortization data, prepending an
+ * upfront fee installment when the loan carries fees.
+ *
+ * Fees are collected at disbursement (net disbursement), so the fee row is
+ * recorded as already paid (installment 0) and does not affect the principal +
+ * interest installments the borrower still owes.
+ *
+ * @param {Object} loan - Loan instance (provides id, fees, principalAmount)
+ * @param {Array} scheduleData - Output of generateAmortizationSchedule
+ * @param {Date|string} disbursementDate - Date fees were collected
+ * @returns {Array} Rows ready for RepaymentSchedule.bulkCreate
+ */
+function buildScheduleEntries(loan, scheduleData, disbursementDate) {
+  const entries = scheduleData.map(entry => ({
+    loanId: loan.id,
+    installmentNumber: entry.installmentNumber,
+    dueDate: entry.dueDate,
+    principalAmount: entry.principalAmount,
+    interestAmount: entry.interestAmount,
+    feesAmount: entry.feesAmount || 0,
+    totalAmount: entry.totalAmount,
+    paidAmount: 0,
+    status: 'pending',
+    remainingBalance: entry.remainingBalance
+  }));
+
+  const fees = Number(loan.fees || 0);
+  if (fees > 0) {
+    const feeDate = new Date(disbursementDate).toISOString().split('T')[0];
+    entries.unshift({
+      loanId: loan.id,
+      installmentNumber: 0,
+      dueDate: feeDate,
+      principalAmount: 0,
+      interestAmount: 0,
+      feesAmount: fees,
+      totalAmount: fees,
+      paidAmount: fees,
+      paidDate: feeDate,
+      status: 'paid',
+      remainingBalance: Number(loan.principalAmount),
+      notes: 'Loan service fees collected upfront at disbursement'
+    });
+  }
+
+  return entries;
+}
+
 const loanService = {
 
-  // Get loans (paginated + filtered); admin sees all, others see own
-  async getAllLoans({ role, userId, page = 1, limit = 20, status, search } = {}) {
+  // Get loans (paginated + filtered); returns all loans for management portal
+  async getAllLoans({ page = 1, limit = 20, status, search } = {}) {
     try {
-      logger.info(`loanService.getAllLoans called by user ${userId} with role ${role}`);
+      logger.info(`loanService.getAllLoans called (page=${page}, limit=${limit})`);
       const where = {};
-      if (!isAdmin(role)) where.clientId = userId;
       if (status) where.status = status;
       if (search) {
         where[Op.or] = [
@@ -72,7 +120,7 @@ const loanService = {
           { association: 'transactions', required: false },
         ],
       });
-      logger.info(`Retrieved ${rows.length} loans (role=${role}, page=${page}, total=${count})`);
+      logger.info(`Retrieved ${rows.length} loans, page=${page}, total=${count})`);
       return { total: count, page, limit, pages: Math.ceil(count / limit), loans: rows };
     } catch (error) {
       logger.error(`Error in getAllLoans: ${error.message}`);
@@ -93,7 +141,8 @@ const loanService = {
       });
       if (!loan) return null;
 
-      if (!isAdmin(role) && loan.clientId !== userId) {
+      const numRole = Number(role);
+      if (numRole !== 1 && numRole !== 2 && numRole !== 3 && loan.clientId !== userId) {
         return 403; // Access denied
       }
 
@@ -751,17 +800,7 @@ const loanService = {
       });
 
       // Create schedule entries in database
-      const scheduleEntries = scheduleData.map(entry => ({
-        loanId: loan.id,
-        installmentNumber: entry.installmentNumber,
-        dueDate: entry.dueDate,
-        principalAmount: entry.principalAmount,
-        interestAmount: entry.interestAmount,
-        totalAmount: entry.totalAmount,
-        paidAmount: 0,
-        status: 'pending',
-        remainingBalance: entry.remainingBalance
-      }));
+      const scheduleEntries = buildScheduleEntries(loan, scheduleData, disbursement);
 
       const createdSchedule = await RepaymentSchedule.bulkCreate(scheduleEntries);
 
@@ -883,17 +922,7 @@ const loanService = {
       });
 
       // Create schedule entries in database
-      const scheduleEntries = scheduleData.map(entry => ({
-        loanId: loan.id,
-        installmentNumber: entry.installmentNumber,
-        dueDate: entry.dueDate,
-        principalAmount: entry.principalAmount,
-        interestAmount: entry.interestAmount,
-        totalAmount: entry.totalAmount,
-        paidAmount: 0,
-        status: 'pending',
-        remainingBalance: entry.remainingBalance
-      }));
+      const scheduleEntries = buildScheduleEntries(loan, scheduleData, disbursement);
 
       const createdSchedule = await RepaymentSchedule.bulkCreate(scheduleEntries);
 
@@ -1002,17 +1031,7 @@ const loanService = {
       });
 
       // Create new schedule entries
-      const scheduleEntries = scheduleData.map(entry => ({
-        loanId: loan.id,
-        installmentNumber: entry.installmentNumber,
-        dueDate: entry.dueDate,
-        principalAmount: entry.principalAmount,
-        interestAmount: entry.interestAmount,
-        totalAmount: entry.totalAmount,
-        paidAmount: 0,
-        status: 'pending',
-        remainingBalance: entry.remainingBalance
-      }));
+      const scheduleEntries = buildScheduleEntries(loan, scheduleData, loan.disbursementDate);
 
       const createdSchedule = await RepaymentSchedule.bulkCreate(scheduleEntries);
 

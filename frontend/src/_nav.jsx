@@ -58,11 +58,6 @@ const _nav = [
       },
       {
         component: CNavItem,
-        name: 'My Loans',
-        to: '/loans/my',
-      },
-      {
-        component: CNavItem,
         name: 'Approval Queue',
         to: '/loans/approvals',
       },
@@ -143,12 +138,14 @@ const _nav = [
     name: 'Users',
     to: '/admin/users',
     icon: <CIcon icon={cilUser} customClassName="nav-icon" />,
+    roles: [1, 2],
   },
   {
     component: CNavItem,
     name: 'Roles & Permissions',
     to: '/admin/roles',
     icon: <CIcon icon={cilLockLocked} customClassName="nav-icon" />,
+    roles: [1, 2],
   },
   {
     component: CNavItem,

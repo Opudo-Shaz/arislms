@@ -48,6 +48,6 @@ const { authenticate, authorize } = require('../middleware/authMiddleware');
  *                   principalOutstanding: 175000
  *                   count: 13
  */
-router.get('/portfolio-aging', authenticate, authorize([1, 2]), reportController.getPortfolioAging);
+router.get('/portfolio-aging', authenticate, reportController.getPortfolioAging);
 
 module.exports = router;

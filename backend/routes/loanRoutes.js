@@ -41,7 +41,7 @@ const router = express.Router();
  *                 amount: 5000
  *                 status: closed
  */
-router.get('/', authenticate, authorize([1,2]), getAllLoans);
+router.get('/', authenticate, getAllLoans);
 
 /**
  * @openapi

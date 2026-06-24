@@ -62,7 +62,7 @@ router.post('/', authenticate, authorize([1,2]), controller.create);
  *                 maxAmount: 80000
  *                 termMonths: 60
  */
-router.get('/', authenticate, authorize([1,2]), controller.getAll);
+router.get('/', authenticate, controller.getAll);
 
 /**
  * @openapi
@@ -92,7 +92,7 @@ router.get('/', authenticate, authorize([1,2]), controller.getAll);
  *               maxAmount: 80000
  *               termMonths: 60
  */
-router.get('/:id', authenticate, authorize([1,2]), controller.getOne);
+router.get('/:id', authenticate, controller.getOne);
 
 /**
  * @openapi

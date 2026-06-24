@@ -1,4 +1,5 @@
 const DocumentType = {
+  USER_PHOTO: 'user_photo',
   CLIENT_PHOTO: 'client_photo',
   NATIONAL_ID: 'national_id',
   PASSPORT: 'passport',

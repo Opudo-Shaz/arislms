@@ -9,7 +9,7 @@
  */
 
 import React, { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   CAlert,
   CButton,
@@ -27,6 +27,8 @@ import {
 } from '@coreui/react'
 
 import { useClient, useCreateClient, useUpdateClient } from '../../hooks/useClients'
+import { useAuth } from '../../context/AuthContext'
+import { ROLE_GROUPS } from '../../constants/enums'
 
 const GENDERS = ['male', 'female', 'other']
 const CONTACT_METHODS = ['email', 'phone', 'sms']
@@ -123,6 +125,7 @@ const ClientForm = () => {
   const { id } = useParams()
   const isEdit = Boolean(id)
   const navigate = useNavigate()
+  const { role } = useAuth()
 
   const { data: client, isLoading: loadingClient } = useClient(id)
   const createMutation = useCreateClient()
@@ -135,6 +138,8 @@ const ClientForm = () => {
   useEffect(() => {
     if (isEdit && client) setForm(toForm(client))
   }, [isEdit, client])
+
+  if (!ROLE_GROUPS.STAFF.includes(role)) return <Navigate to="/unauthorized" replace />
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 

@@ -114,6 +114,9 @@ MemberContribution.belongsTo(JournalEntry, { foreignKey: 'journal_entry_id', as:
 Client.hasMany(MemberContribution, { foreignKey: 'client_id', as: 'contributions' });
 
 // Document associations
+User.hasMany(Document, { foreignKey: 'user_id', as: 'profileDocuments' });
+Document.belongsTo(User, { foreignKey: 'user_id', as: 'user', constraints: false });
+
 Client.hasMany(Document, { foreignKey: 'client_id', as: 'documents' });
 Document.belongsTo(Client, { foreignKey: 'client_id' });
 

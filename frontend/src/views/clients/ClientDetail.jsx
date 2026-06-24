@@ -33,7 +33,8 @@ import ClientDocuments from './ClientDocuments'
 import { useClient, useClientAction, useDeleteClient } from '../../hooks/useClients'
 import { useRefreshCreditScore } from '../../hooks/useCreditScores'
 import { useDocumentBlobUrl } from '../../hooks/useDocuments'
-import { CLIENT_STATUS, KYC_STATUS } from '../../constants/enums'
+import { useAuth } from '../../context/AuthContext'
+import { CLIENT_STATUS, KYC_STATUS, ROLE_GROUPS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
 /** Action definitions keyed by id; drives the confirmation dialog. */
@@ -111,6 +112,8 @@ const ClientDetail = () => {
   const action = useClientAction()
   const deleteMutation = useDeleteClient()
   const refreshScore = useRefreshCreditScore(id)
+  const { role } = useAuth()
+  const canManage = ROLE_GROUPS.STAFF.includes(role)
 
   // Derive the client photo from the documents array (loaded with the client record).
   const photoDoc = client?.documents?.find((d) => d.documentType === 'client_photo')
@@ -177,15 +180,17 @@ const ClientDetail = () => {
                 </strong>
               </div>
               <div className="d-flex gap-2">
-                <CButton
-                  color="light"
-                  size="sm"
-                  onClick={() => navigate(`/clients/${id}/edit`)}
-                >
-                  <CIcon icon={cilPencil} className="me-1" />
-                  Edit
-                </CButton>
-                {client.kycStatus === 'verified' && client.status === 'active' && (
+                {canManage && (
+                  <CButton
+                    color="light"
+                    size="sm"
+                    onClick={() => navigate(`/clients/${id}/edit`)}
+                  >
+                    <CIcon icon={cilPencil} className="me-1" />
+                    Edit
+                  </CButton>
+                )}
+                {canManage && client.kycStatus === 'verified' && client.status === 'active' && (
                   <CButton
                     color="success"
                     size="sm"
@@ -202,10 +207,12 @@ const ClientDetail = () => {
                     New Loan
                   </CButton>
                 )}
-                <CButton color="danger" size="sm" variant="outline" onClick={() => setConfirmDelete(true)}>
-                  <CIcon icon={cilTrash} className="me-1" />
-                  Delete
-                </CButton>
+                {canManage && (
+                  <CButton color="danger" size="sm" variant="outline" onClick={() => setConfirmDelete(true)}>
+                    <CIcon icon={cilTrash} className="me-1" />
+                    Delete
+                  </CButton>
+                )}
               </div>
             </CCardHeader>
             <CCardBody>
@@ -265,47 +272,51 @@ const ClientDetail = () => {
         </CCol>
 
         <CCol lg={4}>
-          <CCard className="mb-4">
-            <CCardHeader>
-              <strong>KYC</strong>
-            </CCardHeader>
-            <CCardBody className="d-grid gap-2">
-              {['verify', 'request-info', 'reject'].map((key) => (
-                <CButton
-                  key={key}
-                  color={ACTIONS[key].color}
-                  variant="outline"
-                  onClick={() => {
-                    setActionError(null)
-                    setActiveAction(key)
-                  }}
-                >
-                  {ACTIONS[key].label}
-                </CButton>
-              ))}
-            </CCardBody>
-          </CCard>
+          {canManage && (
+            <CCard className="mb-4">
+              <CCardHeader>
+                <strong>KYC</strong>
+              </CCardHeader>
+              <CCardBody className="d-grid gap-2">
+                {['verify', 'request-info', 'reject'].map((key) => (
+                  <CButton
+                    key={key}
+                    color={ACTIONS[key].color}
+                    variant="outline"
+                    onClick={() => {
+                      setActionError(null)
+                      setActiveAction(key)
+                    }}
+                  >
+                    {ACTIONS[key].label}
+                  </CButton>
+                ))}
+              </CCardBody>
+            </CCard>
+          )}
 
-          <CCard className="mb-4">
-            <CCardHeader>
-              <strong>Status</strong>
-            </CCardHeader>
-            <CCardBody className="d-grid gap-2">
-              {['activate', 'deactivate', 'suspend', 'blacklist'].map((key) => (
-                <CButton
-                  key={key}
-                  color={ACTIONS[key].color}
-                  variant="outline"
-                  onClick={() => {
-                    setActionError(null)
-                    setActiveAction(key)
-                  }}
-                >
-                  {ACTIONS[key].label}
-                </CButton>
-              ))}
-            </CCardBody>
-          </CCard>
+          {canManage && (
+            <CCard className="mb-4">
+              <CCardHeader>
+                <strong>Status</strong>
+              </CCardHeader>
+              <CCardBody className="d-grid gap-2">
+                {['activate', 'deactivate', 'suspend', 'blacklist'].map((key) => (
+                  <CButton
+                    key={key}
+                    color={ACTIONS[key].color}
+                    variant="outline"
+                    onClick={() => {
+                      setActionError(null)
+                      setActiveAction(key)
+                    }}
+                  >
+                    {ACTIONS[key].label}
+                  </CButton>
+                ))}
+              </CCardBody>
+            </CCard>
+          )}
 
           {client.creditScore && (
             <CCard className="mb-4">

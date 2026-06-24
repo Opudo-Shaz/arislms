@@ -1,4 +1,5 @@
 const DocumentCategory = {
+  USER_KYC: 'user_kyc',
   CLIENT_KYC: 'client_kyc',
   LOAN_COLLATERAL: 'loan_collateral',
   LOAN_SUPPORTING: 'loan_supporting',

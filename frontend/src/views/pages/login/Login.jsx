@@ -17,6 +17,7 @@ import {
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilLockLocked, cilUser } from '@coreui/icons'
+import { Eye, EyeOff } from 'lucide-react'
 import arislmsLogo from '../../../assets/brand/arislms_logo_fit.png'
 import { useAuth } from '../../../context/AuthContext'
 import { ApiError } from '../../../api'
@@ -25,12 +26,28 @@ const Login = () => {
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = location.state?.from?.pathname || '/dashboard'
+
+  // Safely determine redirect location
+  // Only use location.state if it exists and appears valid (has pathname)
+  // Otherwise default to dashboard to prevent redirecting to stale URLs from previous users
+  const getRedirectPath = () => {
+    const fromLocation = location.state?.from?.pathname
+    
+    // Validate that the path starts with / and doesn't contain invalid characters
+    // Default to /dashboard if no valid path is found
+    if (fromLocation && typeof fromLocation === 'string' && fromLocation.startsWith('/')) {
+      return fromLocation
+    }
+    return '/dashboard'
+  }
+
+  const from = getRedirectPath()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -38,7 +55,11 @@ const Login = () => {
     setSubmitting(true)
     try {
       await login(email.trim(), password)
-      navigate(from, { replace: true })
+      // Clear any stale session data before redirecting
+      sessionStorage.clear()
+      // Redirect to the target location, clearing the login page from history
+      // This ensures the user cannot go back to login after a successful login
+      navigate(from, { replace: true, state: undefined })
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError('Invalid email or password.')
@@ -86,13 +107,21 @@ const Login = () => {
                         <CIcon icon={cilLockLocked} />
                       </CInputGroupText>
                       <CFormInput
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         placeholder="Password"
                         autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
                       />
+                      <CInputGroupText
+                        role="button"
+                        title={showPassword ? 'Hide password' : 'Show password'}
+                        onClick={() => setShowPassword((v) => !v)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+                      </CInputGroupText>
                     </CInputGroup>
                     <CRow>
                       <CCol xs={6}>
