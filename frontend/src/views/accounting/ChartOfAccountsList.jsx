@@ -19,12 +19,13 @@ import {
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPencil, cilPlus, cilReload, cilTrash } from '@coreui/icons'
+import { cilBarChart, cilPencil, cilPlus, cilReload, cilTrash } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
 import ChartOfAccountForm from './ChartOfAccountForm'
+import AccountStatementModal from './AccountStatementModal'
 import { useAccounts, useDeactivateAccount } from '../../hooks/useChartOfAccounts'
 import { useAuth } from '../../context/AuthContext'
 import { ACCOUNT_TYPE, NORMAL_BALANCE, ROLE_GROUPS } from '../../constants/enums'
@@ -41,6 +42,7 @@ const ChartOfAccountsList = () => {
   const [toDeactivate, setToDeactivate] = useState(null)
   const [search, setSearch] = useState('')
   const [type, setType] = useState('')
+  const [statementAccount, setStatementAccount] = useState(null)
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -83,6 +85,26 @@ const ChartOfAccountsList = () => {
       render: (row) => row.description || '—',
     },
   ]
+
+  columns.push({
+    key: 'statement',
+    label: '',
+    className: 'text-end',
+    render: (row) => (
+      <CButton
+        color="info"
+        variant="outline"
+        size="sm"
+        title="View Statement"
+        onClick={(e) => {
+          e.stopPropagation()
+          setStatementAccount(row)
+        }}
+      >
+        <CIcon icon={cilBarChart} />
+      </CButton>
+    ),
+  })
 
   if (canManage) {
     columns.push({
@@ -193,6 +215,12 @@ const ChartOfAccountsList = () => {
         loading={deactivateMutation.isPending}
         onConfirm={runDeactivate}
         onClose={() => setToDeactivate(null)}
+      />
+
+      <AccountStatementModal
+        visible={Boolean(statementAccount)}
+        account={statementAccount}
+        onClose={() => setStatementAccount(null)}
       />
     </CCard>
   )

@@ -388,39 +388,46 @@ async function getAccountStatement(accountCode, fromDate, toDate) {
   const account = await ChartOfAccount.findOne({ where: { code: accountCode } });
   if (!account) throw new Error(`Account '${accountCode}' not found`);
 
-  const dateWhere = {};
-  if (fromDate) dateWhere[Op.gte] = new Date(fromDate);
-  if (toDate) dateWhere[Op.lte] = new Date(toDate);
+  // Build date filter on JournalEntry (the main model) — same approach as
+  // getAllJournalEntries which is known to filter correctly.
+  const entryWhere = { status: JournalEntryStatus.POSTED };
+  if (fromDate || toDate) {
+    entryWhere.entryDate = {};
+    if (fromDate) entryWhere.entryDate[Op.gte] = fromDate; // DATEONLY — plain string, no new Date()
+    if (toDate) entryWhere.entryDate[Op.lte] = toDate;
+  }
 
-  const lines = await JournalEntryLine.findAll({
-    where: { accountId: account.id },
+  const entries = await JournalEntry.findAll({
+    where: entryWhere,
     include: [{
-      model: JournalEntry,
-      where: {
-        status: JournalEntryStatus.POSTED,
-        ...(Object.keys(dateWhere).length ? { entryDate: dateWhere } : {}),
-      },
+      model: JournalEntryLine,
+      as: 'lines',
+      where: { accountId: account.id },
       required: true,
     }],
-    order: [[JournalEntry, 'entryDate', 'ASC'], [JournalEntry, 'id', 'ASC']],
+    order: [['entry_date', 'ASC'], ['id', 'ASC']],
   });
 
   let runningBalance = 0;
-  const rows = lines.map(l => {
-    const debit = Number(l.debit);
-    const credit = Number(l.credit);
-    runningBalance += account.normalBalance === 'DEBIT' ? (debit - credit) : (credit - debit);
-    return {
-      date: l.JournalEntry.entryDate,
-      reference: l.JournalEntry.reference,
-      description: l.description || l.JournalEntry.description,
-      debit,
-      credit,
-      balance: Number(runningBalance.toFixed(2)),
-      loanId: l.loanId,
-      clientId: l.clientId,
-    };
-  });
+  const rows = [];
+
+  for (const entry of entries) {
+    for (const l of entry.lines) {
+      const debit = Number(l.debit);
+      const credit = Number(l.credit);
+      runningBalance += account.normalBalance === 'DEBIT' ? (debit - credit) : (credit - debit);
+      rows.push({
+        date: entry.entryDate,
+        reference: entry.reference,
+        description: l.description || entry.description,
+        debit,
+        credit,
+        balance: Number(runningBalance.toFixed(2)),
+        loanId: l.loanId,
+        clientId: l.clientId,
+      });
+    }
+  }
 
   return { account, rows };
 }

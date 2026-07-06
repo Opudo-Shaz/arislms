@@ -6,11 +6,13 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import chartOfAccountApi from '../api/chartOfAccountApi'
+import { getAccountStatement } from '../api/ledgerApi'
 
 export const accountKeys = {
   all: ['chartOfAccounts'],
   lists: () => [...accountKeys.all, 'list'],
   detail: (id) => [...accountKeys.all, 'detail', String(id)],
+  statement: (code, from, to) => [...accountKeys.all, 'statement', code, from, to],
 }
 
 /** List all active accounts. */
@@ -48,6 +50,15 @@ export const useUpdateAccount = () => {
     },
   })
 }
+
+/** Account statement (ledger lines) for a date range. */
+export const useAccountStatement = (code, from, to) =>
+  useQuery({
+    queryKey: accountKeys.statement(code, from, to),
+    queryFn: () => getAccountStatement(code, from, to),
+    enabled: Boolean(code && from && to),
+    staleTime: 0, // financial statement data should always be fresh
+  })
 
 /** Deactivate an account. */
 export const useDeactivateAccount = () => {

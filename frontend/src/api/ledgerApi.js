@@ -59,9 +59,25 @@ export const getTrialBalance = async (asOf) => {
   return res?.data ?? { accounts: [], grandDebit: 0, grandCredit: 0, balanced: true }
 }
 
+/**
+ * Get account statement (ledger lines for a single account).
+ * @param {string} code  Account code
+ * @param {string} [from] YYYY-MM-DD
+ * @param {string} [to]   YYYY-MM-DD
+ * @returns {Promise<{ account:object, rows:object[] }>}
+ */
+export const getAccountStatement = async (code, from, to) => {
+  const params = {}
+  if (from) params.from = from
+  if (to) params.to = to
+  const res = await http.get(`/ledger/accounts/${encodeURIComponent(code)}/statement`, { params })
+  return res?.data ?? { account: null, rows: [] }
+}
+
 export default {
   listEntries,
   createEntry,
   reverseEntry,
   getTrialBalance,
+  getAccountStatement,
 }
