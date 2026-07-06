@@ -4,6 +4,7 @@ node_modules/
 
 # Internal planning docs
 FRONTEND_PORTAL_PLAN.md
+ROLES_PERMISSIONS_PLAN.md
 
 # Environment files
 .env

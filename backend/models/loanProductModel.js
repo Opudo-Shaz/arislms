@@ -27,6 +27,7 @@ const LoanProduct = sequelize.define('LoanProduct', {
 
   requiresCollateral: { type: DataTypes.BOOLEAN, defaultValue: false },
   allowedCollateralTypes: { type: DataTypes.JSONB, defaultValue: [] },
+  requiresCoSigner: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'requires_co_signer' },
 
   fees: {
     type: DataTypes.DECIMAL(14,2),

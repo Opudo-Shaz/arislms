@@ -31,7 +31,7 @@ import { useClients } from '../../hooks/useClients'
 import { useAuth } from '../../context/AuthContext'
 import { CLIENT_STATUS, KYC_STATUS, ROLE_GROUPS } from '../../constants/enums'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 const ClientsList = () => {
   const navigate = useNavigate()

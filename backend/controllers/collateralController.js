@@ -66,5 +66,38 @@ module.exports = {
         message: error.message
       });
     }
+  },
+
+  async updateParticulars(req, res) {
+    try {
+      const userId = getUserId(req);
+
+      if (!isAdmin(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'User not authorized to edit collateral'
+        });
+      }
+
+      const allowed = ['collateralType', 'description', 'referenceNumber', 'registrationNumber', 'estimatedValue', 'notes'];
+      const data = {};
+      for (const key of allowed) {
+        if (req.body[key] !== undefined) data[key] = req.body[key];
+      }
+
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ success: false, message: 'No updatable fields provided' });
+      }
+
+      const collateral = await collateralService.updateCollateralParticulars(req.params.id, data, userId);
+      if (!collateral) {
+        return res.status(404).json({ success: false, message: 'Collateral not found' });
+      }
+
+      return res.status(200).json({ success: true, data: collateral });
+    } catch (error) {
+      logger.error(`CollateralController.updateParticulars Error: ${error.message}`);
+      return res.status(500).json({ success: false, message: error.message });
+    }
   }
 };

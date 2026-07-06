@@ -29,7 +29,19 @@ export const updateCollateralStatus = async (id, status, notes) => {
   return res?.data
 }
 
+/**
+ * Update a collateral record's particulars (admin only).
+ * @param {number|string} id
+ * @param {object} data Fields: collateralType, description, referenceNumber, registrationNumber, estimatedValue, notes
+ * @returns {Promise<object>}
+ */
+export const updateCollateralParticulars = async (id, data) => {
+  const res = await http.patch(`/collaterals/${id}`, data)
+  return res?.data
+}
+
 export default {
   listCollateralsByLoan,
   updateCollateralStatus,
+  updateCollateralParticulars,
 }

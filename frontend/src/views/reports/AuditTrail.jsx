@@ -34,7 +34,7 @@ import { useAuditLogs } from '../../hooks/useAudits'
 import { ACTOR_TYPE, AUDIT_ACTION } from '../../constants/enums'
 import { formatDateTime } from '../../utils/format'
 
-const PAGE_SIZE = 25
+const PAGE_SIZE = 20
 
 // ---------------------------------------------------------------------------
 // Helpers

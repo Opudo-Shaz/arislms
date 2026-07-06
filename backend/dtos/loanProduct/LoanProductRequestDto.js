@@ -13,6 +13,7 @@ class LoanProductRequestDto {
     this.minLoanAmount = data.minLoanAmount;
     this.requiresCollateral = data.requiresCollateral ?? false;
     this.allowedCollateralTypes = data.allowedCollateralTypes ?? [];
+    this.requiresCoSigner = data.requiresCoSigner ?? false;
     this.fees = data.fees ?? 0;
     this.currency = data.currency ?? 'KES';
     this.isActive = data.isActive ?? true;
@@ -80,6 +81,8 @@ class LoanProductRequestDto {
         'array.base': 'Allowed collateral types must be an array',
         'any.only': 'Allowed collateral types must be valid collateral type values'
       }),
+
+    requiresCoSigner: Joi.boolean().default(false),
 
     fees: Joi.number().min(0).default(0)
       .messages({

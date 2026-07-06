@@ -16,7 +16,7 @@ export const listPayments = async (params = {}) => {
     Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
   )
   const res = await http.get('/payments', { params: clean })
-  return { payments: res?.data ?? [], pagination: res?.pagination ?? { total: 0, page: 1, limit: 20, pages: 0 } }
+  return { payments: res?.data ?? [], pagination: res?.pagination ?? { total: 0, page: 1, limit: 10, pages: 0 } }
 }
 
 /** @param {number|string} loanId @returns {Promise<object[]>} Payments for a loan. */

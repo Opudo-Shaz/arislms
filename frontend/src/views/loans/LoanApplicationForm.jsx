@@ -39,12 +39,17 @@ const emptyForm = {
   loanProductId: '',
   principalAmount: '',
   startDate: today(),
+  coSignerIdNumber: '',
   collateralType: '',
   collateralDetails: '',
+  collateralReferenceNumber: '',
+  collateralRegistrationNumber: '',
+  collateralEstimatedValue: '',
+  collateralNotes: '',
   notes: '',
 }
 
-/** Build the API payload; only attach collateral when both fields are set. */
+/** Build the API payload; only attach collateral when type + details are set. */
 const toPayload = (form) => {
   const payload = {
     clientId: Number(form.clientId),
@@ -52,10 +57,15 @@ const toPayload = (form) => {
     principalAmount: Number(form.principalAmount),
     startDate: form.startDate,
   }
+  if (form.coSignerIdNumber.trim()) payload.coSignerIdNumber = form.coSignerIdNumber.trim()
   if (form.collateralType.trim() && form.collateralDetails.trim()) {
     payload.collateral = {
       type: form.collateralType.trim(),
       details: form.collateralDetails.trim(),
+      ...(form.collateralReferenceNumber.trim() ? { referenceNumber: form.collateralReferenceNumber.trim() } : {}),
+      ...(form.collateralRegistrationNumber.trim() ? { registrationNumber: form.collateralRegistrationNumber.trim() } : {}),
+      ...(form.collateralEstimatedValue ? { estimatedValue: Number(form.collateralEstimatedValue) } : {}),
+      ...(form.collateralNotes.trim() ? { notes: form.collateralNotes.trim() } : {}),
     }
   }
   if (form.notes.trim()) payload.notes = form.notes.trim()
@@ -93,6 +103,33 @@ const LoanApplicationForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setErrors(null)
+
+    // Client-side collateral validation
+    if (selectedProduct?.requiresCollateral) {
+      if (!form.collateralType.trim()) {
+        setErrors({ message: 'Collateral type is required for this loan product.' })
+        return
+      }
+      if (!form.collateralDetails.trim()) {
+        setErrors({ message: 'Collateral description is required.' })
+        return
+      }
+      if (!form.collateralReferenceNumber.trim() && !form.collateralRegistrationNumber.trim()) {
+        setErrors({ message: 'Either a reference number or registration number must be provided for the collateral.' })
+        return
+      }
+      if (!form.collateralEstimatedValue) {
+        setErrors({ message: 'Estimated value is required for the collateral.' })
+        return
+      }
+    }
+
+    // Client-side co-signer validation
+    if (selectedProduct?.requiresCoSigner && !form.coSignerIdNumber.trim()) {
+      setErrors({ message: 'A co-signer ID number is required for the selected loan product.' })
+      return
+    }
+
     try {
       const created = await createMutation.mutateAsync(toPayload(form))
       navigate(created?.id ? `/loans/${created.id}` : '/loans')
@@ -188,6 +225,10 @@ const LoanApplicationForm = () => {
                       <span className="text-body-secondary">Collateral: </span>
                       {selectedProduct.requiresCollateral ? 'Required' : 'Not required'}
                     </span>
+                    <span>
+                      <span className="text-body-secondary">Co-signer: </span>
+                      {selectedProduct.requiresCoSigner ? 'Required' : 'Not required'}
+                    </span>
                   </div>
                 </div>
               </CCol>
@@ -209,15 +250,42 @@ const LoanApplicationForm = () => {
               <CFormInput type="date" value={form.startDate} onChange={setField('startDate')} required />
             </CCol>
 
+            {selectedProduct?.requiresCoSigner && (
+              <>
+                <CCol xs={12}>
+                  <hr className="mb-0" />
+                  <div className="d-flex align-items-center gap-2 mt-2">
+                    <span className="fw-semibold small">Co-signer</span>
+                    <span className="badge bg-danger-subtle text-danger small">Required</span>
+                  </div>
+                </CCol>
+                <CCol md={6}>
+                  <CFormLabel>Co-signer ID document number *</CFormLabel>
+                  <CFormInput
+                    value={form.coSignerIdNumber}
+                    onChange={setField('coSignerIdNumber')}
+                    placeholder="National ID / Passport no. of the co-signer"
+                    required
+                  />
+                  <div className="form-text">
+                    Must match an existing client record in the system.
+                  </div>
+                </CCol>
+              </>
+            )}
+
             {selectedProduct?.requiresCollateral && (
               <>
                 <CCol xs={12}>
                   <hr className="mb-0" />
-                  <span className="text-body-secondary small">Collateral</span>
+                  <div className="d-flex align-items-center gap-2 mt-2">
+                    <span className="fw-semibold small">Collateral</span>
+                    <span className="badge bg-danger-subtle text-danger small">Required</span>
+                  </div>
                 </CCol>
                 <CCol md={4}>
-                  <CFormLabel>Collateral type</CFormLabel>
-                  <CFormSelect value={form.collateralType} onChange={setField('collateralType')}>
+                  <CFormLabel>Collateral type *</CFormLabel>
+                  <CFormSelect value={form.collateralType} onChange={setField('collateralType')} required>
                     <option value="">—</option>
                     {COLLATERAL_TYPE.values.map((v) => (
                       <option key={v} value={v}>
@@ -227,11 +295,52 @@ const LoanApplicationForm = () => {
                   </CFormSelect>
                 </CCol>
                 <CCol md={8}>
-                  <CFormLabel>Collateral details</CFormLabel>
+                  <CFormLabel>Description *</CFormLabel>
                   <CFormInput
                     value={form.collateralDetails}
                     onChange={setField('collateralDetails')}
                     placeholder="e.g. Toyota Vitz 2018, KBZ 123A"
+                    required
+                  />
+                </CCol>
+                <CCol md={6}>
+                  <CFormLabel>Reference number</CFormLabel>
+                  <CFormInput
+                    value={form.collateralReferenceNumber}
+                    onChange={setField('collateralReferenceNumber')}
+                    placeholder="Document / asset reference no."
+                  />
+                </CCol>
+                <CCol md={6}>
+                  <CFormLabel>Registration number</CFormLabel>
+                  <CFormInput
+                    value={form.collateralRegistrationNumber}
+                    onChange={setField('collateralRegistrationNumber')}
+                    placeholder="Vehicle reg. / title reg. no."
+                  />
+                </CCol>
+                <CCol xs={12}>
+                  <div className="form-text text-warning-emphasis">
+                    At least one of reference number or registration number is required.
+                  </div>
+                </CCol>
+                <CCol md={4}>
+                  <CFormLabel>Estimated value *</CFormLabel>
+                  <CFormInput
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.collateralEstimatedValue}
+                    onChange={setField('collateralEstimatedValue')}
+                    required
+                  />
+                </CCol>
+                <CCol md={8}>
+                  <CFormLabel>Collateral notes</CFormLabel>
+                  <CFormInput
+                    value={form.collateralNotes}
+                    onChange={setField('collateralNotes')}
+                    placeholder="Any additional info about this collateral"
                   />
                 </CCol>
               </>

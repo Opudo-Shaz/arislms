@@ -26,7 +26,7 @@ import { useLoans } from '../../hooks/useLoans'
 import { LOAN_STATUS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 const clientName = (row) =>
   row.client ? `${row.client.firstName} ${row.client.lastName}`.trim() : `Client #${row.clientId}`

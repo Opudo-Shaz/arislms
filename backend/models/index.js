@@ -17,6 +17,7 @@ const MemberContribution = require('./memberContributionModel');
 const LoanTransaction = require('./loanTransactionModel');
 const Collateral = require('./collateralModel');
 const Document   = require('./documentModel');
+const SystemConfig = require('./systemConfigModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
@@ -24,6 +25,7 @@ const Document   = require('./documentModel');
 if (Client !== undefined && Loan !== undefined) {
   Client.hasMany(Loan, { foreignKey: 'client_id', sourceKey: 'id' });
   Loan.belongsTo(Client, { foreignKey: 'client_id', targetKey: 'id' });
+  Loan.belongsTo(Client, { foreignKey: 'co_signer_id', targetKey: 'id', as: 'coSigner', constraints: false });
 }
 
 if (User !== undefined && Loan !== undefined) {

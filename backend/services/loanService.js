@@ -19,6 +19,7 @@ const ledgerService = require('./ledgerService');
 const collateralService = require('./collateralService');
 const { emitLoanTransaction } = require('../utils/loanTransactionEmitter');
 const LoanTransactionType = require('../enums/loanTransactionType');
+const CollateralStatus = require('../enums/collateralStatus');
 const Document = require('../models/documentModel');
 const DocumentCategory = require('../enums/documentCategory');
 
@@ -136,7 +137,8 @@ const loanService = {
           { association: 'repaymentSchedules', required: false },
           { association: 'creditScore', required: false },
           { association: 'collaterals', required: false },
-          { association: 'transactions', required: false }
+          { association: 'transactions', required: false },
+          { association: 'coSigner', required: false, attributes: ['id', 'firstName', 'lastName'] }
         ]
       });
       if (!loan) return null;
@@ -201,10 +203,32 @@ const loanService = {
       if (!client.isActive) {
         throw Object.assign(new Error('Client account is inactive. Loan creation not allowed.'), { statusCode: 422 });
       }
-      // Validate co-signer exists if provided
+      // Validate co-signer if required by the product or if provided
+      if (product.requiresCoSigner && !data.coSignerId && !data.coSignerIdNumber) {
+        throw Object.assign(
+          new Error('A co-signer is required for the selected loan product. Provide the co-signer\'s ID document number.'),
+          { statusCode: 422 }
+        );
+      }
+      if (data.coSignerIdNumber && !data.coSignerId) {
+        const coSignerByIdNo = await Client.findOne({ where: { idDocumentNumber: data.coSignerIdNumber } });
+        if (!coSignerByIdNo) {
+          throw Object.assign(
+            new Error(`Co-signer not found. No client with ID document number "${data.coSignerIdNumber}" exists.`),
+            { statusCode: 422 }
+          );
+        }
+        if (String(coSignerByIdNo.id) === String(data.clientId)) {
+          throw Object.assign(new Error('Co-signer cannot be the same person as the borrower.'), { statusCode: 422 });
+        }
+        data.coSignerId = coSignerByIdNo.id;
+      }
       if (data.coSignerId) {
-        const coSigner = await User.findByPk(data.coSignerId);
-        if (!coSigner) throw new Error('Co-signer user not found');
+        const coSigner = await Client.findByPk(data.coSignerId);
+        if (!coSigner) throw Object.assign(new Error('Co-signer not found. The provided co-signer ID does not match any client.'), { statusCode: 422 });
+        if (String(data.coSignerId) === String(data.clientId)) {
+          throw Object.assign(new Error('Co-signer cannot be the same person as the borrower.'), { statusCode: 422 });
+        }
       }
 
       // Calculate derived values
@@ -388,10 +412,32 @@ const loanService = {
       const loanCurrency = product.currency || 'KES';
       const fees = product.fees || 0;
 
-      // Validate co-signer exists if provided
+      // Validate co-signer if required by the product or if provided
+      if (product.requiresCoSigner && !data.coSignerId && !data.coSignerIdNumber) {
+        throw Object.assign(
+          new Error('A co-signer is required for the selected loan product. Provide the co-signer\'s ID document number.'),
+          { statusCode: 422 }
+        );
+      }
+      if (data.coSignerIdNumber && !data.coSignerId) {
+        const coSignerByIdNo = await Client.findOne({ where: { idDocumentNumber: data.coSignerIdNumber } });
+        if (!coSignerByIdNo) {
+          throw Object.assign(
+            new Error(`Co-signer not found. No client with ID document number "${data.coSignerIdNumber}" exists.`),
+            { statusCode: 422 }
+          );
+        }
+        if (String(coSignerByIdNo.id) === String(data.clientId)) {
+          throw Object.assign(new Error('Co-signer cannot be the same person as the borrower.'), { statusCode: 422 });
+        }
+        data.coSignerId = coSignerByIdNo.id;
+      }
       if (data.coSignerId) {
-        const coSigner = await User.findByPk(data.coSignerId);
-        if (!coSigner) throw new Error('Co-signer user not found');
+        const coSigner = await Client.findByPk(data.coSignerId);
+        if (!coSigner) throw Object.assign(new Error('Co-signer not found. The provided co-signer ID does not match any client.'), { statusCode: 422 });
+        if (String(data.coSignerId) === String(data.clientId)) {
+          throw Object.assign(new Error('Co-signer cannot be the same person as the borrower.'), { statusCode: 422 });
+        }
       }
 
       // Calculate derived values
@@ -618,6 +664,18 @@ const loanService = {
             'Loan cannot be approved. The loan product requires collateral but no collateral documents have been uploaded for this loan.'
           );
         }
+
+        // All collateral records must be verified before approval
+        const collaterals = loan.collaterals || [];
+        if (collaterals.length > 0) {
+          const unverified = collaterals.filter((c) => c.status !== CollateralStatus.VERIFIED);
+          if (unverified.length > 0) {
+            const types = unverified.map((c) => c.collateralType).join(', ');
+            throw new Error(
+              `Loan cannot be approved. ${unverified.length} collateral record(s) are not yet verified: ${types}. Verify each collateral before approving.`
+            );
+          }
+        }
       }
 
       // Approver must not be the same user who created the loan
@@ -672,6 +730,59 @@ const loanService = {
 
     } catch (error) {
       logger.error(`Error in approveLoan (${id}): ${error.message}`);
+      throw error;
+    }
+  },
+
+  async rejectLoan(id, rejectionNote, rejectorId = null, userAgent = 'unknown') {
+    try {
+      logger.info(`loanService.rejectLoan called for loan ${id}`);
+      const REJECTABLE = [LoanStatus.PENDING, LoanStatus.IN_REVIEW, LoanStatus.UNDER_REVIEW, LoanStatus.PENDING_REVERIFICATION, LoanStatus.VERIFIED];
+      const loan = await Loan.findByPk(id, {
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false }
+        ]
+      });
+      if (!loan) throw new Error('Loan not found');
+
+      if (!REJECTABLE.includes(loan.status)) {
+        throw new Error(`Loan cannot be rejected. Current status: ${loan.status}.`);
+      }
+
+      const previousStatus = loan.status;
+      await loan.update({
+        status: LoanStatus.REJECTED,
+        ...(rejectionNote ? { notes: rejectionNote } : {})
+      });
+
+      await loan.reload({
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'creditScore', required: false },
+          { association: 'collaterals', required: false },
+          { association: 'transactions', required: false }
+        ]
+      });
+
+      await collateralService.syncCollateralLifecycleForLoanStatus(loan, LoanStatus.REJECTED, rejectorId, {
+        notes: rejectionNote || `Loan ${loan.referenceCode} rejected`
+      });
+
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: id,
+        action: 'REJECT',
+        data: { previousStatus, rejectionNote, status: LoanStatus.REJECTED },
+        actorId: rejectorId || 1,
+        options: { actorType: 'USER', source: userAgent }
+      });
+
+      logger.info(`Loan ${id} rejected by user ${rejectorId}. Previous status: ${previousStatus}`);
+      return loan;
+    } catch (error) {
+      logger.error(`Error in rejectLoan (${id}): ${error.message}`);
       throw error;
     }
   },

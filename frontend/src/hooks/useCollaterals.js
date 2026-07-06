@@ -26,6 +26,26 @@ export const useLoanCollaterals = (loanId) =>
   })
 
 /**
+ * Update a collateral record's particulars (admin only).
+ * Pass `{ id, data, loanId }`; `loanId` is used for cache invalidation.
+ */
+export const useUpdateCollateralParticulars = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) =>
+      collateralApi.updateCollateralParticulars(id, data),
+    onSuccess: (_data, { loanId }) => {
+      if (loanId) {
+        qc.invalidateQueries({ queryKey: collateralKeys.byLoan(loanId) })
+        qc.invalidateQueries({ queryKey: loanKeys.detail(loanId) })
+      } else {
+        qc.invalidateQueries({ queryKey: collateralKeys.all })
+      }
+    },
+  })
+}
+
+/**
  * Update a collateral record's status (admin only).
  * Pass `{ id, status, notes, loanId }`; `loanId` is used for cache invalidation.
  */

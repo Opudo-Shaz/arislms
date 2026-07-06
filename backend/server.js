@@ -52,6 +52,7 @@ const ledgerRoutes = require('./routes/ledgerRoutes');
 const memberContributionRoutes = require('./routes/memberContributionRoutes');
 const documentRoutes = require('./routes/documentRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const systemConfigRoutes = require('./routes/systemConfigRoutes');
 
 
 app.use('/api/users', userRoutes);
@@ -70,6 +71,7 @@ app.use('/api/ledger', ledgerRoutes);
 app.use('/api/member-contributions', memberContributionRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/system-configs', systemConfigRoutes);
 
 
 
@@ -87,6 +89,10 @@ registerLoanTransactionListeners();
 
     await sequelize.sync({ alter: true });
     logger.info('Database models synchronized');
+
+    // Seed read-only infra configs from environment variables
+    const { seedInfraConfigs } = require('./services/systemConfigService');
+    await seedInfraConfigs();
   } catch (error) {
     logger.error(`Database connection error: ${error.message}`);
   }

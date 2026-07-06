@@ -12,7 +12,7 @@ const paymentController = {
       logger.info(`User ${userId} fetching all payments`);
 
       const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-      const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 20));
+      const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 10));
       const { method } = req.query;
 
       const result = await paymentService.getAllPayments({

@@ -31,7 +31,7 @@ import { useAuth } from '../../context/AuthContext'
 import { PAYMENT_STATUS, PAYMENT_METHOD, ROLE_GROUPS } from '../../constants/enums'
 import { formatCurrency, formatDateTime } from '../../utils/format'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 const loanLabel = (row) => row.loan?.referenceCode || `Loan #${row.loanId}`
 const clientLabel = (row) => {

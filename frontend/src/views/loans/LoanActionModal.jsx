@@ -5,6 +5,7 @@
  * - `approve`   → approval date (YYYY-MM-DD)
  * - `disburse`  → disbursement date (YYYY-MM-DD)
  * - `principal` → new principal amount (number)
+ * - `reject`    → rejection note (textarea, required)
  *
  * @module views/loans/LoanActionModal
  */
@@ -17,6 +18,7 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
+  CFormTextarea,
   CModal,
   CModalBody,
   CModalFooter,
@@ -50,6 +52,13 @@ const CONFIG = {
     confirmText: 'Update',
     color: 'warning',
   },
+  reject: {
+    title: 'Reject Loan Application',
+    label: 'Rejection reason *',
+    type: 'textarea',
+    confirmText: 'Reject',
+    color: 'danger',
+  },
 }
 
 const LoanActionModal = ({ visible, action, defaultValue, loading, error, onConfirm, onClose }) => {
@@ -78,15 +87,25 @@ const LoanActionModal = ({ visible, action, defaultValue, loading, error, onConf
         </CModalHeader>
         <CModalBody>
           {error && <CAlert color="danger" dismissible>{error.message || 'Action failed.'}</CAlert>}
-          <CFormLabel>{cfg.label} *</CFormLabel>
-          <CFormInput
-            type={cfg.type}
-            value={value}
-            min={cfg.type === 'number' ? '0' : undefined}
-            step={cfg.type === 'number' ? '0.01' : undefined}
-            onChange={(e) => setValue(e.target.value)}
-            required
-          />
+          <CFormLabel>{cfg.label}</CFormLabel>
+          {cfg.type === 'textarea' ? (
+            <CFormTextarea
+              rows={4}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="Provide a clear reason for rejection…"
+              required
+            />
+          ) : (
+            <CFormInput
+              type={cfg.type}
+              value={value}
+              min={cfg.type === 'number' ? '0' : undefined}
+              step={cfg.type === 'number' ? '0.01' : undefined}
+              onChange={(e) => setValue(e.target.value)}
+              required
+            />
+          )}
         </CModalBody>
         <CModalFooter>
           <CButton color="secondary" variant="outline" onClick={onClose} disabled={loading}>
@@ -104,7 +123,7 @@ const LoanActionModal = ({ visible, action, defaultValue, loading, error, onConf
 
 LoanActionModal.propTypes = {
   visible: PropTypes.bool.isRequired,
-  action: PropTypes.oneOf(['approve', 'disburse', 'principal']),
+  action: PropTypes.oneOf(['approve', 'disburse', 'principal', 'reject']),
   defaultValue: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   loading: PropTypes.bool,
   error: PropTypes.object,

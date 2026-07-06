@@ -11,6 +11,7 @@ class LoanRequestDto {
     this.penalties = data.penalties || 0;
     this.collateral = data.collateral;
     this.coSignerId = data.coSignerId;
+    this.coSignerIdNumber = data.coSignerIdNumber;
     this.notes = data.notes;
   }
 
@@ -53,7 +54,12 @@ class LoanRequestDto {
           }),
         referenceNumber: Joi.string().trim().allow(null, ''),
         registrationNumber: Joi.string().trim().allow(null, ''),
-        estimatedValue: Joi.number().positive().allow(null),
+        estimatedValue: Joi.number().positive().required()
+          .messages({
+            'number.base': 'Collateral estimated value must be a number',
+            'number.positive': 'Collateral estimated value must be greater than zero',
+            'any.required': 'Collateral estimated value is required'
+          }),
         notes: Joi.string().allow(null, '')
       }),
       Joi.array().items(
@@ -62,7 +68,12 @@ class LoanRequestDto {
           details: Joi.string().trim().required(),
           referenceNumber: Joi.string().trim().allow(null, ''),
           registrationNumber: Joi.string().trim().allow(null, ''),
-          estimatedValue: Joi.number().positive().allow(null),
+          estimatedValue: Joi.number().positive().required()
+            .messages({
+              'number.base': 'Collateral estimated value must be a number',
+              'number.positive': 'Collateral estimated value must be greater than zero',
+              'any.required': 'Collateral estimated value is required'
+            }),
           notes: Joi.string().allow(null, '')
         })
       ),
@@ -74,6 +85,11 @@ class LoanRequestDto {
     coSignerId: Joi.number().integer().allow(null)
       .messages({
         'number.base': 'Co-signer ID must be a number'
+      }),
+
+    coSignerIdNumber: Joi.string().trim().allow(null, '')
+      .messages({
+        'string.base': 'Co-signer ID number must be a string'
       }),
 
     notes: Joi.string().allow(null, '')

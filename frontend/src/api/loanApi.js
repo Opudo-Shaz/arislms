@@ -73,6 +73,12 @@ export const updatePrincipal = async (id, newPrincipalAmount) => {
   return res?.data
 }
 
+/** Reject a loan application with a required note (admin only). */
+export const rejectLoan = async (id, rejectionNote) => {
+  const res = await http.post(`/loans/${id}/reject`, { rejectionNote })
+  return res?.data
+}
+
 export default {
   listLoans,
   listMyLoans,
@@ -83,4 +89,5 @@ export default {
   approveLoan,
   disburseLoan,
   updatePrincipal,
+  rejectLoan,
 }

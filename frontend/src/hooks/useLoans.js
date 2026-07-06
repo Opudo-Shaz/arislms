@@ -63,8 +63,8 @@ export const useDeleteLoan = () => {
 }
 
 /**
- * Lifecycle actions: approve, disburse, principal update.
- * `action` is one of `approve`, `disburse`, `principal`.
+ * Lifecycle actions: approve, disburse, principal update, reject.
+ * `action` is one of `approve`, `disburse`, `principal`, `reject`.
  */
 export const useLoanAction = () => {
   const qc = useQueryClient()
@@ -77,6 +77,8 @@ export const useLoanAction = () => {
           return loanApi.disburseLoan(id, value)
         case 'principal':
           return loanApi.updatePrincipal(id, value)
+        case 'reject':
+          return loanApi.rejectLoan(id, value)
         default:
           throw new Error(`Unknown loan action: ${action}`)
       }

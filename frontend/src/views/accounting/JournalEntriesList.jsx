@@ -34,7 +34,7 @@ import { useAuth } from '../../context/AuthContext'
 import { JOURNAL_ENTRY_STATUS, LEDGER_SOURCE_TYPE, ROLE_GROUPS } from '../../constants/enums'
 import { formatCurrency, formatDateTime } from '../../utils/format'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 const lineTotal = (entry) =>
   (entry.lines || []).reduce((s, l) => s + Number(l.debit || 0), 0)

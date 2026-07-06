@@ -266,6 +266,45 @@ exports.approveLoan = async (req, res) => {
   }
 };
 
+exports.rejectLoan = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+    const loanId = req.params.id;
+    const { rejectionNote } = req.body;
+
+    if (!isAdmin(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'User not authorized to reject loans'
+      });
+    }
+
+    if (!rejectionNote || !String(rejectionNote).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'A rejection note is required'
+      });
+    }
+
+    logger.info(`User ${userId} rejecting loan ${loanId}`);
+    const rejectedLoan = await loanService.rejectLoan(loanId, String(rejectionNote).trim(), userId, userAgent);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Loan rejected successfully',
+      data: new LoanResponseDto(rejectedLoan)
+    });
+  } catch (error) {
+    logger.error(`RejectLoan Error (${req.params.id}): ${error.message}`);
+    let status = 500;
+    const msg = error.message;
+    if (/not found/i.test(msg)) status = 404;
+    else if (/cannot be rejected/i.test(msg)) status = 400;
+    return res.status(status).json({ success: false, message: msg });
+  }
+};
+
 exports.deleteLoan = async (req, res) => {
   try {
     const userId = getUserId(req);

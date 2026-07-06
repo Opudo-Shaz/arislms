@@ -26,6 +26,7 @@ import {
   cilUser,
   cilLockLocked,
   cilBell,
+  cilSettings,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem, CNavTitle } from '@coreui/react'
 
@@ -75,12 +76,12 @@ const _nav = [
     to: '/payments',
     icon: <CIcon icon={cilCreditCard} customClassName="nav-icon" />,
   },
-  {
-    component: CNavItem,
-    name: 'Collaterals',
-    to: '/collaterals',
-    icon: <CIcon icon={cilShieldAlt} customClassName="nav-icon" />,
-  },
+  // {
+  //   component: CNavItem,
+  //   name: 'Collaterals',
+  //   to: '/collaterals',
+  //   icon: <CIcon icon={cilShieldAlt} customClassName="nav-icon" />,
+  // },
   {
     component: CNavItem,
     name: 'Member Contributions',
@@ -146,6 +147,13 @@ const _nav = [
     to: '/admin/roles',
     icon: <CIcon icon={cilLockLocked} customClassName="nav-icon" />,
     roles: [1, 2],
+  },
+  {
+    component: CNavItem,
+    name: 'System Configuration',
+    to: '/settings/system-config',
+    icon: <CIcon icon={cilSettings} customClassName="nav-icon" />,
+    roles: [1],
   },
   {
     component: CNavItem,

@@ -23,5 +23,6 @@ router.get('/loan/:loanId', authenticate, collateralController.getByLoan);
  *       - Collaterals
  */
 router.patch('/:id/status', authenticate, authorize([1, 2]), collateralController.updateStatus);
+router.patch('/:id', authenticate, authorize([1]), collateralController.updateParticulars);
 
 module.exports = router;

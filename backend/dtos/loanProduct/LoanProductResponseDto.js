@@ -17,6 +17,7 @@ class LoanProductResponseDto {
     this.fees = product.fees;
     this.requiresCollateral = product.requiresCollateral;
     this.allowedCollateralTypes = product.allowedCollateralTypes || [];
+    this.requiresCoSigner = product.requiresCoSigner ?? false;
     this.status = product.status;
     this.createdAt = product.createdAt;
     this.updatedAt = product.updatedAt;

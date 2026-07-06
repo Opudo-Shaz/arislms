@@ -96,6 +96,16 @@ const LoanProductsList = () => {
         ),
     },
     {
+      key: 'coSigner',
+      label: 'Co-signer',
+      render: (row) =>
+        row.requiresCoSigner ? (
+          <CBadge color="warning">Required</CBadge>
+        ) : (
+          <span className="text-body-secondary">Not required</span>
+        ),
+    },
+    {
       key: 'actions',
       label: '',
       headerClassName: 'text-end',

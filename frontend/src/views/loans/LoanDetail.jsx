@@ -28,7 +28,7 @@ import {
   CTabPane,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilCash, cilCheckAlt, cilPencil, cilPlus, cilTrash } from '@coreui/icons'
+import { cilBan, cilCash, cilCheckAlt, cilPencil, cilPlus, cilTrash } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
@@ -38,9 +38,11 @@ import LoanDocuments from './LoanDocuments'
 import PaymentForm from '../payments/PaymentForm'
 import PaymentDetailModal from '../payments/PaymentDetailModal'
 import CollateralStatusModal from '../collaterals/CollateralStatusModal'
+import CollateralEditModal from '../collaterals/CollateralEditModal'
 import { useLoan, useLoanAction, useDeleteLoan } from '../../hooks/useLoans'
 import { useLoanPayments } from '../../hooks/usePayments'
-import { useUpdateCollateralStatus } from '../../hooks/useCollaterals'
+import { useLoanDocuments } from '../../hooks/useDocuments'
+import { useUpdateCollateralStatus, useUpdateCollateralParticulars } from '../../hooks/useCollaterals'
 import { useClient } from '../../hooks/useClients'
 import { useLoanProduct } from '../../hooks/useLoanProducts'
 import { useAuth } from '../../context/AuthContext'
@@ -77,20 +79,23 @@ const LoanDetail = () => {
   const { data: client } = useClient(loan?.clientId)
   const { data: loanProduct } = useLoanProduct(loan?.loanProductId)
   const { data: payments = [] } = useLoanPayments(id)
+  const { data: loanDocuments = [] } = useLoanDocuments(id)
   const action = useLoanAction()
   const deleteMutation = useDeleteLoan()
   const collateralStatusMutation = useUpdateCollateralStatus()
+  const collateralEditMutation = useUpdateCollateralParticulars()
   const { role } = useAuth()
   const isAdmin = role === ROLES.ADMIN
   const canManage = ROLE_GROUPS.STAFF.includes(role)
 
   const [activeTab, setActiveTab] = useState(0)
-  const [actionType, setActionType] = useState(null) // 'approve' | 'disburse' | 'principal'
+  const [actionType, setActionType] = useState(null) // 'approve' | 'disburse' | 'principal' | 'reject'
   const [actionError, setActionError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [viewPayment, setViewPayment] = useState(null)
   const [collateralTarget, setCollateralTarget] = useState(null)
+  const [collateralEditTarget, setCollateralEditTarget] = useState(null)
 
   const runAction = async (value) => {
     setActionError(null)
@@ -106,6 +111,15 @@ const LoanDetail = () => {
     try {
       await collateralStatusMutation.mutateAsync({ id: collateralTarget.id, status, notes, loanId: id })
       setCollateralTarget(null)
+    } catch {
+      // Error surfaced via mutation state; modal stays open.
+    }
+  }
+
+  const runCollateralEdit = async (data) => {
+    try {
+      await collateralEditMutation.mutateAsync({ id: collateralEditTarget.id, data, loanId: id })
+      setCollateralEditTarget(null)
     } catch {
       // Error surfaced via mutation state; modal stays open.
     }
@@ -142,6 +156,12 @@ const LoanDetail = () => {
     .slice()
     .sort((a, b) => a.installmentNumber - b.installmentNumber)
   const collaterals = loan.collaterals || []
+
+  /** Number of documents uploaded against each collateral id. */
+  const docCountByCollateral = loanDocuments.reduce((acc, doc) => {
+    if (doc.collateralId) acc[doc.collateralId] = (acc[doc.collateralId] || 0) + 1
+    return acc
+  }, {})
 
   const scheduleColumns = [
     { key: 'installmentNumber', label: '#', render: (r) => (r.installmentNumber === 0 ? 'Fee' : r.installmentNumber) },
@@ -180,6 +200,16 @@ const LoanDetail = () => {
       label: 'Status',
       render: (r) => <StatusBadge enumDef={COLLATERAL_STATUS} value={r.status} />,
     },
+    {
+      key: 'docCount',
+      label: 'Docs',
+      render: (r) => {
+        const count = docCountByCollateral[r.id] || 0
+        return count > 0
+          ? <CBadge color="info">{count}</CBadge>
+          : <span className="text-body-secondary">0</span>
+      },
+    },
     ...(isAdmin
       ? [
           {
@@ -187,15 +217,26 @@ const LoanDetail = () => {
             label: '',
             className: 'text-end',
             render: (r) => (
-              <CButton
-                color="warning"
-                size="sm"
-                variant="outline"
-                onClick={() => setCollateralTarget(r)}
-              >
-                <CIcon icon={cilPencil} className="me-1" />
-                Status
-              </CButton>
+              <div className="d-flex gap-1 justify-content-end">
+                <CButton
+                  color="secondary"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCollateralEditTarget(r)}
+                  title="Edit collateral details"
+                >
+                  <CIcon icon={cilPencil} />
+                </CButton>
+                <CButton
+                  color="warning"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCollateralTarget(r)}
+                  title="Update status"
+                >
+                  Status
+                </CButton>
+              </div>
             ),
           },
         ]
@@ -265,6 +306,19 @@ const LoanDetail = () => {
               >
                 <CIcon icon={cilCheckAlt} className="me-1" />
                 Approve
+              </CButton>
+            )}
+            {isAdmin && canApprove && (
+              <CButton
+                color="danger"
+                size="sm"
+                onClick={() => {
+                  setActionError(null)
+                  setActionType('reject')
+                }}
+              >
+                <CIcon icon={cilBan} className="me-1" />
+                Reject
               </CButton>
             )}
             {canManage && canDisburse && (
@@ -371,6 +425,13 @@ const LoanDetail = () => {
                   {formatCurrency(loan.amountRepaid, loan.currency)}
                 </Field>
                 <Field label="Repayments Made">{loan.noOfRepayments ?? '—'}</Field>
+                {loan.coSignerId && (
+                  <Field label="Co-signer">
+                    {loan.coSigner
+                      ? `${loan.coSigner.firstName} ${loan.coSigner.lastName}`.trim()
+                      : `Client #${loan.coSignerId}`}
+                  </Field>
+                )}
               </CRow>
             </CTabPane>
 
@@ -433,7 +494,7 @@ const LoanDetail = () => {
             </CTabPane>
 
             <CTabPane visible={activeTab === 5}>
-              <LoanDocuments loanId={id} />
+              <LoanDocuments loanId={id} collaterals={collaterals} />
             </CTabPane>
           </CTabContent>
         </CCardBody>
@@ -481,6 +542,15 @@ const LoanDetail = () => {
         error={collateralStatusMutation.error}
         onConfirm={runCollateralStatus}
         onClose={() => setCollateralTarget(null)}
+      />
+
+      <CollateralEditModal
+        visible={Boolean(collateralEditTarget)}
+        collateral={collateralEditTarget}
+        loading={collateralEditMutation.isPending}
+        error={collateralEditMutation.error}
+        onConfirm={runCollateralEdit}
+        onClose={() => setCollateralEditTarget(null)}
       />
     </>
   )

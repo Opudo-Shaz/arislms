@@ -26,6 +26,10 @@ function LoanResponseDto(loan) {
     fees: loan.fees,
     penalties: loan.penalties,
     collateral: loan.collateral,
+    coSignerId: loan.coSignerId ?? null,
+    coSigner: loan.coSigner
+      ? { id: loan.coSigner.id, firstName: loan.coSigner.firstName, lastName: loan.coSigner.lastName }
+      : null,
     collaterals: loan.collaterals
       ? loan.collaterals.map((collateral) => (typeof collateral.toJSON === 'function' ? collateral.toJSON() : collateral))
       : [],

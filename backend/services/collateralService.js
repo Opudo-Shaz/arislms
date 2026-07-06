@@ -2,6 +2,7 @@ const Collateral = require('../models/collateralModel');
 const CollateralStatus = require('../enums/collateralStatus');
 const CollateralType = require('../enums/collateralType');
 const logger = require('../config/logger');
+const AuditLogger = require('../utils/auditLogger');
 
 const TYPE_ALIASES = new Map([
   ['logbook', CollateralType.CAR_LOG_BOOK],
@@ -59,6 +60,9 @@ function validateCollateralInputAgainstProduct(product, collateral) {
     if (!item.description) {
       throw new Error('Collateral description is required');
     }
+    if (item.estimatedValue === null || item.estimatedValue === undefined) {
+      throw new Error('Collateral estimated value is required');
+    }
     if (allowedTypes.length > 0 && !allowedTypes.includes(item.collateralType)) {
       throw new Error(`Collateral type ${item.collateralType} is not allowed for the selected loan product`);
     }
@@ -68,131 +72,166 @@ function validateCollateralInputAgainstProduct(product, collateral) {
 }
 
 async function createLoanCollaterals({ loan, product, collateral, actorId = null, transaction }) {
-  const items = validateCollateralInputAgainstProduct(product, collateral);
-  if (items.length === 0) {
-    return [];
+  try {
+    const items = validateCollateralInputAgainstProduct(product, collateral);
+    if (items.length === 0) {
+      return [];
+    }
+
+    const created = await Collateral.bulkCreate(
+      items.map((item) => ({
+        loanId: loan.id,
+        clientId: loan.clientId,
+        loanProductId: loan.loanProductId,
+        collateralType: item.collateralType,
+        description: item.description,
+        referenceNumber: item.referenceNumber,
+        registrationNumber: item.registrationNumber,
+        estimatedValue: item.estimatedValue,
+        metadata: item.metadata,
+        notes: item.notes,
+        status: CollateralStatus.PLEDGED,
+        createdBy: actorId,
+        updatedBy: actorId
+      })),
+      { transaction }
+    );
+
+    logger.info(`Created ${created.length} collateral record(s) for loan ${loan.id}`);
+    return created;
+  } catch (error) {
+    logger.error(`collateralService.createLoanCollaterals Error (loan ${loan?.id}): ${error.message}`);
+    throw error;
   }
-
-  const created = await Collateral.bulkCreate(
-    items.map((item) => ({
-      loanId: loan.id,
-      clientId: loan.clientId,
-      loanProductId: loan.loanProductId,
-      collateralType: item.collateralType,
-      description: item.description,
-      referenceNumber: item.referenceNumber,
-      registrationNumber: item.registrationNumber,
-      estimatedValue: item.estimatedValue,
-      metadata: item.metadata,
-      notes: item.notes,
-      status: CollateralStatus.PLEDGED,
-      createdBy: actorId,
-      updatedBy: actorId
-    })),
-    { transaction }
-  );
-
-  logger.info(`Created ${created.length} collateral record(s) for loan ${loan.id}`);
-  return created;
 }
 
 async function getLoanCollaterals(loanId) {
-  return Collateral.findAll({
-    where: { loanId },
-    order: [['created_at', 'ASC']]
-  });
+  try {
+    return await Collateral.findAll({
+      where: { loanId },
+      order: [['created_at', 'ASC']]
+    });
+  } catch (error) {
+    logger.error(`collateralService.getLoanCollaterals Error (loanId ${loanId}): ${error.message}`);
+    throw error;
+  }
 }
 
 async function setLoanCollateralStatus(loanId, status, actorId = null, options = {}) {
-  const updates = {
-    status,
-    updatedBy: actorId
-  };
+  try {
+    const updates = { status, updatedBy: actorId };
 
-  if (options.notes !== undefined) {
-    updates.notes = options.notes;
+    if (options.notes !== undefined) updates.notes = options.notes;
+
+    if (status === CollateralStatus.VERIFIED) {
+      updates.verifiedBy = actorId;
+      updates.verifiedAt = new Date();
+    }
+    if (status === CollateralStatus.RELEASED) {
+      updates.releasedBy = actorId;
+      updates.releasedAt = new Date();
+    }
+    if (status === CollateralStatus.LIQUIDATED) {
+      updates.liquidatedBy = actorId;
+      updates.liquidatedAt = new Date();
+    }
+
+    const [affected] = await Collateral.update(updates, {
+      where: { loanId },
+      transaction: options.transaction
+    });
+
+    logger.info(`Updated ${affected} collateral record(s) for loan ${loanId} to status ${status}`);
+    return affected;
+  } catch (error) {
+    logger.error(`collateralService.setLoanCollateralStatus Error (loanId ${loanId}): ${error.message}`);
+    throw error;
   }
-
-  if (status === CollateralStatus.VERIFIED) {
-    updates.verifiedBy = actorId;
-    updates.verifiedAt = new Date();
-  }
-
-  if (status === CollateralStatus.RELEASED) {
-    updates.releasedBy = actorId;
-    updates.releasedAt = new Date();
-  }
-
-  if (status === CollateralStatus.LIQUIDATED) {
-    updates.liquidatedBy = actorId;
-    updates.liquidatedAt = new Date();
-  }
-
-  const [affected] = await Collateral.update(updates, {
-    where: { loanId },
-    transaction: options.transaction
-  });
-
-  logger.info(`Updated ${affected} collateral record(s) for loan ${loanId} to status ${status}`);
-  return affected;
 }
 
 async function updateCollateralStatus(id, status, actorId = null, options = {}) {
-  const collateral = await Collateral.findByPk(id, { transaction: options.transaction });
-  if (!collateral) {
-    return null;
+  try {
+    const collateral = await Collateral.findByPk(id, { transaction: options.transaction });
+    if (!collateral) return null;
+
+    const updates = { status, updatedBy: actorId };
+
+    if (options.notes !== undefined) updates.notes = options.notes;
+
+    if (status === CollateralStatus.VERIFIED) {
+      updates.verifiedBy = actorId;
+      updates.verifiedAt = new Date();
+    }
+    if (status === CollateralStatus.RELEASED) {
+      updates.releasedBy = actorId;
+      updates.releasedAt = new Date();
+    }
+    if (status === CollateralStatus.LIQUIDATED) {
+      updates.liquidatedBy = actorId;
+      updates.liquidatedAt = new Date();
+    }
+
+    await collateral.update(updates, { transaction: options.transaction });
+    return collateral;
+  } catch (error) {
+    logger.error(`collateralService.updateCollateralStatus Error (id ${id}): ${error.message}`);
+    throw error;
   }
-
-  const updates = {
-    status,
-    updatedBy: actorId
-  };
-
-  if (options.notes !== undefined) {
-    updates.notes = options.notes;
-  }
-
-  if (status === CollateralStatus.VERIFIED) {
-    updates.verifiedBy = actorId;
-    updates.verifiedAt = new Date();
-  }
-
-  if (status === CollateralStatus.RELEASED) {
-    updates.releasedBy = actorId;
-    updates.releasedAt = new Date();
-  }
-
-  if (status === CollateralStatus.LIQUIDATED) {
-    updates.liquidatedBy = actorId;
-    updates.liquidatedAt = new Date();
-  }
-
-  await collateral.update(updates, { transaction: options.transaction });
-  return collateral;
 }
 
 async function syncCollateralLifecycleForLoanStatus(loan, loanStatus, actorId = null, options = {}) {
-  if (!loan?.id) {
+  try {
+    if (!loan?.id) return 0;
+
+    if (loanStatus === 'approved') {
+      return setLoanCollateralStatus(loan.id, CollateralStatus.VERIFIED, actorId, options);
+    }
+    if (loanStatus === 'disbursed') {
+      return setLoanCollateralStatus(loan.id, CollateralStatus.ACTIVE, actorId, options);
+    }
+    if (loanStatus === 'defaulted') {
+      return setLoanCollateralStatus(loan.id, CollateralStatus.LIQUIDATED, actorId, options);
+    }
+    if (['rejected', 'cancelled', 'deleted', 'closed'].includes(loanStatus)) {
+      return setLoanCollateralStatus(loan.id, CollateralStatus.RELEASED, actorId, options);
+    }
+
     return 0;
+  } catch (error) {
+    logger.error(`collateralService.syncCollateralLifecycleForLoanStatus Error (loan ${loan?.id}, status ${loanStatus}): ${error.message}`);
+    throw error;
   }
+}
 
-  if (loanStatus === 'approved') {
-    return setLoanCollateralStatus(loan.id, CollateralStatus.VERIFIED, actorId, options);
+async function updateCollateralParticulars(id, data, actorId = null) {
+  try {
+    const collateral = await Collateral.findByPk(id);
+    if (!collateral) return null;
+
+    const updates = { updatedBy: actorId };
+    if (data.collateralType !== undefined) updates.collateralType = normalizeCollateralType(data.collateralType) || data.collateralType;
+    if (data.description !== undefined) updates.description = data.description;
+    if (data.referenceNumber !== undefined) updates.referenceNumber = data.referenceNumber || null;
+    if (data.registrationNumber !== undefined) updates.registrationNumber = data.registrationNumber || null;
+    if (data.estimatedValue !== undefined) updates.estimatedValue = data.estimatedValue || null;
+    if (data.notes !== undefined) updates.notes = data.notes || null;
+
+    await collateral.update(updates);
+
+    await AuditLogger.log({
+      entityType: 'COLLATERAL',
+      entityId: String(id),
+      action: 'UPDATE',
+      data: { changes: data },
+      actorId: actorId || AuditLogger.SYSTEM_USER_ID,
+      options: { actorType: 'USER' }
+    });
+
+    return collateral.reload();
+  } catch (error) {
+    logger.error(`collateralService.updateCollateralParticulars Error (id ${id}): ${error.message}`);
+    throw error;
   }
-
-  if (loanStatus === 'disbursed') {
-    return setLoanCollateralStatus(loan.id, CollateralStatus.ACTIVE, actorId, options);
-  }
-
-  if (loanStatus === 'defaulted') {
-    return setLoanCollateralStatus(loan.id, CollateralStatus.LIQUIDATED, actorId, options);
-  }
-
-  if (['rejected', 'cancelled', 'deleted', 'closed'].includes(loanStatus)) {
-    return setLoanCollateralStatus(loan.id, CollateralStatus.RELEASED, actorId, options);
-  }
-
-  return 0;
 }
 
 module.exports = {
@@ -202,6 +241,7 @@ module.exports = {
   createLoanCollaterals,
   getLoanCollaterals,
   updateCollateralStatus,
+  updateCollateralParticulars,
   setLoanCollateralStatus,
   syncCollateralLifecycleForLoanStatus
 };

@@ -8,6 +8,7 @@ const {
   deleteLoan,
   getMyLoans,
   approveLoan,
+  rejectLoan,
   disburseLoan,
   updatePrincipalAmount
 } = require('../controllers/loanController');
@@ -436,6 +437,7 @@ router.post('/:id/disburse', authenticate, authorize([1,2]), disburseLoan);
  *         description: Loan not found
  */
 router.post('/:id/approve', authenticate, authorize([1,2]), approveLoan);
+router.post('/:id/reject', authenticate, authorize([1,2]), rejectLoan);
 
 /**
  * @openapi

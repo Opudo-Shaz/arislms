@@ -31,10 +31,11 @@ import { cilCloudUpload, cilExternalLink, cilFile, cilTrash } from '@coreui/icon
 
 import ConfirmModal from '../../components/ConfirmModal'
 import StatusBadge from '../../components/StatusBadge'
-import { DOCUMENT_TYPE, DOCUMENT_STATUS, LOAN_DOCUMENT_TYPES } from '../../constants/enums'
+import { DOCUMENT_TYPE, DOCUMENT_STATUS, LOAN_DOCUMENT_TYPES, COLLATERAL_TYPE } from '../../constants/enums' // COLLATERAL_TYPE used in collateral option labels
 import { useLoanDocuments, useUploadDocument, useDeleteDocument } from '../../hooks/useDocuments'
 import documentApi from '../../api/documentApi'
 import { formatDate } from '../../utils/format'
+
 
 const formatSize = (bytes) => {
   if (!bytes && bytes !== 0) return ''
@@ -43,14 +44,14 @@ const formatSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-const emptyForm = { documentType: 'title_deed', documentCategory: 'loan_collateral', description: '', file: null }
+const emptyForm = { documentType: 'title_deed', documentCategory: 'loan_collateral', collateralId: '', description: '', file: null }
 
 const CATEGORY_OPTIONS = [
   { value: 'loan_collateral', label: 'Collateral' },
   { value: 'loan_supporting', label: 'Supporting' },
 ]
 
-const LoanDocuments = ({ loanId }) => {
+const LoanDocuments = ({ loanId, collaterals }) => {
   const { data: documents = [], isLoading, error } = useLoanDocuments(loanId)
   const uploadMutation = useUploadDocument(null, loanId)
   const deleteMutation = useDeleteDocument(null, loanId)
@@ -63,6 +64,15 @@ const LoanDocuments = ({ loanId }) => {
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
+  const handleCategoryChange = (e) => {
+    const val = e.target.value
+    setForm((f) => ({ ...f, documentCategory: val, collateralId: '' }))
+  }
+
+  const handleCollateralChange = (e) => {
+    setForm((f) => ({ ...f, collateralId: e.target.value }))
+  }
+
   const handleFile = (e) => {
     const file = e.target.files?.[0] || null
     setForm((f) => ({ ...f, file }))
@@ -71,6 +81,10 @@ const LoanDocuments = ({ loanId }) => {
   const handleUpload = async (e) => {
     e.preventDefault()
     if (!form.file) { setFormError('Please choose a file to upload.'); return }
+    if (form.documentCategory === 'loan_collateral' && collaterals.length > 0 && !form.collateralId) {
+      setFormError('Please select the collateral this document belongs to.')
+      return
+    }
     setFormError(null)
 
     const fd = new FormData()
@@ -78,6 +92,7 @@ const LoanDocuments = ({ loanId }) => {
     fd.append('documentType', form.documentType)
     fd.append('documentCategory', form.documentCategory)
     fd.append('loanId', loanId)
+    if (form.collateralId) fd.append('collateralId', form.collateralId)
     if (form.description.trim()) fd.append('description', form.description.trim())
 
     try {
@@ -194,15 +209,33 @@ const LoanDocuments = ({ loanId }) => {
           {/* Upload form */}
           <CForm onSubmit={handleUpload}>
             <CRow className="g-3">
-              <CCol md={4}>
+              {/* Category */}
+              <CCol md={form.documentCategory === 'loan_collateral' && collaterals.length > 0 ? 3 : 4}>
                 <CFormLabel>Category</CFormLabel>
-                <CFormSelect value={form.documentCategory} onChange={setField('documentCategory')}>
+                <CFormSelect value={form.documentCategory} onChange={handleCategoryChange}>
                   {CATEGORY_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </CFormSelect>
               </CCol>
-              <CCol md={4}>
+
+              {/* Collateral picker — only when category is loan_collateral and collaterals exist */}
+              {form.documentCategory === 'loan_collateral' && collaterals.length > 0 && (
+                <CCol md={3}>
+                  <CFormLabel>Collateral </CFormLabel>
+                  <CFormSelect value={form.collateralId} onChange={handleCollateralChange} required>
+                    <option value="">— Select collateral —</option>
+                    {collaterals.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {COLLATERAL_TYPE.labels[c.collateralType] || c.collateralType}
+                        {c.description ? ` — ${c.description}` : ''}
+                      </option>
+                    ))}
+                  </CFormSelect>
+                </CCol>
+              )}
+
+              <CCol md={form.documentCategory === 'loan_collateral' && collaterals.length > 0 ? 3 : 4}>
                 <CFormLabel>Document type</CFormLabel>
                 <CFormSelect value={form.documentType} onChange={setField('documentType')}>
                   {LOAN_DOCUMENT_TYPES.map((v) => (
@@ -210,7 +243,7 @@ const LoanDocuments = ({ loanId }) => {
                   ))}
                 </CFormSelect>
               </CCol>
-              <CCol md={4}>
+              <CCol md={form.documentCategory === 'loan_collateral' && collaterals.length > 0 ? 3 : 4}>
                 <CFormLabel>File</CFormLabel>
                 <CFormInput
                   type="file"
@@ -267,6 +300,11 @@ const LoanDocuments = ({ loanId }) => {
 
 LoanDocuments.propTypes = {
   loanId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  collaterals: PropTypes.array,
+}
+
+LoanDocuments.defaultProps = {
+  collaterals: [],
 }
 
 export default LoanDocuments

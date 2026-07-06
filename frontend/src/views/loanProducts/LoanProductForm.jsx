@@ -45,6 +45,7 @@ const emptyForm = {
   currency: 'KES',
   requiresCollateral: false,
   allowedCollateralTypes: [],
+  requiresCoSigner: false,
   isActive: true,
 }
 
@@ -62,6 +63,7 @@ const toForm = (p) => ({
   currency: p.currency || 'KES',
   requiresCollateral: Boolean(p.requiresCollateral),
   allowedCollateralTypes: p.allowedCollateralTypes || [],
+  requiresCoSigner: Boolean(p.requiresCoSigner),
   isActive: p.status ? p.status === 'active' : true,
 })
 
@@ -81,6 +83,7 @@ const toPayload = (form) => ({
   currency: form.currency.trim().toUpperCase(),
   requiresCollateral: form.requiresCollateral,
   allowedCollateralTypes: form.requiresCollateral ? form.allowedCollateralTypes : [],
+  requiresCoSigner: form.requiresCoSigner,
   isActive: form.isActive,
 })
 
@@ -258,6 +261,15 @@ const LoanProductForm = ({ visible, product, onClose }) => {
                 checked={form.requiresCollateral}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, requiresCollateral: e.target.checked }))
+                }
+              />
+            </CCol>
+            <CCol xs={12}>
+              <CFormCheck
+                label="Requires co-signer"
+                checked={form.requiresCoSigner}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, requiresCoSigner: e.target.checked }))
                 }
               />
             </CCol>
