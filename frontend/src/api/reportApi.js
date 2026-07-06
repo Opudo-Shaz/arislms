@@ -19,6 +19,17 @@ export const getPortfolioAging = async (asOf) => {
   return res?.data ?? { asOf: null, buckets: [], totals: { principalOutstanding: 0, count: 0 } }
 }
 
+/**
+ * Dashboard statistics: KPIs, loan status breakdown, monthly trends,
+ * income vs expenditure, and portfolio aging summary.
+ * @returns {Promise<object>}
+ */
+export const getDashboardStats = async () => {
+  const res = await http.get('/reports/dashboard-stats')
+  return res?.data ?? null
+}
+
 export default {
   getPortfolioAging,
+  getDashboardStats,
 }
