@@ -1,10 +1,15 @@
-@use "@coreui/coreui/scss/coreui" as * with ( 
+@use "@coreui/coreui/scss/coreui" as * with (
   $enable-deprecation-messages: false,
 );
 @use "@coreui/chartjs/scss/coreui-chartjs";
 @use "vendors/simplebar";
 
 body {
+  // Override global font — change the family name here to swap app-wide
+  --cui-font-sans-serif: 'Comfortaa', system-ui, sans-serif;
+  --cui-body-font-family: var(--cui-font-sans-serif);
+  // Comfortaa reads ~1pt larger than system fonts; 0.925rem ≈ 14.8px (was 16px)
+  --cui-body-font-size: 0.925rem;
   background-color: var(--cui-tertiary-bg);
 }
 
