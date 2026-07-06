@@ -26,6 +26,16 @@ import {
   CTableRow,
 } from '@coreui/react'
 import { CChartBar, CChartDoughnut, CChartLine } from '@coreui/react-chartjs'
+import CIcon from '@coreui/icons-react'
+import {
+  cilWallet,
+  cilBarChart,
+  cilCash,
+  cilCreditCard,
+  cilMoney,
+  cilPeople,
+  cilWarning,
+} from '@coreui/icons'
 
 import { useDashboardStats } from '../../hooks/useReports'
 import { useAuditLogs } from '../../hooks/useAudits'
@@ -49,13 +59,22 @@ const BADGE_TO_RGBA = {
 
 // ── KPI card ─────────────────────────────────────────────────────────────────────────────────
 
-const KpiCard = ({ title, value, sub, color = 'primary' }) => (
+const KpiCard = ({ title, value, sub, color = 'primary', icon }) => (
   <CCard
     className='mb-0 h-100'
     style={{ borderLeft: `4px solid var(--cui-${color})` }}
   >
     <CCardBody className='py-3 px-3'>
-      <div className='text-body-secondary small fw-semibold text-uppercase mb-1'>{title}</div>
+      <div className='d-flex justify-content-between align-items-center mb-1'>
+        <div className='text-body-secondary small fw-semibold text-uppercase'>{title}</div>
+        {icon && (
+          <CIcon
+            icon={icon}
+            style={{ color: `var(--cui-${color})`, opacity: 0.6 }}
+            size='xl'
+          />
+        )}
+      </div>
       <div className='fs-4 fw-bold'>{value}</div>
       {sub && <div className='text-body-secondary small mt-1'>{sub}</div>}
     </CCardBody>
@@ -166,61 +185,67 @@ const Dashboard = () => {
       <CRow className='g-3 mb-4'>
         <CCol sm={6} xl={4} xxl={2}>
           {isLoading
-            ? <KpiCard title='Active Portfolio' value={<CSpinner size='sm' />} color='primary' />
+            ? <KpiCard title='Active Portfolio' value={<CSpinner size='sm' />} color='primary' icon={cilMoney} />
             : <KpiCard
-                title='Active Portfolio'
+                title='Active'
                 value={formatCurrency(kpis?.activePortfolio?.totalPrincipal)}
                 sub={`${kpis?.activePortfolio?.count ?? 0} active loans`}
                 color='primary'
+                icon={cilMoney}
               />}
         </CCol>
         <CCol sm={6} xl={4} xxl={2}>
           {isLoading
-            ? <KpiCard title='Overdue Loans' value={<CSpinner size='sm' />} color='danger' />
+            ? <KpiCard title='Overdue Loans' value={<CSpinner size='sm' />} color='danger' icon={cilWarning} />
             : <KpiCard
                 title='Overdue Loans'
                 value={String(kpis?.overdueLoans?.count ?? 0)}
                 sub={formatCurrency(kpis?.overdueLoans?.totalOutstanding)}
                 color='danger'
+                icon={cilWarning}
               />}
         </CCol>
         <CCol sm={6} xl={4} xxl={2}>
           {isLoading
-            ? <KpiCard title='Pending Approvals' value={<CSpinner size='sm' />} color='warning' />
+            ? <KpiCard title='Pending Approvals' value={<CSpinner size='sm' />} color='warning' icon={cilBarChart} />
             : <KpiCard
                 title='Pending Approvals'
                 value={String(kpis?.pendingApprovals?.count ?? 0)}
                 sub='awaiting review'
                 color='warning'
+                icon={cilBarChart}
               />}
         </CCol>
         <CCol sm={6} xl={4} xxl={2}>
           {isLoading
-            ? <KpiCard title='KYC Queue' value={<CSpinner size='sm' />} color='info' />
+            ? <KpiCard title='KYC Queue' value={<CSpinner size='sm' />} color='info' icon={cilPeople} />
             : <KpiCard
                 title='KYC Queue'
                 value={String(kpis?.kycQueue?.count ?? 0)}
                 sub='pending KYC review'
                 color='info'
+                icon={cilPeople}
               />}
         </CCol>
         <CCol sm={6} xl={4} xxl={2}>
           {isLoading
-            ? <KpiCard title='Payments This Month' value={<CSpinner size='sm' />} color='success' />
+            ? <KpiCard title='Payments This Month' value={<CSpinner size='sm' />} color='success' icon={cilCreditCard} />
             : <KpiCard
                 title='Payments This Month'
                 value={formatCurrency(kpis?.paymentsThisMonth?.total)}
                 sub={`${kpis?.paymentsThisMonth?.count ?? 0} transactions`}
                 color='success'
+                icon={cilCreditCard}
               />}
         </CCol>
         <CCol sm={6} xl={4} xxl={2}>
           {isLoading
-            ? <KpiCard title='Member Savings (Net)' value={<CSpinner size='sm' />} color='dark' />
+            ? <KpiCard title='Member Savings (Net)' value={<CSpinner size='sm' />} color='dark' icon={cilWallet} />
             : <KpiCard
                 title='Member Savings (Net)'
                 value={formatCurrency(kpis?.memberSavingsNet?.netBalance)}
                 color='dark'
+                icon={cilWallet}
               />}
         </CCol>
       </CRow>

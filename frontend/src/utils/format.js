@@ -18,7 +18,7 @@ export const formatCurrency = (amount, currency = 'KES') => {
     return new Intl.NumberFormat('en-KE', {
       style: 'currency',
       currency,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 1,
     }).format(num)
   } catch {
     return `${currency} ${num.toLocaleString()}`

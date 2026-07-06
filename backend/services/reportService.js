@@ -5,9 +5,14 @@ const Payment = require('../models/paymentModel');
 const LoanTransaction = require('../models/loanTransactionModel');
 const MemberContribution = require('../models/memberContributionModel');
 const Client = require('../models/clientModel');
+const JournalEntry = require('../models/journalEntryModel');
+const JournalEntryLine = require('../models/journalEntryLineModel');
+const ChartOfAccount = require('../models/chartOfAccountModel');
 const LoanStatus = require('../enums/loanStatus');
 const LoanTransactionType = require('../enums/loanTransactionType');
 const ClientStatus = require('../enums/clientStatus');
+const JournalEntryStatus = require('../enums/journalEntryStatus');
+const AccountType = require('../enums/accountType');
 
 // Loans whose outstanding installments contribute to the portfolio.
 const OUTSTANDING_LOAN_STATUSES = [
@@ -139,6 +144,8 @@ async function getDashboardStats() {
   const months = last6Months();
   const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
   const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  // DATEONLY-safe date string for journal entry queries (avoids UTC-shift issues)
+  const sixMonthsAgoStr = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`;
 
   const [
     allLoans,
@@ -147,6 +154,7 @@ async function getDashboardStats() {
     allContributions,
     last6Disbursements,
     agingData,
+    financialEntries,
   ] = await Promise.all([
     Loan.findAll({
       attributes: ['status', 'principalAmount'],
@@ -169,6 +177,29 @@ async function getDashboardStats() {
       },
     }),
     getPortfolioAging(),
+    // Revenue vs Expense from Chart of Accounts — query JournalEntry (date
+    // filter on main model so DATEONLY filtering works reliably) and include
+    // only lines whose account type is REVENUE or EXPENSE.
+    JournalEntry.findAll({
+      where: {
+        status: JournalEntryStatus.POSTED,
+        entryDate: { [Op.gte]: sixMonthsAgoStr },
+      },
+      include: [{
+        model: JournalEntryLine,
+        as: 'lines',
+        required: true,
+        include: [{
+          model: ChartOfAccount,
+          as: 'account',
+          where: { type: [AccountType.REVENUE, AccountType.EXPENSE] },
+          required: true,
+          attributes: ['type', 'normalBalance'],
+        }],
+        attributes: ['debit', 'credit'],
+      }],
+      attributes: ['entryDate'],
+    }),
   ]);
 
   // ── Loan KPIs & breakdown ──────────────────────────────────────────────────
@@ -211,18 +242,13 @@ async function getDashboardStats() {
     }
   }
 
-  // ── Monthly trends & financials ────────────────────────────────────────────
+  // ── Monthly trends (disbursements vs collections) ─────────────────────────
   const disbByMonth = {};
   const collByMonth = {};
-  const incomeByMonth = {};
 
   for (const p of last6Payments) {
     const k = monthKey(p.paymentDate);
     collByMonth[k] = (collByMonth[k] || 0) + (Number(p.amount) || 0);
-    incomeByMonth[k] = (incomeByMonth[k] || 0)
-      + (Number(p.appliedToInterest) || 0)
-      + (Number(p.fees) || 0)
-      + (Number(p.penalties) || 0);
   }
 
   for (const t of last6Disbursements) {
@@ -236,10 +262,31 @@ async function getDashboardStats() {
     collected: Number((collByMonth[key] || 0).toFixed(2)),
   }));
 
+  // ── Income vs Expenditure from Chart of Accounts ───────────────────────────
+  // Revenue accounts: income = net credit movement (credit - debit)
+  // Expense accounts: expenditure = net debit movement (debit - credit)
+  const revenueByMonth = {};
+  const expenseByMonth = {};
+
+  for (const entry of financialEntries) {
+    const k = monthKey(entry.entryDate);
+    for (const l of entry.lines) {
+      const acct = l.account;
+      if (!acct) continue;
+      const debit = Number(l.debit) || 0;
+      const credit = Number(l.credit) || 0;
+      if (acct.type === AccountType.REVENUE) {
+        revenueByMonth[k] = (revenueByMonth[k] || 0) + (credit - debit);
+      } else if (acct.type === AccountType.EXPENSE) {
+        expenseByMonth[k] = (expenseByMonth[k] || 0) + (debit - credit);
+      }
+    }
+  }
+
   const monthlyFinancials = months.map((key) => ({
     month: key,
-    income: Number((incomeByMonth[key] || 0).toFixed(2)),
-    expenditure: Number((disbByMonth[key] || 0).toFixed(2)),
+    income: Number(Math.max(0, revenueByMonth[key] || 0).toFixed(2)),
+    expenditure: Number(Math.max(0, expenseByMonth[key] || 0).toFixed(2)),
   }));
 
   return {
