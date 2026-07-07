@@ -10,7 +10,8 @@ const {
   approveLoan,
   rejectLoan,
   disburseLoan,
-  updatePrincipalAmount
+  updatePrincipalAmount,
+  writeOffLoan
 } = require('../controllers/loanController');
 
 const { authenticate, authorize } = require('../middleware/authMiddleware');
@@ -494,6 +495,72 @@ router.post('/:id/reject', authenticate, authorize([1,2]), rejectLoan);
  *         description: Loan not found
  */
 router.put('/:id/update_principal', authenticate, authorize([1, 2]), updatePrincipalAmount);
+
+/**
+ * @openapi
+ * /api/loans/{id}/write-off:
+ *   post:
+ *     summary: Write off a loan (full or partial) — admin only
+ *     description: |
+ *       Formally writes off all or part of a loan's outstanding balance.
+ *       The provision for bad debts (account 1300) is automatically topped up if it falls
+ *       short of the write-off amount before the write-off entry is posted.
+ *
+ *       **Journal entries posted:**
+ *       - (If gap exists) DR 5002 Bad Debt Expense / CR 1300 Provision for Bad Debts
+ *       - DR 1300 Provision for Bad Debts / CR 1100 Loans Receivable
+ *
+ *       Omit `writeOffAmount` to write off the full outstanding balance.
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 10
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *             properties:
+ *               writeOffAmount:
+ *                 type: number
+ *                 description: Amount to write off. Omit for full write-off.
+ *                 example: 15000
+ *               reason:
+ *                 type: string
+ *                 description: Mandatory reason / notes for the write-off
+ *                 example: "Borrower untraceable after 6 months of non-payment"
+ *     responses:
+ *       200:
+ *         description: Loan written off successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: Loan written off successfully
+ *               data:
+ *                 id: 10
+ *                 status: written_off
+ *                 outstandingBalance: 0
+ *                 writtenOffAmount: 15000
+ *                 writtenOffDate: "2026-07-07"
+ *       400:
+ *         description: Invalid request or loan cannot be written off
+ *       403:
+ *         description: Forbidden — admin only
+ *       404:
+ *         description: Loan not found
+ */
+router.post('/:id/write-off', authenticate, authorize([1, 2]), writeOffLoan);
 
 
 module.exports = router;

@@ -79,6 +79,16 @@ export const rejectLoan = async (id, rejectionNote) => {
   return res?.data
 }
 
+/**
+ * Write off a loan (full or partial). Omit writeOffAmount for a full write-off.
+ * @param {number|string} id
+ * @param {{ reason: string, writeOffAmount?: number }} payload
+ */
+export const writeOffLoan = async (id, payload) => {
+  const res = await http.post(`/loans/${id}/write-off`, payload)
+  return res?.data
+}
+
 export default {
   listLoans,
   listMyLoans,
@@ -90,4 +100,5 @@ export default {
   disburseLoan,
   updatePrincipal,
   rejectLoan,
+  writeOffLoan,
 }

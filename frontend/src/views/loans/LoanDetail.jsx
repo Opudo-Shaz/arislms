@@ -22,13 +22,14 @@ import {
   CNav,
   CNavItem,
   CNavLink,
+  CPopover,
   CRow,
   CSpinner,
   CTabContent,
   CTabPane,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilBan, cilCash, cilCheckAlt, cilPencil, cilPlus, cilTrash } from '@coreui/icons'
+import { cilBan, cilCash, cilCheckAlt, cilPencil, cilPlus, cilTrash, cilXCircle } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
@@ -39,7 +40,7 @@ import PaymentForm from '../payments/PaymentForm'
 import PaymentDetailModal from '../payments/PaymentDetailModal'
 import CollateralStatusModal from '../collaterals/CollateralStatusModal'
 import CollateralEditModal from '../collaterals/CollateralEditModal'
-import { useLoan, useLoanAction, useDeleteLoan } from '../../hooks/useLoans'
+import { useLoan, useLoanAction, useDeleteLoan, useWriteOffLoan } from '../../hooks/useLoans'
 import { useLoanPayments } from '../../hooks/usePayments'
 import { useLoanDocuments } from '../../hooks/useDocuments'
 import { useUpdateCollateralStatus, useUpdateCollateralParticulars } from '../../hooks/useCollaterals'
@@ -52,6 +53,8 @@ import {
   COLLATERAL_TYPE,
   REPAYMENT_SCHEDULE_STATUS,
   PAYMENT_STATUS,
+  LOAN_TRANSACTION_TYPE,
+  TRANSACTION_DIRECTION,
   ROLES,
   ROLE_GROUPS,
 } from '../../constants/enums'
@@ -63,6 +66,8 @@ const APPROVABLE = ['pending', 'pending_reverification', 'verified', 'in_review'
 const TERMINAL = ['closed', 'cancelled', 'deleted', 'rejected']
 /** Statuses where a payment can be recorded against the loan. */
 const PAYABLE = ['disbursed', 'active', 'partially_paid', 'overdue']
+/** Statuses where a write-off can be executed. */
+const WRITABLE_OFF = ['active', 'overdue', 'defaulted', 'partially_paid', 'partially_written_off']
 
 const Field = ({ label, children }) => (
   <CCol md={6} className="mb-3">
@@ -82,6 +87,7 @@ const LoanDetail = () => {
   const { data: loanDocuments = [] } = useLoanDocuments(id)
   const action = useLoanAction()
   const deleteMutation = useDeleteLoan()
+  const writeOffMutation = useWriteOffLoan()
   const collateralStatusMutation = useUpdateCollateralStatus()
   const collateralEditMutation = useUpdateCollateralParticulars()
   const { role } = useAuth()
@@ -100,7 +106,11 @@ const LoanDetail = () => {
   const runAction = async (value) => {
     setActionError(null)
     try {
-      await action.mutateAsync({ id, action: actionType, value })
+      if (actionType === 'write_off') {
+        await writeOffMutation.mutateAsync({ id, payload: value })
+      } else {
+        await action.mutateAsync({ id, action: actionType, value })
+      }
       setActionType(null)
     } catch (err) {
       setActionError(err)
@@ -152,10 +162,14 @@ const LoanDetail = () => {
   const canDisburse = loan.status === 'approved'
   const canEditPrincipal = !TERMINAL.includes(loan.status) && loan.status !== 'active'
   const canRecordPayment = PAYABLE.includes(loan.status)
+  const canWriteOff = isAdmin && WRITABLE_OFF.includes(loan.status)
   const schedules = (loan.repaymentSchedules || [])
     .slice()
     .sort((a, b) => a.installmentNumber - b.installmentNumber)
   const collaterals = loan.collaterals || []
+  const transactions = (loan.transactions || [])
+    .slice()
+    .sort((a, b) => new Date(a.created_at || a.transactionDate) - new Date(b.created_at || b.transactionDate))
 
   /** Number of documents uploaded against each collateral id. */
   const docCountByCollateral = loanDocuments.reduce((acc, doc) => {
@@ -259,6 +273,57 @@ const LoanDetail = () => {
     },
   ]
 
+  const transactionColumns = [
+    {
+      key: 'transactionDate',
+      label: 'Date',
+      render: (r) => formatDateTime(r.created_at || r.transactionDate),
+    },
+    {
+      key: 'transactionType',
+      label: 'Type',
+      render: (r) => <StatusBadge enumDef={LOAN_TRANSACTION_TYPE} value={r.transactionType} />,
+    },
+    {
+      key: 'direction',
+      label: 'Direction',
+      render: (r) => <StatusBadge enumDef={TRANSACTION_DIRECTION} value={r.direction} />,
+    },
+    { key: 'amount', label: 'Amount', render: (r) => formatCurrency(r.amount, r.currency || loan.currency) },
+    { key: 'totalBalance', label: 'Balance After', render: (r) => formatCurrency(r.totalBalance, r.currency || loan.currency) },
+    { key: 'referenceType', label: 'Source', render: (r) => r.referenceType || '—' },
+    {
+      key: 'notes',
+      label: 'Notes',
+      render: (r) => {
+        if (!r.notes) return '—'
+        if (r.notes.length <= 20) return <span>{r.notes}</span>
+        const truncated = r.notes.slice(0, 20) + '…'
+        return (
+          <CPopover
+            content={r.notes}
+            placement="top"
+            trigger="focus"
+            className="border border-primary"
+          >
+            <span
+              role="button"
+              tabIndex={0}
+              style={{ cursor: 'pointer', borderBottom: '1px dotted currentColor', outline: 'none' }}
+            >
+              {truncated}
+            </span>
+          </CPopover>
+        )
+      },
+    },
+    {
+      key: 'isReversed',
+      label: 'Reversed?',
+      render: (r) => r.isReversed ? <CBadge color="danger">yes</CBadge> : null,
+    },
+  ]
+
   const score = loan.creditScore
 
   return (
@@ -359,6 +424,20 @@ const LoanDetail = () => {
                 Delete
               </CButton>
             )}
+            {canWriteOff && (
+              <CButton
+                color="dark"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setActionError(null)
+                  setActionType('write_off')
+                }}
+              >
+                <CIcon icon={cilXCircle} className="me-1" />
+                Write Off
+              </CButton>
+            )}
           </div>
         </CCardHeader>
         <CCardBody>
@@ -367,7 +446,7 @@ const LoanDetail = () => {
           )}
 
           <CNav variant="tabs" role="tablist" className="mb-3">
-            {['Overview', 'Repayment Schedule', 'Collaterals', 'Credit Score', 'Payments', 'Documents'].map((label, idx) => (
+            {['Overview', 'Repayment Schedule', 'Collaterals', 'Credit Score', 'Payments', 'Transactions', 'Documents'].map((label, idx) => (
               <CNavItem key={label}>
                 <CNavLink active={activeTab === idx} onClick={() => setActiveTab(idx)} role="button">
                   {label}
@@ -384,6 +463,11 @@ const LoanDetail = () => {
                   {idx === 4 && payments.length > 0 && (
                     <CBadge color="secondary" className="ms-2">
                       {payments.length}
+                    </CBadge>
+                  )}
+                  {idx === 5 && transactions.length > 0 && (
+                    <CBadge color="secondary" className="ms-2">
+                      {transactions.length}
                     </CBadge>
                   )}
                 </CNavLink>
@@ -425,6 +509,14 @@ const LoanDetail = () => {
                   {formatCurrency(loan.amountRepaid, loan.currency)}
                 </Field>
                 <Field label="Repayments Made">{loan.noOfRepayments ?? '—'}</Field>
+                {loan.writtenOffAmount > 0 && (
+                  <Field label="Written-Off Amount">
+                    {formatCurrency(loan.writtenOffAmount, loan.currency)}
+                  </Field>
+                )}
+                {loan.writtenOffDate && (
+                  <Field label="Write-Off Date">{formatDate(loan.writtenOffDate)}</Field>
+                )}
                 {loan.coSignerId && (
                   <Field label="Co-signer">
                     {loan.coSigner
@@ -494,6 +586,14 @@ const LoanDetail = () => {
             </CTabPane>
 
             <CTabPane visible={activeTab === 5}>
+              <DataTable
+                columns={transactionColumns}
+                rows={transactions}
+                emptyMessage="No transactions recorded for this loan yet."
+              />
+            </CTabPane>
+
+            <CTabPane visible={activeTab === 6}>
               <LoanDocuments loanId={id} collaterals={collaterals} />
             </CTabPane>
           </CTabContent>
@@ -503,8 +603,14 @@ const LoanDetail = () => {
       <LoanActionModal
         visible={Boolean(actionType)}
         action={actionType}
-        defaultValue={actionType === 'principal' ? loan.principalAmount : undefined}
-        loading={action.isPending}
+        defaultValue={
+          actionType === 'principal'
+            ? loan.principalAmount
+            : actionType === 'write_off'
+              ? loan.outstandingBalance
+              : undefined
+        }
+        loading={action.isPending || writeOffMutation.isPending}
         error={actionError}
         onConfirm={runAction}
         onClose={() => setActionType(null)}

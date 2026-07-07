@@ -90,6 +90,13 @@ const defaultAccounts = [
     normalBalance: 'DEBIT',
     description: 'Costs for loan servicing software, office maintenance and similar operational expenses',
   },
+  {
+    code: '5002',
+    name: 'Bad Debt Expense',
+    type: AccountType.EXPENSE,
+    normalBalance: 'DEBIT',
+    description: 'Expense recognised when a loan (or portion) is identified as uncollectable. Paired with account 1300 Provision for Bad Debts under the allowance method.',
+  },
 ];
 
 async function seed() {

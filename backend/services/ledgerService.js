@@ -503,10 +503,231 @@ async function getAllJournalEntries({ sourceType, fromDate, toDate, page = 1, li
   return { total: count, page, limit, entries: rows };
 }
 
+// ─── write-off / provision templates ─────────────────────────────────────────
+
+/**
+ * Posts the bad-debt provision entry when a loan is identified as uncollectable.
+ * Called automatically when a loan transitions to DEFAULTED status.
+ *
+ * DR 5002  Bad Debt Expense          (P&L hit — loss recognised now)
+ * CR 1300  Provision for Bad Debts   (contra-asset grows)
+ *
+ * @param {object} loan              - Loan instance
+ * @param {number} provisionAmount   - Amount to provision (sum of overdue installments)
+ * @param {number} [createdBy]       - User ID (null → system)
+ * @param {object} [transaction]     - Sequelize transaction
+ */
+async function postProvisionEntry(loan, provisionAmount, createdBy, transaction) {
+  const amount = Number(provisionAmount);
+  if (amount <= 0) return null;
+
+  const entryDate = new Date().toISOString().split('T')[0];
+
+  return postEntry({
+    entryDate,
+    description: `Bad debt provision – Loan #${loan.id} (${loan.referenceCode})`,
+    sourceType: 'PROVISION',
+    sourceId: loan.id,
+    createdBy: createdBy || AuditLogger.SYSTEM_USER_ID,
+    source: createdBy ? 'user' : 'system',
+    lines: [
+      {
+        accountCode: '5002',
+        debit: amount,
+        description: `Bad debt expense – Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+      {
+        accountCode: '1300',
+        credit: amount,
+        description: `Provision for bad debts – Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+    ],
+  }, transaction);
+}
+
+/**
+ * Reverses a previously posted provision when a defaulted loan recovers.
+ * Called automatically when loan transitions back to ACTIVE / PARTIALLY_PAID.
+ *
+ * DR 1300  Provision for Bad Debts   (contra-asset shrinks)
+ * CR 5002  Bad Debt Expense          (P&L partially restored)
+ *
+ * @param {object} loan              - Loan instance
+ * @param {number} reversalAmount    - Amount to reverse (= loan.provisionedAmount)
+ * @param {number} [createdBy]
+ * @param {object} [transaction]
+ */
+async function postProvisionReversalEntry(loan, reversalAmount, createdBy, transaction) {
+  const amount = Number(reversalAmount);
+  if (amount <= 0) return null;
+
+  const entryDate = new Date().toISOString().split('T')[0];
+
+  return postEntry({
+    entryDate,
+    description: `Provision reversal – Loan #${loan.id} recovered (${loan.referenceCode})`,
+    sourceType: 'PROVISION_REVERSAL',
+    sourceId: loan.id,
+    createdBy: createdBy || AuditLogger.SYSTEM_USER_ID,
+    source: createdBy ? 'user' : 'system',
+    lines: [
+      {
+        accountCode: '1300',
+        debit: amount,
+        description: `Provision reversal – Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+      {
+        accountCode: '5002',
+        credit: amount,
+        description: `Bad debt expense reversed – Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+    ],
+  }, transaction);
+}
+
+/**
+ * Posts the formal write-off entry. Zero P&L impact — purely a balance sheet cleanup.
+ * If writeOffAmount > provisionedAmount, a top-up provision is posted first (gap → DR 5002 / CR 1300).
+ * Then the actual write-off clears the provision against Loans Receivable.
+ *
+ * Top-up (if needed):
+ *   DR 5002  Bad Debt Expense          (gap)
+ *   CR 1300  Provision for Bad Debts   (gap)
+ *
+ * Write-off:
+ *   DR 1300  Provision for Bad Debts   = writeOffAmount
+ *   CR 1100  Loans Receivable          = writeOffAmount
+ *
+ * @param {object} loan              - Loan instance (must have provisionedAmount)
+ * @param {number} writeOffAmount    - Amount being written off
+ * @param {number} [createdBy]
+ * @param {object} [transaction]
+ * @returns {Promise<{topUp?: object, writeOff: object}>}
+ */
+async function postWriteOffEntry(loan, writeOffAmount, createdBy, transaction) {
+  const amount = Number(writeOffAmount);
+  const provisioned = Number(loan.provisionedAmount || 0);
+  const entryDate = new Date().toISOString().split('T')[0];
+  const result = {};
+
+  // Auto-top-up provision if writeOffAmount exceeds existing provision
+  const gap = Number((amount - provisioned).toFixed(2));
+  if (gap > 0.005) {
+    result.topUp = await postEntry({
+      entryDate,
+      description: `Provision top-up before write-off – Loan #${loan.id} (${loan.referenceCode})`,
+      sourceType: 'PROVISION',
+      sourceId: loan.id,
+      createdBy: createdBy || AuditLogger.SYSTEM_USER_ID,
+      source: createdBy ? 'user' : 'system',
+      lines: [
+        {
+          accountCode: '5002',
+          debit: gap,
+          description: `Bad debt expense top-up – Loan #${loan.id}`,
+          loanId: loan.id,
+          clientId: loan.clientId,
+        },
+        {
+          accountCode: '1300',
+          credit: gap,
+          description: `Provision top-up – Loan #${loan.id}`,
+          loanId: loan.id,
+          clientId: loan.clientId,
+        },
+      ],
+    }, transaction);
+  }
+
+  // Formal write-off: DR 1300, CR 1100 (balance sheet only — no P&L impact)
+  result.writeOff = await postEntry({
+    entryDate,
+    description: `Loan write-off – Loan #${loan.id} (${loan.referenceCode})`,
+    sourceType: 'WRITE_OFF',
+    sourceId: loan.id,
+    createdBy: createdBy || AuditLogger.SYSTEM_USER_ID,
+    source: createdBy ? 'user' : 'system',
+    lines: [
+      {
+        accountCode: '1300',
+        debit: amount,
+        description: `Provision used for write-off – Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+      {
+        accountCode: '1100',
+        credit: amount,
+        description: `Loans Receivable written off – Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+    ],
+  }, transaction);
+
+  return result;
+}
+
+/**
+ * Posts a recovery entry when cash is received on a previously written-off loan.
+ *
+ * DR 1001  Cash / Bank               = recoveryAmount
+ * CR 1300  Provision for Bad Debts   = recoveryAmount   (partially restores the contra-asset)
+ *
+ * @param {object} loan              - Loan instance
+ * @param {number} recoveryAmount    - Cash received
+ * @param {number} [paymentId]       - Source payment record ID
+ * @param {number} [createdBy]
+ * @param {object} [transaction]
+ */
+async function postRecoveryEntry(loan, recoveryAmount, paymentId, createdBy, transaction) {
+  const amount = Number(recoveryAmount);
+  if (amount <= 0) return null;
+
+  const entryDate = new Date().toISOString().split('T')[0];
+
+  return postEntry({
+    entryDate,
+    description: `Recovery on written-off Loan #${loan.id} (${loan.referenceCode})`,
+    sourceType: 'RECOVERY',
+    sourceId: paymentId || loan.id,
+    createdBy: createdBy || AuditLogger.SYSTEM_USER_ID,
+    source: createdBy ? 'user' : 'system',
+    lines: [
+      {
+        accountCode: '1001',
+        debit: amount,
+        description: `Cash recovery – Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+      {
+        accountCode: '1300',
+        credit: amount,
+        description: `Provision reduced by recovery – Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+    ],
+  }, transaction);
+}
+
 module.exports = {
   postEntry,
   postDisbursementEntry,
   postPaymentEntry,
+  postProvisionEntry,
+  postProvisionReversalEntry,
+  postWriteOffEntry,
+  postRecoveryEntry,
   reverseEntry,
   getAvailableFunds,
   getTrialBalance,

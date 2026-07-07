@@ -8,4 +8,7 @@ module.exports = Object.freeze({
   REVERSAL:         'reversal',
   WRITE_OFF:        'write_off',
   ADJUSTMENT:       'adjustment',
+  PROVISION:        'provision',
+  PROVISION_REVERSAL: 'provision_reversal',
+  RECOVERY:         'recovery',
 });

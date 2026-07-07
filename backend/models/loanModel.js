@@ -79,6 +79,29 @@ const Loan = sequelize.define('Loan', {
   referenceCode: { type: DataTypes.STRING, unique: true, field: 'reference_code' },
   notes: { type: DataTypes.TEXT },
 
+  writtenOffAmount: {
+    type: DataTypes.DECIMAL(14, 2),
+    allowNull: true,
+    defaultValue: null,
+    field: 'written_off_amount',
+    comment: 'Total amount written off (principal removed from books)'
+  },
+
+  writtenOffDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+    field: 'written_off_date',
+    comment: 'Date the write-off was formally executed'
+  },
+
+  provisionedAmount: {
+    type: DataTypes.DECIMAL(14, 2),
+    allowNull: false,
+    defaultValue: 0,
+    field: 'provisioned_amount',
+    comment: 'Current outstanding provision for bad debts (account 1300) against this loan'
+  },
+
   createdBy: { type: DataTypes.INTEGER, allowNull: true, field: 'created_by' },
 
   updatedAt: { type: DataTypes.DATE, allowNull: true, field: 'updated_at' },

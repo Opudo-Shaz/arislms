@@ -59,15 +59,28 @@ const CONFIG = {
     confirmText: 'Reject',
     color: 'danger',
   },
+  write_off: {
+    title: 'Write Off Loan',
+    type: 'write_off',
+    confirmText: 'Write Off',
+    color: 'danger',
+  },
 }
 
 const LoanActionModal = ({ visible, action, defaultValue, loading, error, onConfirm, onClose }) => {
   const cfg = action ? CONFIG[action] : null
   const [value, setValue] = useState('')
+  const [writeOffAmount, setWriteOffAmount] = useState('')
+  const [writeOffReason, setWriteOffReason] = useState('')
 
   useEffect(() => {
     if (visible && cfg) {
-      setValue(defaultValue ?? (cfg.type === 'date' ? today() : ''))
+      if (cfg.type === 'write_off') {
+        setWriteOffAmount(defaultValue != null ? String(defaultValue) : '')
+        setWriteOffReason('')
+      } else {
+        setValue(defaultValue ?? (cfg.type === 'date' ? today() : ''))
+      }
     }
   }, [visible, action, defaultValue]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -75,8 +88,16 @@ const LoanActionModal = ({ visible, action, defaultValue, loading, error, onConf
 
   const handleConfirm = (e) => {
     e.preventDefault()
-    if (!String(value).trim()) return
-    onConfirm(value)
+    if (cfg.type === 'write_off') {
+      if (!String(writeOffReason).trim()) return
+      onConfirm({
+        writeOffAmount: writeOffAmount ? parseFloat(writeOffAmount) : undefined,
+        reason: String(writeOffReason).trim(),
+      })
+    } else {
+      if (!String(value).trim()) return
+      onConfirm(value)
+    }
   }
 
   return (
@@ -87,24 +108,57 @@ const LoanActionModal = ({ visible, action, defaultValue, loading, error, onConf
         </CModalHeader>
         <CModalBody>
           {error && <CAlert color="danger" dismissible>{error.message || 'Action failed.'}</CAlert>}
-          <CFormLabel>{cfg.label}</CFormLabel>
-          {cfg.type === 'textarea' ? (
-            <CFormTextarea
-              rows={4}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="Provide a clear reason for rejection…"
-              required
-            />
+          {cfg.type === 'write_off' ? (
+            <>
+              <div className="mb-3">
+                <CFormLabel>
+                  Write-off amount{' '}
+                  <span className="text-body-secondary small">
+                    (leave blank to write off full outstanding balance)
+                  </span>
+                </CFormLabel>
+                <CFormInput
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={writeOffAmount}
+                  onChange={(e) => setWriteOffAmount(e.target.value)}
+                  placeholder={defaultValue != null ? `Max: ${defaultValue}` : 'Full outstanding balance'}
+                />
+              </div>
+              <div>
+                <CFormLabel>Reason *</CFormLabel>
+                <CFormTextarea
+                  rows={4}
+                  value={writeOffReason}
+                  onChange={(e) => setWriteOffReason(e.target.value)}
+                  placeholder="Provide a clear reason for the write-off…"
+                  required
+                />
+              </div>
+            </>
           ) : (
-            <CFormInput
-              type={cfg.type}
-              value={value}
-              min={cfg.type === 'number' ? '0' : undefined}
-              step={cfg.type === 'number' ? '0.01' : undefined}
-              onChange={(e) => setValue(e.target.value)}
-              required
-            />
+            <>
+              <CFormLabel>{cfg.label}</CFormLabel>
+              {cfg.type === 'textarea' ? (
+                <CFormTextarea
+                  rows={4}
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder="Provide a clear reason for rejection…"
+                  required
+                />
+              ) : (
+                <CFormInput
+                  type={cfg.type}
+                  value={value}
+                  min={cfg.type === 'number' ? '0' : undefined}
+                  step={cfg.type === 'number' ? '0.01' : undefined}
+                  onChange={(e) => setValue(e.target.value)}
+                  required
+                />
+              )}
+            </>
           )}
         </CModalBody>
         <CModalFooter>
@@ -123,7 +177,7 @@ const LoanActionModal = ({ visible, action, defaultValue, loading, error, onConf
 
 LoanActionModal.propTypes = {
   visible: PropTypes.bool.isRequired,
-  action: PropTypes.oneOf(['approve', 'disburse', 'principal', 'reject']),
+  action: PropTypes.oneOf(['approve', 'disburse', 'principal', 'reject', 'write_off']),
   defaultValue: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   loading: PropTypes.bool,
   error: PropTypes.object,

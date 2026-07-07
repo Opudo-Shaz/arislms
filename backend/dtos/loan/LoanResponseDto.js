@@ -41,6 +41,9 @@ function LoanResponseDto(loan) {
     repaymentSchedules: loan.repaymentSchedules
       ? RepaymentScheduleResponseDto.fromArray(loan.repaymentSchedules)
       : [],
+    transactions: loan.transactions
+      ? loan.transactions.map((t) => (typeof t.toJSON === 'function' ? t.toJSON() : t))
+      : [],
     approvedBy: loan.approvedByName ?? null,
     disbursedBy: loan.disbursedByName ?? null,
     createdAt: loan.createdAt,

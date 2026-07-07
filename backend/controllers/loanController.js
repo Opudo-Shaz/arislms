@@ -447,3 +447,51 @@ exports.updatePrincipalAmount = async (req, res) => {
     });
   }
 };
+
+exports.writeOffLoan = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+    const loanId = req.params.id;
+    const { writeOffAmount, reason } = req.body;
+
+    if (!isAdmin(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'User not authorized to write off loans'
+      });
+    }
+
+    if (!reason || !String(reason).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'A reason is required for a loan write-off'
+      });
+    }
+
+    logger.info(`User ${userId} writing off loan ${loanId}`);
+
+    const updatedLoan = await loanService.writeOffLoan(loanId, {
+      writeOffAmount: writeOffAmount != null ? parseFloat(writeOffAmount) : undefined,
+      reason: String(reason).trim(),
+      performedBy: userId,
+      userAgent,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Loan written off successfully',
+      data: new LoanResponseDto(updatedLoan),
+    });
+  } catch (error) {
+    logger.error(`WriteOffLoan Error (${req.params.id}): ${error.message}`);
+
+    const status = error.statusCode || (/not found/i.test(error.message) ? 404 : /cannot be written off|exceed|must be|reason/i.test(error.message) ? 400 : 500);
+
+    return res.status(status).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+

@@ -93,6 +93,11 @@ registerLoanTransactionListeners();
     // Seed read-only infra configs from environment variables
     const { seedInfraConfigs } = require('./services/systemConfigService');
     await seedInfraConfigs();
+
+    // Seed loan lifecycle threshold configs and register daily cron job
+    const loanStatusCronJob = require('./utils/loanStatusCronJob');
+    await loanStatusCronJob.seedDefaultConfigs();
+    loanStatusCronJob.register();
   } catch (error) {
     logger.error(`Database connection error: ${error.message}`);
   }

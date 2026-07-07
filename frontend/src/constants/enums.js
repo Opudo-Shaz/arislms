@@ -44,6 +44,9 @@ export const LOAN_STATUS = buildEnum({
   closed: 'dark',
   cancelled: 'secondary',
   deleted: 'dark',
+  written_off: 'dark',
+  partially_written_off: 'warning',
+  recovered: 'success',
 })
 
 export const CLIENT_STATUS = buildEnum({
@@ -165,6 +168,11 @@ export const LOAN_TRANSACTION_TYPE = buildEnum({
   adjustment: 'secondary',
 })
 
+export const TRANSACTION_DIRECTION = buildEnum(
+  { DEBIT: 'warning', CREDIT: 'success' },
+  { DEBIT: 'Debit', CREDIT: 'Credit' },
+)
+
 export const DOCUMENT_CATEGORY = buildEnum(
   {
     user_kyc: 'primary',
@@ -265,6 +273,7 @@ export const REPAYMENT_SCHEDULE_STATUS = buildEnum({
   paid: 'success',
   partial: 'warning',
   overdue: 'danger',
+  written_off: 'dark',
 })
 
 /** Payment record status (free-text on the backend; common values mapped). */

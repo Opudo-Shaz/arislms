@@ -62,6 +62,18 @@ export const useDeleteLoan = () => {
   })
 }
 
+/** Write off a loan (admin only). */
+export const useWriteOffLoan = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }) => loanApi.writeOffLoan(id, payload),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: loanKeys.lists() })
+      qc.invalidateQueries({ queryKey: loanKeys.detail(id) })
+    },
+  })
+}
+
 /**
  * Lifecycle actions: approve, disburse, principal update, reject.
  * `action` is one of `approve`, `disburse`, `principal`, `reject`.

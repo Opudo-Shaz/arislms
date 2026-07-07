@@ -14,5 +14,8 @@ module.exports = Object.freeze({
   DEFAULTED: 'defaulted',
   CLOSED: 'closed',
   CANCELLED: 'cancelled',
-  DELETED: 'deleted'
+  DELETED: 'deleted',
+  WRITTEN_OFF: 'written_off',
+  PARTIALLY_WRITTEN_OFF: 'partially_written_off',
+  RECOVERED: 'recovered'
 });

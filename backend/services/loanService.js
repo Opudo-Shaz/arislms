@@ -1355,6 +1355,224 @@ const loanService = {
     }
   },
 
+  /**
+   * Auto-provisions a loan when it transitions to DEFAULTED.
+   * Provision amount = sum of overdue / missed installments only.
+   * Internal helper — not exposed on the public service API.
+   *
+   * @param {object} loan       - Loan instance with repaymentSchedules loaded
+   * @param {number} [actorId]
+   */
+  async _autoProvision(loan, actorId) {
+    // Skip if a provision already exists — cron job owns recurring provisioning.
+    // This guard prevents double-provisioning when an admin manually sets DEFAULTED.
+    if (Number(loan.provisionedAmount || 0) > 0) {
+      logger.info(`Auto-provision skipped for loan ${loan.id}: provision already exists (${loan.provisionedAmount})`);
+      return;
+    }
+
+    // Sum only installments that are overdue or missed
+    const schedules = await RepaymentSchedule.findAll({
+      where: { loanId: loan.id, status: ['overdue', 'partial'] },
+    });
+
+    const overdueTotal = schedules.reduce((sum, s) => {
+      const owed = Number(s.totalAmount) - Number(s.paidAmount || 0);
+      return sum + Math.max(0, owed);
+    }, 0);
+
+    if (overdueTotal <= 0) {
+      logger.info(`Auto-provision skipped for loan ${loan.id}: no overdue installment balance`);
+      return;
+    }
+
+    await ledgerService.postProvisionEntry(loan, overdueTotal, actorId);
+
+    const newProvisioned = Number((Number(loan.provisionedAmount || 0) + overdueTotal).toFixed(2));
+    await loan.update({ provisionedAmount: newProvisioned });
+
+    emitLoanTransaction({
+      loanId: loan.id,
+      transactionType: LoanTransactionType.PROVISION,
+      direction: 'CREDIT',
+      amount: overdueTotal,
+      currency: loan.currency,
+      principalBalance: Number(loan.outstandingBalance),
+      interestBalance: 0,
+      feesBalance: 0,
+      penaltiesBalance: 0,
+      totalBalance: Number(loan.outstandingBalance),
+      referenceType: 'loan',
+      referenceId: loan.id,
+      transactionDate: new Date(),
+      notes: `Auto-provision on DEFAULTED — ${schedules.length} overdue installment(s) — Loan ${loan.referenceCode}`,
+      createdBy: actorId || null,
+    });
+
+    logger.info(`Auto-provisioned ${overdueTotal} for loan ${loan.id} (${loan.referenceCode})`);
+  },
+
+  /**
+   * Write off a loan (full or partial).
+   *
+   * Flow:
+   *  1. Validate loan status (must be active, overdue, defaulted, or partially_written_off)
+   *  2. If writeOffAmount > provisionedAmount, auto-top-up provision (DR 5002 / CR 1300 for gap)
+   *  3. Post write-off journal entry (DR 1300 / CR 1100 — no P&L impact)
+   *  4. Mark remaining pending/overdue installments → 'written_off'
+   *  5. Update loan: outstandingBalance, writtenOffAmount, writtenOffDate, status, provisionedAmount
+   *  6. Emit WRITE_OFF loan transaction
+   *  7. Audit log
+   *
+   * @param {number} loanId
+   * @param {object} opts
+   * @param {number}  opts.writeOffAmount  - Amount to write off (≤ outstandingBalance)
+   * @param {string}  opts.reason          - Required write-off reason / notes
+   * @param {number}  opts.performedBy     - User ID executing the write-off
+   * @param {string}  [opts.userAgent]
+   * @returns {Promise<object>} Updated loan
+   */
+  async writeOffLoan(loanId, { writeOffAmount, reason, performedBy, userAgent = 'unknown' }) {
+    const WRITABLE_STATUSES = [
+      LoanStatus.ACTIVE,
+      LoanStatus.OVERDUE,
+      LoanStatus.DEFAULTED,
+      LoanStatus.PARTIALLY_PAID,
+      LoanStatus.PARTIALLY_WRITTEN_OFF,
+    ];
+
+    const t = await sequelize.transaction();
+    try {
+      const loan = await Loan.findByPk(loanId, {
+        include: [{ association: 'repaymentSchedules', required: false }],
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+
+      if (!loan) throw Object.assign(new Error('Loan not found'), { statusCode: 404 });
+
+      if (!WRITABLE_STATUSES.includes(loan.status)) {
+        throw Object.assign(
+          new Error(`Loan cannot be written off. Current status: ${loan.status}. Must be one of: ${WRITABLE_STATUSES.join(', ')}`),
+          { statusCode: 400 }
+        );
+      }
+
+      if (!reason || !String(reason).trim()) {
+        throw Object.assign(new Error('A reason is required for a loan write-off'), { statusCode: 400 });
+      }
+
+      const outstanding = Number(loan.outstandingBalance);
+      const amount = writeOffAmount != null ? Number(writeOffAmount) : outstanding;
+
+      if (Number.isNaN(amount) || amount <= 0) {
+        throw Object.assign(new Error('writeOffAmount must be a positive number'), { statusCode: 400 });
+      }
+      if (amount > outstanding + 0.005) {
+        throw Object.assign(
+          new Error(`writeOffAmount (${amount}) exceeds outstanding balance (${outstanding})`),
+          { statusCode: 400 }
+        );
+      }
+
+      // ── Step 1: Post journal entries (top-up provision if needed + write-off) ──
+      await ledgerService.postWriteOffEntry(loan, amount, performedBy, t);
+
+      // ── Step 2: Determine how much of provisionedAmount was consumed ──
+      const provisioned = Number(loan.provisionedAmount || 0);
+      const gap = Math.max(0, amount - provisioned);
+      const newProvisionedAmount = Number(Math.max(0, provisioned + gap - amount).toFixed(2));
+
+      // ── Step 3: Mark remaining open installments as written_off ──
+      const isFullWriteOff = Math.abs(amount - outstanding) < 0.005;
+      if (isFullWriteOff) {
+        await RepaymentSchedule.update(
+          { status: 'written_off', notes: `Written off: ${reason}` },
+          {
+            where: { loanId, status: ['pending', 'overdue', 'partial'] },
+            transaction: t,
+          }
+        );
+      }
+      // For partial write-offs the schedule keeps running as-is (balance is just reduced).
+
+      // ── Step 4: Update loan fields ──
+      const newBalance = Number((outstanding - amount).toFixed(2));
+      const newWrittenOff = Number(((Number(loan.writtenOffAmount) || 0) + amount).toFixed(2));
+      let newStatus;
+      if (isFullWriteOff) {
+        newStatus = LoanStatus.WRITTEN_OFF;
+      } else {
+        newStatus = LoanStatus.PARTIALLY_WRITTEN_OFF;
+      }
+
+      await loan.update({
+        outstandingBalance: newBalance,
+        writtenOffAmount: newWrittenOff,
+        writtenOffDate: new Date().toISOString().split('T')[0],
+        provisionedAmount: newProvisionedAmount,
+        status: newStatus,
+      }, { transaction: t });
+
+      await t.commit();
+
+      // ── Step 5: Emit loan transaction (outside DB transaction — fire-and-forget) ──
+      emitLoanTransaction({
+        loanId: loan.id,
+        transactionType: LoanTransactionType.WRITE_OFF,
+        direction: 'CREDIT',
+        amount,
+        currency: loan.currency,
+        principalBalance: newBalance,
+        interestBalance: 0,
+        feesBalance: 0,
+        penaltiesBalance: 0,
+        totalBalance: newBalance,
+        referenceType: 'loan',
+        referenceId: loan.id,
+        transactionDate: new Date(),
+        notes: `Write-off (${isFullWriteOff ? 'full' : 'partial'}) — ${reason}`,
+        createdBy: performedBy || null,
+      });
+
+      // ── Step 6: Audit log ──
+      await AuditLogger.log({
+        entityType: 'LOAN',
+        entityId: loanId,
+        action: 'WRITE_OFF',
+        data: {
+          writeOffAmount: amount,
+          previousBalance: outstanding,
+          newBalance,
+          newStatus,
+          reason,
+          isFullWriteOff,
+        },
+        actorId: performedBy || 1,
+        options: { actorType: 'USER', source: userAgent },
+      });
+
+      logger.info(
+        `Loan ${loanId} (${loan.referenceCode}) written off: ${amount} by user ${performedBy}. ` +
+        `Balance: ${outstanding} → ${newBalance}. Status: ${newStatus}`
+      );
+
+      await loan.reload({
+        include: [
+          { association: 'repaymentSchedules', required: false },
+          { association: 'transactions', required: false },
+        ],
+      });
+
+      return loan;
+
+    } catch (err) {
+      await t.rollback();
+      logger.error(`Error in writeOffLoan (${loanId}): ${err.message}`);
+      throw err;
+    }
+  },
+
 };
 
 /**
