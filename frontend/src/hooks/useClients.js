@@ -25,11 +25,11 @@ export const useClients = (params = {}, queryOptions = {}) =>
     ...queryOptions,
   })
 
-/** Fetch a single client by id. */
-export const useClient = (id) =>
+/** Fetch a single client by id. Pass withLoans=true to include summary loan data. */
+export const useClient = (id, { withLoans = false } = {}) =>
   useQuery({
-    queryKey: clientKeys.detail(id),
-    queryFn: () => clientApi.getClient(id),
+    queryKey: [...clientKeys.detail(id), { withLoans }],
+    queryFn: () => clientApi.getClient(id, { withLoans }),
     enabled: Boolean(id),
   })
 

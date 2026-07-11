@@ -32,6 +32,11 @@ class ClientResponseDto {
 
     // Include documents if loaded via association
     this.documents = client.documents || [];
+
+    // Include loans if loaded via association (withLoans=true)
+    if (client.Loans) {
+      this.loans = client.Loans;
+    }
   }
 }
 

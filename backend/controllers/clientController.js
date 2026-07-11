@@ -78,7 +78,8 @@ const clientController = {
 
       logger.info(`User ${userId} fetching client ${id}`);
 
-      const client = await clientService.getClientById(id);
+      const withLoans = req.query.withLoans === 'true';
+      const client = await clientService.getClientById(id, { withLoans });
 
       if (!client) {
         logger.warn(`Client not found: ${id}`);

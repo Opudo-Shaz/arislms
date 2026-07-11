@@ -304,8 +304,17 @@ async createPayment(data, user, userAgent = 'unknown') {
 
     // ── Step 5: Update loan summary fields ────────────────────────────
     // outstandingBalance tracks remaining principal only
-    const newBalance = Math.max(0, Number((outstanding - appliedToPrincipal).toFixed(2)));
+    let newBalance = Math.max(0, Number((outstanding - appliedToPrincipal).toFixed(2)));
     const currentAmountRepaid = Number(loan.amountRepaid || 0);
+
+    // The schedule is the source of truth for whether the loan is settled.
+    // When no pending/partial installments remain (nextDueDate === null), the
+    // loan is fully repaid — clear any residual left by per-installment rounding
+    // so the balance doesn't get "stuck" at a few cents.
+    const scheduleFullyPaid = !nextDueDate;
+    if (scheduleFullyPaid) {
+      newBalance = 0;
+    }
 
     const loanUpdates = {
       outstandingBalance: newBalance,
@@ -315,11 +324,37 @@ async createPayment(data, user, userAgent = 'unknown') {
       nextPaymentDate: nextDueDate || null,
     };
 
-    // Transition loan status based on remaining balance
-    if (newBalance <= 0) {
+    // Transition loan status: closed when fully repaid, otherwise activate.
+    if (newBalance <= 0 || scheduleFullyPaid) {
       loanUpdates.status = LoanStatus.CLOSED;
     } else if (loan.status === LoanStatus.DISBURSED) {
       loanUpdates.status = LoanStatus.ACTIVE;
+    }
+
+    /**
+     * When the loan is fully settled, reconcile any lingering schedule rows.
+     * Per-installment interest/principal splits are rounded to 2 decimals, so
+     * the final installment can be left a cent or two short and flagged
+     * 'partial' even though the loan is paid off. Force-close them so the
+     * schedule matches the closed loan.
+     */
+    if (loanUpdates.status === LoanStatus.CLOSED) {
+      loanUpdates.nextPaymentDate = null;
+      const leftover = await RepaymentSchedule.findAll({
+        where: { loanId: data.loanId, status: ['pending', 'partial'] },
+        transaction: t,
+      });
+      if (leftover.length > 0) {
+        logger.info(`Reconciling ${leftover.length} leftover schedule rows for fully repaid loan ${loan.id}`);
+        for (const inst of leftover) {
+          await inst.update({
+            paidAmount: Number(inst.totalAmount),
+            paidDate: inst.paidDate || new Date(),
+            status: 'paid',
+            remainingBalance: 0,
+          }, { transaction: t });
+        }
+      }
     }
 
     await loan.update(loanUpdates, { transaction: t });
