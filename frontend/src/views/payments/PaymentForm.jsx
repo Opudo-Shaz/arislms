@@ -165,9 +165,16 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
             {selectedLoan && (
               <CCol md={12}>
                 <div className="small text-body-secondary">
-                  Outstanding balance:{' '}
+                  Outstanding principal:{' '}
                   <strong>
                     {formatCurrency(selectedLoan.outstandingBalance, selectedLoan.currency)}
+                  </strong>{' '}
+                  · Total outstanding (incl. interest):{' '}
+                  <strong>
+                    {formatCurrency(
+                      selectedLoan.totalOutstandingBalance ?? selectedLoan.outstandingBalance,
+                      selectedLoan.currency,
+                    )}
                   </strong>{' '}
                   · Currency: <strong>{selectedLoan.currency || 'KES'}</strong>
                 </div>

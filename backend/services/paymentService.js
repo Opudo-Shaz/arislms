@@ -13,6 +13,7 @@ const ledgerService = require('./ledgerService');
 const memberContributionService = require('./memberContributionService');
 const { emitLoanTransaction } = require('../utils/loanTransactionEmitter');
 const LoanTransactionType = require('../enums/loanTransactionType');
+const systemConfigService = require('./systemConfigService');
 
 const paymentService = {
   /**
@@ -266,7 +267,13 @@ async createPayment(data, user, userAgent = 'unknown') {
     }, 0);
 
     // Compute overpayment surplus — amount beyond total owed goes to member contributions
-    const surplus = Math.max(0, Number((paymentAmount - totalOwed).toFixed(2)));
+    const rawSurplus = Math.max(0, Number((paymentAmount - totalOwed).toFixed(2)));
+
+    // Ignore immaterial surpluses (rounding noise): absorb them into the payment
+    // instead of posting a trivial member contribution + journal line.
+    // Threshold is configurable via system_config key 'payment.min_overpayment_surplus'.
+    const minSurplus = await systemConfigService.getConfigValue('payment.min_overpayment_surplus', 'number', 1);
+    const surplus = rawSurplus >= minSurplus ? rawSurplus : 0;
     const effectiveAmount = Number((paymentAmount - surplus).toFixed(2));
 
     const outstanding = Number(parseFloat(loan.outstandingBalance));

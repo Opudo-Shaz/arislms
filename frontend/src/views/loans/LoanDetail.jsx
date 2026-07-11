@@ -484,8 +484,14 @@ const LoanDetail = () => {
                 <Field label="Principal Amount">
                   {formatCurrency(loan.principalAmount, loan.currency)}
                 </Field>
-                <Field label="Outstanding Balance">
+                <Field label="Outstanding Principal">
                   {formatCurrency(loan.outstandingBalance, loan.currency)}
+                </Field>
+                <Field label="Total Outstanding (incl. interest)">
+                  {formatCurrency(
+                    loan.totalOutstandingBalance ?? loan.outstandingBalance,
+                    loan.currency,
+                  )}
                 </Field>
                 <Field label="Interest Rate">{formatPercent(loan.interestRate)}</Field>
                 <Field label="Interest Type">{loan.interestType || '—'}</Field>

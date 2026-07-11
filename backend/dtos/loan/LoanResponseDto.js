@@ -2,6 +2,28 @@
 const RepaymentScheduleResponseDto = require('../repaymentSchedule/RepaymentScheduleResponseDto');
 const CreditScoreResponseDto = require('../creditScore/CreditScoreResponseDto');
 
+// Statuses whose remaining amount still contributes to what the borrower owes.
+const OUTSTANDING_SCHEDULE_STATUSES = ['pending', 'overdue', 'partial'];
+
+/**
+ * Total amount still owed on the loan, including interest (and fees), derived
+ * from the repayment schedule. Falls back to the principal-only
+ * outstandingBalance when the schedule is not loaded (e.g. before disbursement).
+ */
+function computeTotalOutstanding(loan) {
+  if (!Array.isArray(loan.repaymentSchedules) || loan.repaymentSchedules.length === 0) {
+    return loan.outstandingBalance != null ? Number(loan.outstandingBalance) : null;
+  }
+
+  const total = loan.repaymentSchedules.reduce((sum, s) => {
+    if (!OUTSTANDING_SCHEDULE_STATUSES.includes(s.status)) return sum;
+    const owed = Number(s.totalAmount || 0) - Number(s.paidAmount || 0);
+    return sum + Math.max(0, owed);
+  }, 0);
+
+  return Number(total.toFixed(2));
+}
+
 function LoanResponseDto(loan) {
   return {
     id: loan.id,
@@ -21,6 +43,7 @@ function LoanResponseDto(loan) {
     approvalDate: loan.approvalDate,
     installmentAmount: loan.installmentAmount,
     outstandingBalance: loan.outstandingBalance,
+    totalOutstandingBalance: computeTotalOutstanding(loan),
     amountRepaid: loan.amountRepaid,
     noOfRepayments: loan.noOfRepayments,
     fees: loan.fees,

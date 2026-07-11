@@ -1607,7 +1607,7 @@ async function validateClientOpenLoans(clientId, allowedStatuses = []) {
 
   if (existingLoans.length > 0) {
     throw new Error(
-      `Client has ${existingLoans.length} existing loan(s) in status: ${statusesToCheck.join(', ')}`
+      `Client has ${existingLoans.length} existing loan(s) in either of the following statuses: ${statusesToCheck.join(', ')}`
     );
   }
 

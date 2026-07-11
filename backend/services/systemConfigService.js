@@ -65,6 +65,46 @@ module.exports = {
     return SystemConfig.findOne({ where: { key } })
   },
 
+  /**
+   * Retrieve a config value by key, cast to the requested type, with a fallback default.
+   *
+   * @param {string} key           - The config key (e.g. 'payment.min_overpayment_surplus')
+   * @param {'string'|'number'|'boolean'|'json'} type - Target type to cast the stored text to
+   * @param {*} defaultValue       - Returned when the key is missing, inactive, or unparseable
+   * @returns {Promise<*>}
+   */
+  async getConfigValue(key, type = 'string', defaultValue = null) {
+    try {
+      const cfg = await SystemConfig.findOne({ where: { key } })
+      if (!cfg || !cfg.isActive) return defaultValue
+
+      // Boolean configs: the value IS isActive; the text value is irrelevant
+      if (cfg.isBoolean) {
+        if (type === 'boolean') return cfg.isActive
+        return defaultValue
+      }
+
+      if (cfg.value == null) return defaultValue
+
+      switch (type) {
+        case 'number': {
+          const n = Number(cfg.value)
+          return isFinite(n) ? n : defaultValue
+        }
+        case 'boolean':
+          return cfg.value === 'true'
+        case 'json': {
+          try { return JSON.parse(cfg.value) } catch { return defaultValue }
+        }
+        default:
+          return String(cfg.value)
+      }
+    } catch (err) {
+      logger.warn(`SystemConfig.getConfigValue('${key}'): ${err.message} — using default`)
+      return defaultValue
+    }
+  },
+
   async create(data, creatorId, userAgent = 'unknown') {
     const existing = await SystemConfig.findOne({ where: { key: data.key } })
     if (existing) throw new Error(`Config key '${data.key}' already exists`)
