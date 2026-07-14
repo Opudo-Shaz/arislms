@@ -13,6 +13,7 @@ const LoanTransactionType = require('../enums/loanTransactionType');
 const ClientStatus = require('../enums/clientStatus');
 const JournalEntryStatus = require('../enums/journalEntryStatus');
 const AccountType = require('../enums/accountType');
+const { CURRENCY_EPSILON } = require('../utils/helpers');
 
 // Loans whose outstanding installments contribute to the portfolio.
 const OUTSTANDING_LOAN_STATUSES = [
@@ -75,7 +76,7 @@ async function getPortfolioAging(asOfInput) {
     const total = Number(s.totalAmount) || 0;
     const paid = Number(s.paidAmount) || 0;
     const outstanding = total - paid;
-    if (outstanding <= 0.005) continue;
+    if (outstanding <= CURRENCY_EPSILON) continue;
 
     // Principal share of the still-outstanding amount for this installment.
     const principalRatio = total > 0 ? (Number(s.principalAmount) || 0) / total : 0;

@@ -31,6 +31,7 @@ import { useAuth } from '../../context/AuthContext'
 import { COLLATERAL_TYPE, ROLE_GROUPS } from '../../constants/enums'
 import { formatCurrency, formatPercent } from '../../utils/format'
 import swal from '../../utils/useSweetAlert'
+import ClientAsyncSelect from '../../components/ClientAsyncSelect'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -39,7 +40,7 @@ const emptyForm = {
   loanProductId: '',
   principalAmount: '',
   startDate: today(),
-  coSignerIdNumber: '',
+  coSignerId: '',
   collateralType: '',
   collateralDetails: '',
   collateralReferenceNumber: '',
@@ -57,7 +58,7 @@ const toPayload = (form) => {
     principalAmount: Number(form.principalAmount),
     startDate: form.startDate,
   }
-  if (form.coSignerIdNumber.trim()) payload.coSignerIdNumber = form.coSignerIdNumber.trim()
+  if (form.coSignerId) payload.coSignerId = Number(form.coSignerId)
   if (form.collateralType.trim() && form.collateralDetails.trim()) {
     payload.collateral = {
       type: form.collateralType.trim(),
@@ -127,8 +128,8 @@ const LoanApplicationForm = () => {
     }
 
     // Client-side co-signer validation
-    if (selectedProduct?.requiresCoSigner && !form.coSignerIdNumber.trim()) {
-      swal.toast.warning('A co-signer ID number is required for the selected loan product.')
+    if (selectedProduct?.requiresCoSigner && !form.coSignerId) {
+      swal.toast.warning('A co-signer is required for the selected loan product.')
       return
     }
 
@@ -250,15 +251,14 @@ const LoanApplicationForm = () => {
                   </div>
                 </CCol>
                 <CCol md={6}>
-                  <CFormLabel>Co-signer ID document number *</CFormLabel>
-                  <CFormInput
-                    value={form.coSignerIdNumber}
-                    onChange={setField('coSignerIdNumber')}
-                    placeholder="National ID / Passport no. of the co-signer"
-                    required
+                  <CFormLabel htmlFor="cosigner-select">Co-signer *</CFormLabel>
+                  <ClientAsyncSelect
+                    inputId="cosigner-select"
+                    value={form.coSignerId || null}
+                    onChange={(id) => setForm((f) => ({ ...f, coSignerId: id != null ? String(id) : '' }))}
                   />
                   <div className="form-text">
-                    Must match an existing client record in the system.
+                    Search by name or account number. Must be a different active client.
                   </div>
                 </CCol>
               </>

@@ -14,6 +14,7 @@ const memberContributionService = require('./memberContributionService');
 const { emitLoanTransaction } = require('../utils/loanTransactionEmitter');
 const LoanTransactionType = require('../enums/loanTransactionType');
 const systemConfigService = require('./systemConfigService');
+const { CURRENCY_EPSILON } = require('../utils/helpers');
 
 const paymentService = {
   /**
@@ -183,6 +184,83 @@ async getPaymentsByLoan(loanId) {
 },
 
 /**
+ * Records a payment on an approved (not yet disbursed) loan as a down payment.
+ * Must be called within an existing transaction; the caller commits.
+ *
+ * Posts DR 1001 Cash / CR 2100 Loan Downpayments Held and increments the loan's
+ * downPaymentPaid. Creates a Payment record (appliedToPrincipal/Interest = 0) so
+ * the collection is traceable in the payments ledger.
+ *
+ * @param {Object} loan - Loan instance
+ * @param {Object} data - Payment data
+ * @param {number} paymentAmount - Validated amount
+ * @param {number} creatorId
+ * @param {string} userAgent
+ * @param {Object} t - Open Sequelize transaction
+ * @returns {Promise<{payment: Object, downPayment: boolean}>}
+ */
+async recordDownPayment(loan, data, paymentAmount, creatorId, userAgent, t) {
+  const required = Number(loan.downPaymentRequired || 0);
+  const alreadyPaid = Number(loan.downPaymentPaid || 0);
+  const remaining = Number((required - alreadyPaid).toFixed(2));
+
+  if (remaining <= 0) {
+    throw new Error('Down payment for this loan has already been fully collected');
+  }
+    if (paymentAmount > remaining + CURRENCY_EPSILON) {
+    throw new Error(
+      `Down payment amount (${paymentAmount}) exceeds the outstanding down payment (${remaining})`
+    );
+  }
+
+  const payment = await Payment.create({
+    loanId: loan.id,
+    amount: paymentAmount,
+    currency: data.currency || loan.currency,
+    paymentMethod: data.paymentMethod || 'cash',
+    externalRef: data.externalRef || `TX-${uuidv4().split('-')[0].toUpperCase()}`,
+    payerName: data.payerName || null,
+    payerPhone: data.payerPhone || null,
+    transactionDate: data.transactionDate ? new Date(data.transactionDate) : new Date(),
+    paymentDate: new Date(),
+    appliedToPrincipal: 0,
+    appliedToInterest: 0,
+    appliedToDownPayment: paymentAmount,
+    fees: 0,
+    penalties: 0,
+    processedBy: creatorId,
+    notes: data.notes ? `Down payment – ${data.notes}` : 'Down payment',
+  }, { transaction: t });
+
+  await ledgerService.postDownPaymentCollectionEntry(loan, paymentAmount, creatorId, t);
+
+  const newPaid = Number((alreadyPaid + paymentAmount).toFixed(2));
+  await loan.update({ downPaymentPaid: newPaid }, { transaction: t });
+
+  await AuditLogger.log({
+    entityType: 'PAYMENT',
+    entityId: payment.id,
+    action: 'CREATE',
+    data: {
+      loanId: loan.id,
+      amount: paymentAmount,
+      downPayment: true,
+      downPaymentPaid: newPaid,
+      downPaymentRequired: required,
+    },
+    actorId: creatorId || 1,
+    options: { actorType: 'USER', source: userAgent },
+  });
+
+  logger.info(
+    `Down payment ${payment.id} of ${paymentAmount} recorded for approved loan ${loan.id} ` +
+    `(total ${newPaid}/${required})`
+  );
+
+  return { payment, downPayment: true };
+},
+
+/**
  * Creates a payment for a loan and updates all related records.
  *
  * Flow:
@@ -207,21 +285,10 @@ async createPayment(data, user, userAgent = 'unknown') {
 
     // ── Step 1: Validate loan and payment ─────────────────────────────
     const loan = await Loan.findByPk(data.loanId, {
-      include: [{ model: LoanProduct }],
+      include: [{ model: LoanProduct, as: 'loanProduct' }],
       transaction: t
     });
     if (!loan) throw new Error('Loan not found');
-
-    // Ensure loan is in a payable state
-    const payableStatuses = [
-      LoanStatus.DISBURSED,
-      LoanStatus.ACTIVE,
-      LoanStatus.PARTIALLY_PAID,
-      LoanStatus.OVERDUE
-    ];
-    if (!payableStatuses.includes(loan.status)) {
-      throw new Error(`Loan is not in a payable state. Current status: ${loan.status}`);
-    }
 
     // Validate client ownership
     if (Number(loan.clientId) !== Number(data.clientId)) {
@@ -252,6 +319,29 @@ async createPayment(data, user, userAgent = 'unknown') {
     const paymentAmount = Number(parseFloat(data.amount));
     if (!isFinite(paymentAmount) || paymentAmount <= 0) {
       throw new Error('Payment amount must be greater than zero');
+    }
+
+    // ── Down payment branch ───────────────────────────────────────────
+    // An approved (not yet disbursed) loan that requires a down payment accepts
+    // payments as down-payment collection. The cash is held in liability account
+    // 2100 until disbursement (applied against principal) or deletion (transferred
+    // to member contributions). No repayment schedule exists yet, so the normal
+    // schedule application below is skipped.
+    if (loan.status === LoanStatus.APPROVED && Number(loan.downPaymentRequired || 0) > 0) {
+      const result = await this.recordDownPayment(loan, data, paymentAmount, creatorId, userAgent, t);
+      await t.commit();
+      return result;
+    }
+
+    // ── Step 1b: Ensure loan is in a payable state ────────────────────
+    const payableStatuses = [
+      LoanStatus.DISBURSED,
+      LoanStatus.ACTIVE,
+      LoanStatus.PARTIALLY_PAID,
+      LoanStatus.OVERDUE
+    ];
+    if (!payableStatuses.includes(loan.status)) {
+      throw new Error(`Loan is not in a payable state. Current status: ${loan.status}`);
     }
 
     // ── Step 2: Validate amount against schedule ──────────────────────

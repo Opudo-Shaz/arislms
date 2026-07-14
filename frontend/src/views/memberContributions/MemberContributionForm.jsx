@@ -29,8 +29,8 @@ import {
 } from '@coreui/react'
 
 import { useCreateContribution } from '../../hooks/useMemberContributions'
-import { useClients } from '../../hooks/useClients'
 import { CONTRIBUTION_TYPE } from '../../constants/enums'
+import ClientAsyncSelect from '../../components/ClientAsyncSelect'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -44,8 +44,6 @@ const buildForm = (clientId) => ({
 
 const MemberContributionForm = ({ visible, clientId, onClose }) => {
   const createMutation = useCreateContribution()
-  const { data: clientsResult } = useClients({ limit: 500 })
-  const clients = clientsResult?.clients ?? []
 
   const [form, setForm] = useState(buildForm(clientId))
   const [error, setError] = useState(null)
@@ -109,20 +107,13 @@ const MemberContributionForm = ({ visible, clientId, onClose }) => {
           )}
           <CRow className="g-3">
             <CCol xs={12}>
-              <CFormLabel>Member *</CFormLabel>
-              <CFormSelect
-                value={form.clientId}
-                onChange={setField('clientId')}
-                disabled={Boolean(clientId)}
-                required
-              >
-                <option value="">Select member…</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {`${c.firstName} ${c.lastName}`.trim()}
-                  </option>
-                ))}
-              </CFormSelect>
+              <CFormLabel htmlFor="mc-client-select">Member *</CFormLabel>
+              <ClientAsyncSelect
+                inputId="mc-client-select"
+                value={form.clientId || null}
+                onChange={(id) => setForm((f) => ({ ...f, clientId: id != null ? String(id) : '' }))}
+                isDisabled={Boolean(clientId)}
+              />
             </CCol>
 
             <CCol md={6}>

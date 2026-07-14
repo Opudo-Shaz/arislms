@@ -8,6 +8,7 @@ class LoanProductRequestDto {
     this.interestType = data.interestType ?? 'reducing';
     this.penaltyRate = data.penaltyRate ?? 0;
     this.minimumDownPayment = data.minimumDownPayment ?? 0;
+    this.downPaymentType = data.downPaymentType ?? 'amount';
     this.repaymentPeriodMonths = data.repaymentPeriodMonths;
     this.maxLoanAmount = data.maxLoanAmount;
     this.minLoanAmount = data.minLoanAmount;
@@ -53,6 +54,11 @@ class LoanProductRequestDto {
     minimumDownPayment: Joi.number().min(0).default(0)
       .messages({
         'number.min': 'Minimum down payment cannot be negative'
+      }),
+
+    downPaymentType: Joi.string().valid('amount', 'percentage').default('amount')
+      .messages({
+        'any.only': 'Down payment type must be amount or percentage'
       }),
 
     repaymentPeriodMonths: Joi.number().integer().positive().required()

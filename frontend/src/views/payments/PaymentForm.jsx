@@ -39,8 +39,18 @@ import { useLoans } from '../../hooks/useLoans'
 import { PAYMENT_METHOD } from '../../constants/enums'
 import { formatCurrency } from '../../utils/format'
 
-/** Loan statuses that can receive a payment. */
+/** Loan statuses that can receive a repayment. */
 const PAYABLE_STATUSES = ['disbursed', 'active', 'partially_paid', 'overdue']
+
+/** Outstanding down payment on an approved (not yet disbursed) loan. */
+const downPaymentDue = (l) =>
+  Math.max(0, Number(((Number(l?.downPaymentRequired || 0)) - Number(l?.downPaymentPaid || 0)).toFixed(2)))
+
+/** Approved loan still owing a down payment accepts payments as down payment. */
+const requiresDownPayment = (l) => l?.status === 'approved' && downPaymentDue(l) > 0
+
+/** A loan can receive a payment if it's in a payable state or owes a down payment. */
+const isPayable = (l) => PAYABLE_STATUSES.includes(l?.status) || requiresDownPayment(l)
 
 /** Today as YYYY-MM-DD. */
 const today = () => new Date().toISOString().slice(0, 10)
@@ -68,7 +78,7 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
   const loans = loansResult?.loans ?? []
 
   const payableLoans = useMemo(
-    () => loans.filter((l) => PAYABLE_STATUSES.includes(l.status)),
+    () => loans.filter(isPayable),
     [loans],
   )
 
@@ -77,6 +87,10 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
     if (lockedLoan) return loan
     return payableLoans.find((l) => String(l.id) === String(form.loanId)) || null
   }, [lockedLoan, loan, payableLoans, form.loanId])
+
+  // A payment on an approved loan that still owes a down payment is collected as
+  // a down payment (held until disbursement), not a repayment.
+  const downPaymentMode = requiresDownPayment(selectedLoan)
 
   useEffect(() => {
     if (visible) {
@@ -124,7 +138,7 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
     <CModal visible={visible} onClose={onClose} alignment="center" size="lg">
       <CForm onSubmit={handleSubmit}>
         <CModalHeader>
-          <CModalTitle>Record Payment</CModalTitle>
+          <CModalTitle>{downPaymentMode ? 'Record Down Payment' : 'Record Payment'}</CModalTitle>
         </CModalHeader>
         <CModalBody>
           {error && (
@@ -164,20 +178,37 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
 
             {selectedLoan && (
               <CCol md={12}>
-                <div className="small text-body-secondary">
-                  Outstanding principal:{' '}
-                  <strong>
-                    {formatCurrency(selectedLoan.outstandingBalance, selectedLoan.currency)}
-                  </strong>{' '}
-                  · Total outstanding (incl. interest):{' '}
-                  <strong>
-                    {formatCurrency(
-                      selectedLoan.totalOutstandingBalance ?? selectedLoan.outstandingBalance,
-                      selectedLoan.currency,
-                    )}
-                  </strong>{' '}
-                  · Currency: <strong>{selectedLoan.currency || 'KES'}</strong>
-                </div>
+                {downPaymentMode ? (
+                  <div className="small text-body-secondary">
+                    Down payment required:{' '}
+                    <strong>
+                      {formatCurrency(selectedLoan.downPaymentRequired, selectedLoan.currency)}
+                    </strong>{' '}
+                    · Paid:{' '}
+                    <strong>
+                      {formatCurrency(selectedLoan.downPaymentPaid, selectedLoan.currency)}
+                    </strong>{' '}
+                    · Outstanding:{' '}
+                    <strong>
+                      {formatCurrency(downPaymentDue(selectedLoan), selectedLoan.currency)}
+                    </strong>
+                  </div>
+                ) : (
+                  <div className="small text-body-secondary">
+                    Outstanding principal:{' '}
+                    <strong>
+                      {formatCurrency(selectedLoan.outstandingBalance, selectedLoan.currency)}
+                    </strong>{' '}
+                    · Total outstanding (incl. interest):{' '}
+                    <strong>
+                      {formatCurrency(
+                        selectedLoan.totalOutstandingBalance ?? selectedLoan.outstandingBalance,
+                        selectedLoan.currency,
+                      )}
+                    </strong>{' '}
+                    · Currency: <strong>{selectedLoan.currency || 'KES'}</strong>
+                  </div>
+                )}
               </CCol>
             )}
 

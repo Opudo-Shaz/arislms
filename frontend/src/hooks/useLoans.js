@@ -57,7 +57,7 @@ export const useUpdateLoan = () => {
 export const useDeleteLoan = () => {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id) => loanApi.deleteLoan(id),
+    mutationFn: ({ id, payload }) => loanApi.deleteLoan(id, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: loanKeys.all }),
   })
 }

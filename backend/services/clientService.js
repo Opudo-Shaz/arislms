@@ -93,12 +93,12 @@ const clientService = {
       if (kycStatus) where.kycStatus = kycStatus;
 
       if (search) {
+        const escaped = search.replace(/[%_\\]/g, '\\$&');
+        const { Sequelize } = require('sequelize');
         where[Op.or] = [
-          { firstName: { [Op.iLike]: `%${search}%` } },
-          { lastName: { [Op.iLike]: `%${search}%` } },
-          { email: { [Op.iLike]: `%${search}%` } },
-          { phone: { [Op.iLike]: `%${search}%` } },
-          { accountNumber: { [Op.iLike]: `%${search}%` } },
+          Sequelize.literal(`CONCAT(first_name, ' ', last_name) ILIKE '${escaped}%'`),
+          { accountNumber: { [Op.iLike]: `${escaped}%` } },
+          { idDocumentNumber: { [Op.iLike]: `${escaped}%` } },
         ];
       }
 

@@ -116,6 +116,10 @@ const ClientDetail = () => {
   const { role } = useAuth()
   const canManage = ROLE_GROUPS.STAFF.includes(role)
 
+  // Mirror backend rule: block new loan if client has any loan in these statuses
+  const BLOCKING_LOAN_STATUSES = ['active', 'under_review', 'pending']
+  const hasBlockingLoan = clientLoans.some((l) => BLOCKING_LOAN_STATUSES.includes(l.status))
+
   // Derive the client photo from the documents array (loaded with the client record).
   const photoDoc = client?.documents?.find((d) => d.documentType === 'client_photo')
   const clientPhotoUrl = useDocumentBlobUrl(photoDoc?.id)
@@ -191,7 +195,7 @@ const ClientDetail = () => {
                     Edit
                   </CButton>
                 )}
-                {canManage && client.kycStatus === 'verified' && client.status === 'active' && (
+                {canManage && client.kycStatus === 'verified' && client.status === 'active' && !hasBlockingLoan && (
                   <CButton
                     color="success"
                     size="sm"
@@ -274,7 +278,7 @@ const ClientDetail = () => {
 
         <CCol lg={4}>
           <CCard className="mb-4">
-            <CCardHeader>
+            <CCardHeader className='text-bg-secondary'>
               <strong>Loans</strong>
             </CCardHeader>
             <CCardBody className="p-0">
@@ -301,8 +305,8 @@ const ClientDetail = () => {
                             {loan.referenceCode || `#${loan.id}`}
                           </span>
                         </td>
-                        <td>{formatCurrency(loan.principalAmount, loan.currency)}</td>
-                        <td>{formatCurrency(loan.outstandingBalance, loan.currency)}</td>
+                        <td>{loan.principalAmount} </td>
+                        <td>{loan.outstandingBalance}</td>
                         <td><StatusBadge enumDef={LOAN_STATUS} value={loan.status} /></td>
                       </tr>
                     ))}
@@ -314,7 +318,7 @@ const ClientDetail = () => {
 
           {canManage && (
             <CCard className="mb-4">
-              <CCardHeader>
+              <CCardHeader className='text-bg-info'>
                 <strong>KYC</strong>
               </CCardHeader>
               <CCardBody className="d-grid gap-2">
@@ -337,7 +341,7 @@ const ClientDetail = () => {
 
           {canManage && (
             <CCard className="mb-4">
-              <CCardHeader>
+              <CCardHeader className='text-bg-primary'>
                 <strong>Status</strong>
               </CCardHeader>
               <CCardBody className="d-grid gap-2">

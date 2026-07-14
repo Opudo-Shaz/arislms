@@ -48,6 +48,8 @@ function LoanResponseDto(loan) {
     noOfRepayments: loan.noOfRepayments,
     fees: loan.fees,
     penalties: loan.penalties,
+    downPaymentRequired: loan.downPaymentRequired,
+    downPaymentPaid: loan.downPaymentPaid,
     collateral: loan.collateral,
     coSignerId: loan.coSignerId ?? null,
     coSigner: loan.coSigner

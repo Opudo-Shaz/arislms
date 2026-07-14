@@ -29,7 +29,7 @@ import {
 } from '@coreui/react'
 
 import { useCreateLoanProduct, useUpdateLoanProduct } from '../../hooks/useLoanProducts'
-import { COLLATERAL_TYPE } from '../../constants/enums'
+import { COLLATERAL_TYPE, DOWN_PAYMENT_TYPE } from '../../constants/enums'
 
 const emptyForm = {
   name: '',
@@ -38,6 +38,7 @@ const emptyForm = {
   interestType: 'reducing',
   penaltyRate: '0',
   minimumDownPayment: '0',
+  downPaymentType: 'amount',
   repaymentPeriodMonths: '',
   minLoanAmount: '',
   maxLoanAmount: '',
@@ -56,6 +57,7 @@ const toForm = (p) => ({
   interestType: p.interestType || 'reducing',
   penaltyRate: p.penaltyRate ?? '0',
   minimumDownPayment: p.minimumDownPayment ?? '0',
+  downPaymentType: p.downPaymentType || 'amount',
   repaymentPeriodMonths: p.repaymentPeriodMonths ?? '',
   minLoanAmount: p.minLoanAmount ?? '',
   maxLoanAmount: p.maxLoanAmount ?? '',
@@ -76,6 +78,7 @@ const toPayload = (form) => ({
   interestType: form.interestType,
   penaltyRate: Number(form.penaltyRate || 0),
   minimumDownPayment: Number(form.minimumDownPayment || 0),
+  downPaymentType: form.downPaymentType,
   repaymentPeriodMonths: Number(form.repaymentPeriodMonths),
   minLoanAmount: numberOrNull(form.minLoanAmount),
   maxLoanAmount: numberOrNull(form.maxLoanAmount),
@@ -236,6 +239,16 @@ const LoanProductForm = ({ visible, product, onClose }) => {
                 value={form.minimumDownPayment}
                 onChange={setField('minimumDownPayment')}
               />
+            </CCol>
+            <CCol md={4}>
+              <CFormLabel>Down payment type</CFormLabel>
+              <CFormSelect value={form.downPaymentType} onChange={setField('downPaymentType')}>
+                {Object.keys(DOWN_PAYMENT_TYPE.labels).map((k) => (
+                  <option key={k} value={k}>
+                    {DOWN_PAYMENT_TYPE.labels[k]}
+                  </option>
+                ))}
+              </CFormSelect>
             </CCol>
             <CCol md={4}>
               <CFormLabel>Fees</CFormLabel>

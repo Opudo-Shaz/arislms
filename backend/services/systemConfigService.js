@@ -34,6 +34,21 @@ async function seedInfraConfigs() {
     })
   }
 
+  // Feature-flag / policy configs (editable by admins; not env-driven).
+  await SystemConfig.findOrCreate({
+    where: { key: 'loan.deletion_of_active_loan_enabled' },
+    defaults: {
+      key: 'loan.deletion_of_active_loan_enabled',
+      label: 'Allow Deleting Active (Disbursed) Loans',
+      value: null,
+      category: 'loans',
+      description: 'When enabled, disbursed/active loans may be deleted (their outstanding principal is written off). When disabled, only pre-disbursement loans can be deleted.',
+      isBoolean: true,
+      isActive: false, // disabled by default — isActive IS the value for boolean configs
+      isReadOnly: false,
+    },
+  })
+
   logger.info('SystemConfig: infra seeds applied')
 }
 

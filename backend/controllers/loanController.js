@@ -310,10 +310,15 @@ exports.deleteLoan = async (req, res) => {
     const userId = getUserId(req);
     const userAgent = req.headers['user-agent'];
     const loanId = req.params.id;
+    // DELETE requests often have their body stripped by clients/proxies, so
+    // fall back to query params (e.g. DELETE /loans/:id?reason=data_entry_error)
+    const { reason, notes } = (req.body && req.body.reason)
+      ? req.body
+      : req.query;
 
-    logger.warn(`User ${userId} deleting loan ${loanId}`);
+    logger.warn(`User ${userId} deleting loan ${loanId} (reason: ${reason})`);
 
-    await loanService.deleteLoan(loanId, userId, userAgent);
+    await loanService.deleteLoan(loanId, { reason, notes }, userId, userAgent);
 
     return res.status(200).json({
       success: true,
@@ -322,7 +327,13 @@ exports.deleteLoan = async (req, res) => {
   } catch (error) {
     logger.error(`DeleteLoan Error (${req.params.id}): ${error.message}`);
 
-    return res.status(404).json({
+    const status = error.statusCode
+      || (/not found/i.test(error.message) ? 404
+        : /disabled by system configuration/i.test(error.message) ? 403
+        : /reason/i.test(error.message) ? 422
+        : 500);
+
+    return res.status(status).json({
       success: false,
       message: error.message
     });

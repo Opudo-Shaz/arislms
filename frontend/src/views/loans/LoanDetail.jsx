@@ -19,6 +19,16 @@ import {
   CCardBody,
   CCardHeader,
   CCol,
+  CForm,
+  CFormInput,
+  CFormLabel,
+  CFormSelect,
+  CFormTextarea,
+  CModal,
+  CModalBody,
+  CModalFooter,
+  CModalHeader,
+  CModalTitle,
   CNav,
   CNavItem,
   CNavLink,
@@ -33,7 +43,6 @@ import { cilBan, cilCash, cilCheckAlt, cilPencil, cilPlus, cilTrash, cilXCircle 
 
 import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
-import ConfirmModal from '../../components/ConfirmModal'
 import LoanActionModal from './LoanActionModal'
 import LoanDocuments from './LoanDocuments'
 import PaymentForm from '../payments/PaymentForm'
@@ -55,6 +64,7 @@ import {
   PAYMENT_STATUS,
   LOAN_TRANSACTION_TYPE,
   TRANSACTION_DIRECTION,
+  LOAN_DELETION_REASONS,
   ROLES,
   ROLE_GROUPS,
 } from '../../constants/enums'
@@ -98,6 +108,9 @@ const LoanDetail = () => {
   const [actionType, setActionType] = useState(null) // 'approve' | 'disburse' | 'principal' | 'reject'
   const [actionError, setActionError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteReason, setDeleteReason] = useState('')
+  const [deleteNotes, setDeleteNotes] = useState('')
+  const [deleteTouched, setDeleteTouched] = useState(false)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [viewPayment, setViewPayment] = useState(null)
   const [collateralTarget, setCollateralTarget] = useState(null)
@@ -136,9 +149,11 @@ const LoanDetail = () => {
   }
 
   const runDelete = async () => {
+    setDeleteTouched(true)
+    if (!deleteReason) return
     setActionError(null)
     try {
-      await deleteMutation.mutateAsync(id)
+      await deleteMutation.mutateAsync({ id, payload: { reason: deleteReason, notes: deleteNotes.trim() || undefined } })
       navigate('/loans')
     } catch (err) {
       setActionError(err)
@@ -161,8 +176,12 @@ const LoanDetail = () => {
   const canApprove = APPROVABLE.includes(loan.status)
   const canDisburse = loan.status === 'approved'
   const canEditPrincipal = !TERMINAL.includes(loan.status) && loan.status !== 'active'
-  const canRecordPayment = PAYABLE.includes(loan.status)
   const canWriteOff = isAdmin && WRITABLE_OFF.includes(loan.status)
+  const downPaymentRequired = Number(loan.downPaymentRequired || 0)
+  const downPaymentPaid = Number(loan.downPaymentPaid || 0)
+  const downPaymentDue = Math.max(0, Number((downPaymentRequired - downPaymentPaid).toFixed(2)))
+  // Approved loans still owing a down payment can receive payments (collected as down payment).
+  const canRecordPayment = PAYABLE.includes(loan.status) || (loan.status === 'approved' && downPaymentDue > 0)
   const schedules = (loan.repaymentSchedules || [])
     .slice()
     .sort((a, b) => a.installmentNumber - b.installmentNumber)
@@ -178,7 +197,16 @@ const LoanDetail = () => {
   }, {})
 
   const scheduleColumns = [
-    { key: 'installmentNumber', label: '#', render: (r) => (r.installmentNumber === 0 ? 'Fee' : r.installmentNumber) },
+    {
+      key: 'installmentNumber',
+      label: '#',
+      render: (r) =>
+        r.installmentNumber === 0
+          ? Number(r.feesAmount) > 0
+            ? 'Fee'
+            : 'Down Pmt'
+          : r.installmentNumber,
+    },
     { key: 'dueDate', label: 'Due', render: (r) => formatDate(r.dueDate) },
     { key: 'principalAmount', label: 'Principal', render: (r) => formatCurrency(r.principalAmount, loan.currency) },
     { key: 'interestAmount', label: 'Interest', render: (r) => formatCurrency(r.interestAmount, loan.currency) },
@@ -418,7 +446,12 @@ const LoanDetail = () => {
                 color="danger"
                 size="sm"
                 variant="outline"
-                onClick={() => setConfirmDelete(true)}
+                onClick={() => {
+                  setDeleteReason('')
+                  setDeleteNotes('')
+                  setDeleteTouched(false)
+                  setConfirmDelete(true)
+                }}
               >
                 <CIcon icon={cilTrash} className="me-1" />
                 Delete
@@ -501,6 +534,12 @@ const LoanDetail = () => {
                 </Field>
                 <Field label="Fees">{formatCurrency(loan.fees, loan.currency)}</Field>
                 <Field label="Penalties">{formatCurrency(loan.penalties, loan.currency)}</Field>
+                <Field label="Down Payment Required">
+                  {formatCurrency(loan.downPaymentRequired, loan.currency)}
+                </Field>
+                <Field label="Down Payment Paid">
+                  {formatCurrency(loan.downPaymentPaid, loan.currency)}
+                </Field>
                 <Field label="Start Date">{formatDate(loan.startDate)}</Field>
                 <Field label="End Date">{formatDate(loan.endDate)}</Field>
                 <Field label="Approval Date">{formatDate(loan.approvalDate)}</Field>
@@ -622,16 +661,54 @@ const LoanDetail = () => {
         onClose={() => setActionType(null)}
       />
 
-      <ConfirmModal
-        visible={confirmDelete}
-        title="Delete Loan"
-        body="Are you sure you want to delete this loan? This cannot be undone."
-        confirmText="Delete"
-        confirmColor="danger"
-        loading={deleteMutation.isPending}
-        onConfirm={runDelete}
-        onClose={() => setConfirmDelete(false)}
-      />
+      <CModal visible={confirmDelete} onClose={() => setConfirmDelete(false)} alignment="center">
+        <CModalHeader>
+          <CModalTitle>Delete Loan</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <p>
+            {downPaymentPaid > 0 && !loan.disbursementDate
+              ? `This loan has not been disbursed. The collected down payment (${formatCurrency(downPaymentPaid, loan.currency)}) will be transferred to the member's contributions.`
+              : loan.disbursementDate
+                ? `This loan has been disbursed. Its outstanding principal (${formatCurrency(loan.outstandingBalance, loan.currency)}) will be written off.`
+                : 'Are you sure you want to delete this loan? This cannot be undone.'}
+          </p>
+          <CForm>
+            <CFormLabel>Reason *</CFormLabel>
+            <CFormSelect
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              invalid={deleteTouched && !deleteReason}
+            >
+              <option value="">Select a reason…</option>
+              {LOAN_DELETION_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </CFormSelect>
+            {deleteTouched && !deleteReason && (
+              <div className="invalid-feedback d-block">A reason is required.</div>
+            )}
+            <CFormLabel className="mt-3">Notes (optional)</CFormLabel>
+            <CFormTextarea
+              rows={2}
+              value={deleteNotes}
+              onChange={(e) => setDeleteNotes(e.target.value)}
+            />
+            {actionError && <CAlert color="danger" className="mt-3 mb-0">{actionError.message}</CAlert>}
+          </CForm>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" variant="outline" onClick={() => setConfirmDelete(false)} disabled={deleteMutation.isPending}>
+            Cancel
+          </CButton>
+          <CButton color="danger" onClick={runDelete} disabled={deleteMutation.isPending}>
+            {deleteMutation.isPending && <CSpinner size="sm" className="me-2" />}
+            Delete
+          </CButton>
+        </CModalFooter>
+      </CModal>
 
       <PaymentForm
         visible={showPaymentForm}
