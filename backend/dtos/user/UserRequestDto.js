@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const j2s = require('joi-to-swagger');
+const { pattern: pwPattern, message: pwMessage, minLength: pwMinLength } = require('../../utils/passwordPolicy');
 
 class UserRequestDto {
   constructor(data) {
@@ -68,13 +69,13 @@ class UserRequestDto {
       }),
 
     password: Joi.string()
-      .min(8)
-      .pattern(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).*$/)
+      .min(pwMinLength)
+      .pattern(pwPattern)
       .required()
       .example('Password123!')
       .messages({
-        'string.min': 'Password must be at least 8 characters',
-        'string.pattern.base': 'Password must contain at least one letter, one number, and one special character',
+        'string.min': `Password must be at least ${pwMinLength} characters`,
+        'string.pattern.base': pwMessage,
         'any.required': 'Password is required'
       })
   });
@@ -127,13 +128,13 @@ class UserRequestDto {
       }),
 
     password: Joi.string()
-      .min(8)
-      .pattern(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).*$/)
+      .min(pwMinLength)
+      .pattern(pwPattern)
       .optional()
       .example('NewPassword456!')
       .messages({
-        'string.min': 'Password must be at least 8 characters',
-        'string.pattern.base': 'Password must contain at least one letter, one number, and one special character'
+        'string.min': `Password must be at least ${pwMinLength} characters`,
+        'string.pattern.base': pwMessage,
       })
   });
 
@@ -166,12 +167,12 @@ class UserRequestDto {
     currentPassword: Joi.string().required()
       .messages({ 'any.required': 'Current password is required' }),
     newPassword: Joi.string()
-      .min(8)
-      .pattern(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).*$/)
+      .min(pwMinLength)
+      .pattern(pwPattern)
       .required()
       .messages({
-        'string.min': 'New password must be at least 8 characters',
-        'string.pattern.base': 'New password must contain at least one letter, one number, and one special character',
+        'string.min': `New password must be at least ${pwMinLength} characters`,
+        'string.pattern.base': pwMessage,
         'any.required': 'New password is required',
       }),
   });
@@ -191,10 +192,14 @@ class UserRequestDto {
         'string.email': 'Email must be a valid email address',
         'any.required': 'Email is required'
       }),
-    newPassword: Joi.string().min(8).required()
-      .example('TempPass123')
+    newPassword: Joi.string()
+      .min(pwMinLength)
+      .pattern(pwPattern)
+      .required()
+      .example('TempPass123!')
       .messages({
-        'string.min': 'New password must be at least 8 characters',
+        'string.min': `New password must be at least ${pwMinLength} characters`,
+        'string.pattern.base': pwMessage,
         'any.required': 'New password is required'
       })
   });

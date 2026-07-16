@@ -3,6 +3,11 @@ const service = require('../services/systemConfigService')
 const logger = require('../config/logger')
 const { getUserId } = require('../utils/helpers')
 
+const CATEGORIES = (process.env.SYSTEM_CONFIG_CATEGORIES || 'general,storage,notifications,loans,integrations,email')
+  .split(',')
+  .map((c) => c.trim())
+  .filter(Boolean)
+
 const createSchema = Joi.object({
   key: Joi.string().trim().lowercase().pattern(/^[a-z0-9_.]+$/).max(100).required()
     .messages({ 'string.pattern.base': 'Key must be lowercase letters, digits, dots, or underscores' }),
@@ -17,18 +22,20 @@ const createSchema = Joi.object({
       'any.required': 'Value is required for non-boolean configs',
     }),
   }),
-  category: Joi.string().valid('storage', 'notifications', 'loans', 'general', 'integrations').default('general'),
+  category: Joi.string().valid(...CATEGORIES).default('general'),
   description: Joi.string().allow('', null).optional(),
   isActive: Joi.boolean().default(true),
+  isSecret: Joi.boolean().default(false),
 })
 
 const updateSchema = Joi.object({
   label: Joi.string().trim().max(200),
   isBoolean: Joi.boolean(),
   value: Joi.string().allow('', null),
-  category: Joi.string().valid('storage', 'notifications', 'loans', 'general', 'integrations'),
+  category: Joi.string().valid(...CATEGORIES),
   description: Joi.string().allow('', null),
   isActive: Joi.boolean(),
+  isSecret: Joi.boolean(),
 })
 
 module.exports = {

@@ -5,7 +5,11 @@ const AuditLogger = require('../utils/auditLogger')
 
 /**
  * Seed infra configs that mirror environment variables.
- * Existing rows are NOT overwritten (upsert only sets value if row is new).
+ * These are read-only in the UI — the env var is the authoritative source.
+ *
+ * Strategy: always sync the current env value so a change to .env is
+ * reflected on next startup without a manual DB update.
+ * Non-env-driven / UI-editable configs belong in scripts/seedSystemConfig.js.
  */
 async function seedInfraConfigs() {
   const infraSeeds = [
@@ -15,7 +19,6 @@ async function seedInfraConfigs() {
       value: process.env.STORAGE_PROVIDER || 'local',
       category: 'storage',
       description: 'Document storage backend: local | azure | aws | minio',
-      isReadOnly: true,
     },
     {
       key: 'storage.container',
@@ -23,31 +26,35 @@ async function seedInfraConfigs() {
       value: process.env.STORAGE_CONTAINER || '',
       category: 'storage',
       description: 'Blob container (Azure) or bucket name (AWS/Minio) for document uploads',
-      isReadOnly: true,
+    },
+    {
+      key: 'email.provider.gmail.user',
+      label: 'Gmail SMTP Username',
+      value: process.env.EMAIL_PROVIDER_GMAIL_USER || '',
+      category: 'email',
+      description: 'Gmail address used to authenticate with SMTP. Controlled by EMAIL_PROVIDER_GMAIL_USER env var.',
+    },
+    {
+      key: 'email.provider.gmail.pass',
+      label: 'Gmail SMTP App Password',
+      value: process.env.EMAIL_PROVIDER_GMAIL_PASS || '',
+      category: 'email',
+      description: 'Gmail App Password. Generate at myaccount.google.com/apppasswords. Controlled by EMAIL_PROVIDER_GMAIL_PASS env var.',
+      isSecret: true,
     },
   ]
 
   for (const seed of infraSeeds) {
-    await SystemConfig.findOrCreate({
+    const [row, created] = await SystemConfig.findOrCreate({
       where: { key: seed.key },
-      defaults: { ...seed, isActive: true },
+      defaults: { ...seed, isActive: true, isReadOnly: true },
     })
+    if (!created && row.value !== seed.value) {
+      // Env var changed since last startup — sync the new value
+      await row.update({ value: seed.value })
+      logger.info(`SystemConfig: synced updated env value for key=${seed.key}`)
+    }
   }
-
-  // Feature-flag / policy configs (editable by admins; not env-driven).
-  await SystemConfig.findOrCreate({
-    where: { key: 'loan.deletion_of_active_loan_enabled' },
-    defaults: {
-      key: 'loan.deletion_of_active_loan_enabled',
-      label: 'Allow Deleting Active (Disbursed) Loans',
-      value: null,
-      category: 'loans',
-      description: 'When enabled, disbursed/active loans may be deleted (their outstanding principal is written off). When disabled, only pre-disbursement loans can be deleted.',
-      isBoolean: true,
-      isActive: false, // disabled by default — isActive IS the value for boolean configs
-      isReadOnly: false,
-    },
-  })
 
   logger.info('SystemConfig: infra seeds applied')
 }

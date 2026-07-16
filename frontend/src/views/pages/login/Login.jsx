@@ -18,9 +18,11 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilLockLocked, cilUser } from '@coreui/icons'
 import { Eye, EyeOff } from 'lucide-react'
+import Swal from 'sweetalert2'
 import arislmsLogo from '../../../assets/brand/arislms_logo_fit.png'
 import { useAuth } from '../../../context/AuthContext'
 import { ApiError } from '../../../api'
+import { forgotPassword } from '../../../api/authApi'
 
 const Login = () => {
   const { login } = useAuth()
@@ -48,6 +50,48 @@ const Login = () => {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  const handleForgotPassword = async () => {
+    const { isConfirmed } = await Swal.fire({
+      title: 'Forgot password?',
+      text: "Enter your account email and we'll send you a reset link.",
+      input: 'email',
+      inputPlaceholder: 'your@email.com',
+      inputAttributes: { autocomplete: 'email' },
+      showCancelButton: true,
+      confirmButtonText: 'Send reset link',
+      confirmButtonColor: '#321fdb',
+      cancelButtonText: 'Cancel',
+      showLoaderOnConfirm: true,
+      preConfirm: async (value) => {
+        const trimmed = value?.trim().toLowerCase()
+        if (!trimmed) {
+          Swal.showValidationMessage('Please enter your email address')
+          return false
+        }
+        try {
+          await forgotPassword(trimmed)
+        } catch (err) {
+          const msg =
+            err?.status === 404
+              ? 'No account found for that email address.'
+              : 'A system error prevented sending the reset email. Please try again later.'
+          Swal.showValidationMessage(msg)
+          return false
+        }
+      },
+      allowOutsideClick: () => !Swal.isLoading(),
+    })
+
+    if (isConfirmed) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Check your inbox',
+        text: 'If an account exists for that email, a reset link has been sent. It expires in 30 minutes.',
+        confirmButtonColor: '#321fdb',
+      })
+    }
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -135,7 +179,7 @@ const Login = () => {
                         </CButton>
                       </CCol>
                       <CCol xs={6} className="text-right">
-                        <CButton color="link" className="px-0" type="button">
+                        <CButton color="link" className="px-0" type="button" onClick={handleForgotPassword}>
                           Forgot password?
                         </CButton>
                       </CCol>
@@ -155,11 +199,11 @@ const Login = () => {
                       Loan Management System administration portal. Sign in with your staff
                       credentials to manage clients, loans, payments, and accounting.
                     </p>
-                    <Link to="/register">
+                    {/* <Link to="/register">
                       <CButton color="primary" className="mt-3" active tabIndex={-1}>
                         Register Now!
                       </CButton>
-                    </Link>
+                    </Link> */}
                   </div>
                 </CCardBody>
               </CCard>

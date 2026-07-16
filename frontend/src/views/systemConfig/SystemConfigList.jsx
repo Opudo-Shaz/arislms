@@ -40,10 +40,12 @@ import {
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilLockLocked, cilPencil, cilPlus, cilReload, cilTrash } from '@coreui/icons'
+import { Eye, EyeOff } from 'lucide-react'
 
 import DataTable from '../../components/DataTable'
 import ConfirmModal from '../../components/ConfirmModal'
 import { useAuth } from '../../context/AuthContext'
+import { getBadgeForValue } from '../../utils/badgePalette'
 import {
   useSystemConfigs,
   useCreateSystemConfig,
@@ -54,15 +56,10 @@ import {
 
 const PAGE_SIZE = 10
 
-const CATEGORIES = ['general', 'storage', 'notifications', 'loans', 'integrations']
-
-const CATEGORY_COLORS = {
-  storage: 'info',
-  notifications: 'warning',
-  loans: 'primary',
-  integrations: 'secondary',
-  general: 'light',
-}
+const CATEGORIES = (import.meta.env.VITE_SYSTEM_CONFIG_CATEGORIES || 'general,storage,notifications,loans,integrations,email')
+  .split(',')
+  .map((c) => c.trim())
+  .filter(Boolean)
 
 const emptyForm = {
   key: '',
@@ -72,6 +69,7 @@ const emptyForm = {
   description: '',
   isActive: true,
   isBoolean: false,
+  isSecret: false,
 }
 
 const toForm = (c) => ({
@@ -82,6 +80,7 @@ const toForm = (c) => ({
   description: c.description || '',
   isActive: c.isActive !== false,
   isBoolean: c.isBoolean === true,
+  isSecret: c.isSecret === true,
 })
 
 // ── Inline create/edit modal ──────────────────────────────────────────────────
@@ -189,6 +188,13 @@ const ConfigForm = ({ visible, config, onClose }) => {
               />
             </CCol>
             <CCol xs={12}>
+              <CFormSwitch
+                label="Secret value (mask in UI by default)"
+                checked={form.isSecret}
+                onChange={set('isSecret')}
+              />
+            </CCol>
+            <CCol xs={12}>
               <CFormLabel>Description</CFormLabel>
               <CFormTextarea
                 rows={2}
@@ -227,6 +233,14 @@ const SystemConfigList = () => {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [toDelete, setToDelete] = useState(null)
+  const [revealedKeys, setRevealedKeys] = useState(new Set())
+
+  const toggleReveal = (key) =>
+    setRevealedKeys((prev) => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
 
   const queryParams = {
     page,
@@ -288,21 +302,48 @@ const SystemConfigList = () => {
     {
       key: 'category',
       label: 'Category',
-      render: (row) => (
-        <CBadge color={CATEGORY_COLORS[row.category] || 'light'} textColor={row.category === 'general' ? 'dark' : undefined} shape="rounded-pill">
-          {row.category}
-        </CBadge>
-      ),
+      render: (row) => {
+        const badge = getBadgeForValue(row.category, CATEGORIES)
+        return (
+          <CBadge color={badge.color} textColor={badge.textColor} shape="rounded-pill">
+            {row.category}
+          </CBadge>
+        )
+      },
     },
     {
       key: 'value',
       label: 'Value',
-      render: (row) =>
-        row.isBoolean ? (
-          <span className="text-body-secondary fst-italic">boolean</span>
-        ) : (
-          <span className="font-monospace">{row.value || <span className="text-body-secondary">—</span>}</span>
-        ),
+      render: (row) => {
+        if (row.isBoolean) {
+          return <span className="text-body-secondary fst-italic">boolean</span>
+        }
+        if (!row.value) {
+          return <span className="text-body-secondary">—</span>
+        }
+        if (row.isSecret) {
+          const revealed = revealedKeys.has(row.key)
+          return (
+            <span className="d-inline-flex align-items-center gap-2">
+              <span className="font-monospace">
+                {revealed ? row.value : '•'.repeat(Math.min(row.value.length, 12))}
+              </span>
+              <CButton
+                color="secondary"
+                variant="ghost"
+                size="sm"
+                className="p-0 border-0"
+                style={{ lineHeight: 1 }}
+                title={revealed ? 'Hide value' : 'Show value'}
+                onClick={() => toggleReveal(row.key)}
+              >
+                {revealed ? <EyeOff size={14} /> : <Eye size={14} />}
+              </CButton>
+            </span>
+          )
+        }
+        return <span className="font-monospace">{row.value}</span>
+      },
     },
     {
       key: 'isActive',
