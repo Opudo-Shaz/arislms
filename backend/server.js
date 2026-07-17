@@ -116,7 +116,7 @@ const withTimeout = (promise, ms, label) => {
       logger.info(`Server running on http://localhost:${SERVER_PORT}`);
     });
   } catch (error) {
-    logger.error(`Database connection error: ${error.message}`);
+    logger.error(`Database connection error: ${error}`);
     process.exit(1);
   }
 })();
