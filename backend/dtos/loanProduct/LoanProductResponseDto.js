@@ -15,6 +15,8 @@ class LoanProductResponseDto {
     this.termMonths = product.repaymentPeriodMonths;
     this.repaymentFrequency = product.repaymentFrequency || null;
     this.fees = product.fees;
+    this.minimumDownPayment = product.minimumDownPayment ?? 0;
+    this.downPaymentType = product.downPaymentType ?? 'amount';
     this.requiresCollateral = product.requiresCollateral;
     this.allowedCollateralTypes = product.allowedCollateralTypes || [];
     this.requiresCoSigner = product.requiresCoSigner ?? false;

@@ -49,6 +49,13 @@ const defaultAccounts = [
     description: 'Short-term obligations for business expenses (software fees, legal fees, etc.)',
   },
   {
+    code: '2100',
+    name: 'Loan Downpayments Held',
+    type: AccountType.LIABILITY,
+    normalBalance: 'CREDIT',
+    description: 'Downpayments collected from borrowers before disbursement. Applied against Loans Receivable at disbursement, or transferred to Member Contributions if the loan is deleted before disbursement.',
+  },
+  {
     code: '3001',
     name: 'Member Contributions',
     type: AccountType.EQUITY,

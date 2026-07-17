@@ -23,8 +23,8 @@ export const listClients = async (params = {}) => {
 }
 
 /** @param {number|string} id @returns {Promise<object>} */
-export const getClient = async (id) => {
-  const res = await http.get(`/clients/${id}`)
+export const getClient = async (id, { withLoans = false } = {}) => {
+  const res = await http.get(`/clients/${id}`, { params: withLoans ? { withLoans: 'true' } : undefined })
   return res?.data ?? null
 }
 

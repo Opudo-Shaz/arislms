@@ -6,6 +6,7 @@ const ChartOfAccount = require('../models/chartOfAccountModel');
 const JournalEntryStatus = require('../enums/journalEntryStatus');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
+const { CURRENCY_EPSILON } = require('../utils/helpers');
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -620,7 +621,7 @@ async function postWriteOffEntry(loan, writeOffAmount, createdBy, transaction) {
 
   // Auto-top-up provision if writeOffAmount exceeds existing provision
   const gap = Number((amount - provisioned).toFixed(2));
-  if (gap > 0.005) {
+  if (gap > CURRENCY_EPSILON) {
     result.topUp = await postEntry({
       entryDate,
       description: `Provision top-up before write-off – Loan #${loan.id} (${loan.referenceCode})`,
@@ -720,6 +721,131 @@ async function postRecoveryEntry(loan, recoveryAmount, paymentId, createdBy, tra
   }, transaction);
 }
 
+/**
+ * Posts the collection of a loan downpayment received before disbursement.
+ *
+ * DR 1001  Cash / Bank              = amount
+ * CR 2100  Loan Downpayments Held   = amount   (liability until disbursement / refund)
+ *
+ * @param {object} loan          - Loan instance
+ * @param {number} amount        - Downpayment collected
+ * @param {number} [createdBy]
+ * @param {object} [transaction]
+ */
+async function postDownPaymentCollectionEntry(loan, amount, createdBy, transaction) {
+  const value = Number(amount);
+  if (value <= 0) return null;
+
+  return postEntry({
+    entryDate: new Date().toISOString().split('T')[0],
+    description: `Downpayment received – Loan #${loan.id} (${loan.referenceCode})`,
+    sourceType: 'DOWNPAYMENT',
+    sourceId: loan.id,
+    createdBy: createdBy || AuditLogger.SYSTEM_USER_ID,
+    source: createdBy ? 'user' : 'system',
+    lines: [
+      {
+        accountCode: '1001',
+        debit: value,
+        description: `Cash received – downpayment Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+      {
+        accountCode: '2100',
+        credit: value,
+        description: `Downpayment held – Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+    ],
+  }, transaction);
+}
+
+/**
+ * Applies a held downpayment against the loan principal at disbursement. The
+ * repayment schedule is generated on the net (post-downpayment) principal, so
+ * this entry reduces the receivable to match. Principal only — no interest.
+ *
+ * DR 2100  Loan Downpayments Held   = amount   (clears the liability)
+ * CR 1100  Loans Receivable         = amount   (reduces principal owed)
+ *
+ * @param {object} loan          - Loan instance
+ * @param {number} amount        - Held downpayment being applied
+ * @param {number} [createdBy]
+ * @param {object} [transaction]
+ */
+async function postDownPaymentApplicationEntry(loan, amount, createdBy, transaction) {
+  const value = Number(amount);
+  if (value <= 0) return null;
+
+  return postEntry({
+    entryDate: loan.disbursementDate || new Date().toISOString().split('T')[0],
+    description: `Downpayment applied to principal – Loan #${loan.id} (${loan.referenceCode})`,
+    sourceType: 'DOWNPAYMENT',
+    sourceId: loan.id,
+    createdBy: createdBy || AuditLogger.SYSTEM_USER_ID,
+    source: createdBy ? 'user' : 'system',
+    lines: [
+      {
+        accountCode: '2100',
+        debit: value,
+        description: `Downpayment released – Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+      {
+        accountCode: '1100',
+        credit: value,
+        description: `Principal reduced by downpayment – Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+    ],
+  }, transaction);
+}
+
+/**
+ * Transfers a held downpayment to member contributions when a loan is deleted
+ * before disbursement (the borrower's money becomes their savings/equity).
+ *
+ * DR 2100  Loan Downpayments Held   = amount   (clears the liability)
+ * CR 3001  Member Contributions     = amount   (borrower equity)
+ *
+ * @param {object} loan          - Loan instance
+ * @param {number} amount        - Held downpayment being transferred
+ * @param {number} [createdBy]
+ * @param {object} [transaction]
+ */
+async function postDownPaymentToContributionEntry(loan, amount, createdBy, transaction) {
+  const value = Number(amount);
+  if (value <= 0) return null;
+
+  return postEntry({
+    entryDate: new Date().toISOString().split('T')[0],
+    description: `Downpayment transferred to member contributions – Loan #${loan.id} (${loan.referenceCode})`,
+    sourceType: 'DOWNPAYMENT',
+    sourceId: loan.id,
+    createdBy: createdBy || AuditLogger.SYSTEM_USER_ID,
+    source: createdBy ? 'user' : 'system',
+    lines: [
+      {
+        accountCode: '2100',
+        debit: value,
+        description: `Downpayment released on deletion – Loan #${loan.id}`,
+        loanId: loan.id,
+        clientId: loan.clientId,
+      },
+      {
+        accountCode: '3001',
+        credit: value,
+        description: `Member contribution from downpayment – Loan #${loan.id}`,
+        clientId: loan.clientId,
+      },
+    ],
+  }, transaction);
+}
+
 module.exports = {
   postEntry,
   postDisbursementEntry,
@@ -728,6 +854,9 @@ module.exports = {
   postProvisionReversalEntry,
   postWriteOffEntry,
   postRecoveryEntry,
+  postDownPaymentCollectionEntry,
+  postDownPaymentApplicationEntry,
+  postDownPaymentToContributionEntry,
   reverseEntry,
   getAvailableFunds,
   getTrialBalance,

@@ -128,6 +128,14 @@ function isAdmin(role) {
   return false;
 }
 
+/**
+ * Rounding tolerance for money comparisons. Amounts are stored to 2 decimals,
+ * so the smallest meaningful value is 0.01; this half-cent epsilon lets us treat
+ * floating-point residue as zero without swallowing a real 0.01. Overridable via
+ * the CURRENCY_EPSILON env var.
+ */
+const CURRENCY_EPSILON = Number(process.env.CURRENCY_EPSILON) || 0.005;
+
 
 module.exports = {
   formatDateWithOffset,
@@ -136,5 +144,6 @@ module.exports = {
   validateClientPayload,
   calculateEndDate,
   getUserFullName,
-  isAdmin
+  isAdmin,
+  CURRENCY_EPSILON
 };

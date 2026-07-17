@@ -26,7 +26,7 @@ const login = async (email, password, userAgent = 'unknown') => {
     const token = jwt.sign(
       { id: user.id, role: user.role_id },
       process.env.JWT_SECRET || 'secretkey',
-      { expiresIn: '14d' }
+      { expiresIn: '1d' }
     );
 
     // Log successful login to audit table
@@ -46,7 +46,7 @@ const login = async (email, password, userAgent = 'unknown') => {
 
     return {
       token,
-      expiresIn: 1209600, 
+      expiresIn: 86400, 
       user: {
         id: user.id,
         name: user.name,

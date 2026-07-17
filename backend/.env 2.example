@@ -16,3 +16,29 @@ LOG_LEVEL=info
 DOCUMENT_STORAGE_PROVIDER=local          # local | s3 | minio
 DOCUMENT_LOCAL_PATH=uploads/documents
 DOCUMENT_BASE_URL=http://localhost:3002
+
+# Email / SMTP (Gmail provider)
+# Generate an App Password at: https://myaccount.google.com/apppasswords
+EMAIL_PROVIDER=gmail
+EMAIL_FROM_NAME=ARISLMS
+EMAIL_PROVIDER_GMAIL_USER=your_gmail@gmail.com
+EMAIL_PROVIDER_GMAIL_PASS=your_gmail_app_password
+EMAIL_PROVIDER_GMAIL_HOST=smtp.gmail.com
+EMAIL_PROVIDER_GMAIL_PORT=587
+EMAIL_PROVIDER_GMAIL_SECURE=false
+
+# System config categories (comma-separated, no spaces)
+SYSTEM_CONFIG_CATEGORIES=general,storage,notifications,loans,integrations,email
+
+# Password strength policy
+# Pattern is used as-is in new RegExp(...) — no delimiters, no flags
+PASSWORD_STRENGTH_PATTERN=^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).+$
+PASSWORD_STRENGTH_MESSAGE=Password must contain at least one letter, one number, and one special character
+PASSWORD_MIN_LENGTH=8
+
+# Frontend URL (used in password reset email links)
+FRONTEND_URL=http://localhost:5173
+
+# Public URL for the app logo used in outgoing emails
+# Google Drive direct-embed format: https://drive.google.com/uc?export=view&id=FILE_ID
+APP_LOGO_URL=https://drive.google.com/uc?export=view&id=FILE_ID_HERE

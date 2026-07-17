@@ -9,7 +9,14 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     dialect: process.env.DB_DIALECT,
-    logging: false, 
+    logging: false,
+    dialectOptions: {
+      connectTimeout: 5000, // ms — TCP connect timeout
+    },
+    pool: {
+      acquire: 10000, // ms — max time to acquire a connection before throwing
+      idle: 10000,
+    },
   }
 );
 

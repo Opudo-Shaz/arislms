@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/sequalize_db');
 const InterestType = require('../enums/interestType');
+const DownPaymentType = require('../enums/downPaymentType');
 
 const LoanProduct = sequelize.define('LoanProduct', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -19,7 +20,16 @@ const LoanProduct = sequelize.define('LoanProduct', {
   penaltyRate: { type: DataTypes.DECIMAL(5,2), defaultValue: 0 },
 
   // Loan rules
+  // minimumDownPayment is interpreted per downPaymentType: a flat amount, or a
+  // percentage (0-100) of the loan principal.
   minimumDownPayment: { type: DataTypes.DECIMAL(14,2), defaultValue: 0 },
+  downPaymentType: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: DownPaymentType.AMOUNT,
+    field: 'down_payment_type',
+    comment: 'How minimumDownPayment is applied: amount | percentage'
+  },
   repaymentPeriodMonths: { type: DataTypes.INTEGER, allowNull: false },
 
   maxLoanAmount: { type: DataTypes.DECIMAL(14,2), defaultValue: null },

@@ -11,7 +11,6 @@
 import React, { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useLocation } from 'react-router-dom'
 import {
-  CAlert,
   CButton,
   CCard,
   CCardBody,
@@ -31,6 +30,8 @@ import { useLoanProducts } from '../../hooks/useLoanProducts'
 import { useAuth } from '../../context/AuthContext'
 import { COLLATERAL_TYPE, ROLE_GROUPS } from '../../constants/enums'
 import { formatCurrency, formatPercent } from '../../utils/format'
+import swal from '../../utils/useSweetAlert'
+import ClientAsyncSelect from '../../components/ClientAsyncSelect'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -39,7 +40,7 @@ const emptyForm = {
   loanProductId: '',
   principalAmount: '',
   startDate: today(),
-  coSignerIdNumber: '',
+  coSignerId: '',
   collateralType: '',
   collateralDetails: '',
   collateralReferenceNumber: '',
@@ -57,7 +58,7 @@ const toPayload = (form) => {
     principalAmount: Number(form.principalAmount),
     startDate: form.startDate,
   }
-  if (form.coSignerIdNumber.trim()) payload.coSignerIdNumber = form.coSignerIdNumber.trim()
+  if (form.coSignerId) payload.coSignerId = Number(form.coSignerId)
   if (form.collateralType.trim() && form.collateralDetails.trim()) {
     payload.collateral = {
       type: form.collateralType.trim(),
@@ -85,7 +86,6 @@ const LoanApplicationForm = () => {
   const { data: products = [], isLoading: loadingProducts } = useLoanProducts()
 
   const [form, setForm] = useState({ ...emptyForm, clientId: prefilledClientId ?? '' })
-  const [errors, setErrors] = useState(null)
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -100,33 +100,36 @@ const LoanApplicationForm = () => {
   // Guard: redirect to clients if not opened from a client detail page.
   if (!prefilledClientId) return <Navigate to="/clients" replace />
 
+  const fireError = (message, details) => {
+    swal.alert.error('Loan Creation Failed!', message, details)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setErrors(null)
 
     // Client-side collateral validation
     if (selectedProduct?.requiresCollateral) {
       if (!form.collateralType.trim()) {
-        setErrors({ message: 'Collateral type is required for this loan product.' })
+        swal.toast.warning('Collateral type is required for this loan product.')
         return
       }
       if (!form.collateralDetails.trim()) {
-        setErrors({ message: 'Collateral description is required.' })
+        swal.toast.warning('Collateral description is required.')
         return
       }
       if (!form.collateralReferenceNumber.trim() && !form.collateralRegistrationNumber.trim()) {
-        setErrors({ message: 'Either a reference number or registration number must be provided for the collateral.' })
+        swal.toast.warning('Either a reference number or registration number must be provided for the collateral.')
         return
       }
       if (!form.collateralEstimatedValue) {
-        setErrors({ message: 'Estimated value is required for the collateral.' })
+        swal.toast.warning('Estimated value is required for the collateral.')
         return
       }
     }
 
     // Client-side co-signer validation
-    if (selectedProduct?.requiresCoSigner && !form.coSignerIdNumber.trim()) {
-      setErrors({ message: 'A co-signer ID number is required for the selected loan product.' })
+    if (selectedProduct?.requiresCoSigner && !form.coSignerId) {
+      swal.toast.warning('A co-signer is required for the selected loan product.')
       return
     }
 
@@ -134,7 +137,8 @@ const LoanApplicationForm = () => {
       const created = await createMutation.mutateAsync(toPayload(form))
       navigate(created?.id ? `/loans/${created.id}` : '/loans')
     } catch (err) {
-      setErrors(err)
+      const details = Array.isArray(err.data?.errors) ? err.data.errors : null
+      fireError(err.message || 'Failed to create loan application.', details)
     }
   }
 
@@ -146,19 +150,6 @@ const LoanApplicationForm = () => {
         <strong>New Loan Application</strong>
       </CCardHeader>
       <CCardBody>
-        {errors && (
-          <CAlert color="danger" dismissible onClose={() => setErrors(null)}>
-            <div>{errors.message || 'Failed to create loan application.'}</div>
-            {Array.isArray(errors.data?.errors) && (
-              <ul className="mb-0 mt-2">
-                {errors.data.errors.map((m, i) => (
-                  <li key={i}>{typeof m === 'string' ? m : m.message}</li>
-                ))}
-              </ul>
-            )}
-          </CAlert>
-        )}
-
         <CForm onSubmit={handleSubmit}>
           <CRow className="g-3">
             <CCol md={6}>
@@ -260,15 +251,14 @@ const LoanApplicationForm = () => {
                   </div>
                 </CCol>
                 <CCol md={6}>
-                  <CFormLabel>Co-signer ID document number *</CFormLabel>
-                  <CFormInput
-                    value={form.coSignerIdNumber}
-                    onChange={setField('coSignerIdNumber')}
-                    placeholder="National ID / Passport no. of the co-signer"
-                    required
+                  <CFormLabel htmlFor="cosigner-select">Co-signer *</CFormLabel>
+                  <ClientAsyncSelect
+                    inputId="cosigner-select"
+                    value={form.coSignerId || null}
+                    onChange={(id) => setForm((f) => ({ ...f, coSignerId: id != null ? String(id) : '' }))}
                   />
                   <div className="form-text">
-                    Must match an existing client record in the system.
+                    Search by name or account number. Must be a different active client.
                   </div>
                 </CCol>
               </>

@@ -56,6 +56,13 @@ const SystemConfig = sequelize.define('SystemConfig', {
     field: 'is_read_only',
   },
 
+  // Secret configs (passwords, tokens)
+  isSecret: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'is_secret',
+  },
+
   createdBy: {
     type: DataTypes.INTEGER,
     allowNull: true,

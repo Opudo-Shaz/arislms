@@ -41,7 +41,7 @@ export const LOAN_STATUS = buildEnum({
   partially_paid: 'warning',
   overdue: 'danger',
   defaulted: 'danger',
-  closed: 'dark',
+  closed: 'success',
   cancelled: 'secondary',
   deleted: 'dark',
   written_off: 'dark',
@@ -116,6 +116,23 @@ export const INTEREST_TYPE = buildEnum({
   reducing: 'secondary',
 })
 
+/** Reasons required when deleting a loan (must match backend enums/loanDeletionReason.js). */
+export const LOAN_DELETION_REASONS = [
+  { value: 'data_entry_error', label: 'Data entry error' },
+  { value: 'duplicate', label: 'Duplicate' },
+  { value: 'fraud', label: 'Fraud' },
+  { value: 'client_request', label: 'Client request' },
+  { value: 'unrecoverable', label: 'Unrecoverable (write-off)' },
+  { value: 'regulatory', label: 'Regulatory' },
+  { value: 'other', label: 'Other' },
+]
+
+/** How a loan product's minimum down payment is interpreted. */
+export const DOWN_PAYMENT_TYPE = buildEnum(
+  { amount: 'secondary', percentage: 'info' },
+  { amount: 'Fixed amount', percentage: 'Percentage' },
+)
+
 export const JOURNAL_ENTRY_STATUS = buildEnum(
   {
     DRAFT: 'secondary',
@@ -158,6 +175,7 @@ export const NORMAL_BALANCE = buildEnum(
 
 export const LOAN_TRANSACTION_TYPE = buildEnum({
   disbursement: 'primary',
+  downpayment: 'info',
   repayment: 'success',
   transfer: 'info',
   principal_update: 'warning',

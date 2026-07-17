@@ -67,6 +67,11 @@ const Loan = sequelize.define('Loan', {
   fees: { type: DataTypes.DECIMAL(14,2), defaultValue: 0, field: 'fees' },
   penalties: { type: DataTypes.DECIMAL(14,2), defaultValue: 0, field: 'penalties' },
 
+  // Down payment required for this loan (snapshot resolved from the product at
+  // application time) and the amount actually collected before disbursement.
+  downPaymentRequired: { type: DataTypes.DECIMAL(14,2), allowNull: false, defaultValue: 0, field: 'down_payment_required' },
+  downPaymentPaid: { type: DataTypes.DECIMAL(14,2), allowNull: false, defaultValue: 0, field: 'down_payment_paid' },
+
   collateral: { type: DataTypes.JSONB },
   coSignerId: { type: DataTypes.INTEGER, field: 'co_signer_id' },
 

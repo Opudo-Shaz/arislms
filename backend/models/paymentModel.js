@@ -17,6 +17,7 @@ const Payment = sequelize.define('Payment', {
   status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'completed' },
   appliedToPrincipal: { type: DataTypes.DECIMAL(14,2), field: 'applied_to_principal', defaultValue: 0 },
   appliedToInterest: { type: DataTypes.DECIMAL(14,2), field: 'applied_to_interest', defaultValue: 0 },
+  appliedToDownPayment: { type: DataTypes.DECIMAL(14,2), field: 'applied_to_down_payment', defaultValue: 0 },
   fees: { type: DataTypes.DECIMAL(14,2), defaultValue: 0 },
   penalties: { type: DataTypes.DECIMAL(14,2), defaultValue: 0 },
   processedBy: { type: DataTypes.INTEGER, field: 'processed_by' },

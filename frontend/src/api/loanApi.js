@@ -49,9 +49,11 @@ export const updateLoan = async (id, payload) => {
   return res?.data
 }
 
-/** @param {number|string} id @returns {Promise<object>} */
-export const deleteLoan = async (id) => {
-  const res = await http.delete(`/loans/${id}`)
+/** @param {number|string} id @param {{ reason: string, notes?: string }} payload @returns {Promise<object>} */
+export const deleteLoan = async (id, payload) => {
+  // DELETE bodies are often stripped by clients/proxies; send as query params instead
+  const params = payload ? { ...payload } : undefined
+  const res = await http.delete(`/loans/${id}`, { params })
   return res?.data
 }
 

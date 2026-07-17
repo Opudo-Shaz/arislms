@@ -72,7 +72,9 @@ axiosInstance.interceptors.response.use(
     }
 
     const { status, data } = response
-    if ((status === 401 || status === 403) && unauthorizedHandler) {
+    // Only redirect to login on 401 (token missing/expired).
+    // 403 means the user IS authenticated but lacks permission — show the error, don't log them out.
+    if (status === 401 && unauthorizedHandler) {
       unauthorizedHandler(status)
     }
     const message =

@@ -82,9 +82,20 @@ const { registerLoanTransactionListeners } = require('./utils/loanTransactionEmi
 registerLoanTransactionListeners();
 
 // Database Connection
+const withTimeout = (promise, ms, label) => {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+};
+
 (async () => {
   try {
-    await sequelize.authenticate();
+    await withTimeout(sequelize.authenticate(), 10000, 'DB authentication');
     logger.info('Connected to PostgreSQL via Sequelize');
 
     await sequelize.sync({ alter: true });
@@ -98,8 +109,15 @@ registerLoanTransactionListeners();
     const loanStatusCronJob = require('./utils/loanStatusCronJob');
     await loanStatusCronJob.seedDefaultConfigs();
     loanStatusCronJob.register();
+
+    // Start server after DB is ready
+    const SERVER_PORT = Number.parseInt(process.env.SERVER_PORT, 10) || 3002;
+    app.listen(SERVER_PORT, () => {
+      logger.info(`Server running on http://localhost:${SERVER_PORT}`);
+    });
   } catch (error) {
     logger.error(`Database connection error: ${error.message}`);
+    process.exit(1);
   }
 })();
 
@@ -112,11 +130,4 @@ app.get('/', (req, res) => {
 app.use((err, req, res, next) => {
   logger.error(`${req.method} ${req.url} - ${err.message}`);
   res.status(500).json({ error: 'Internal server error' });
-});
-
-// Start server
-const SERVER_PORT = Number.parseInt(process.env.SERVER_PORT, 10) || 3002;
-
-app.listen(SERVER_PORT, () => {
-  logger.info(`Server running on http://localhost:${SERVER_PORT}`);
 });

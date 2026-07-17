@@ -25,7 +25,7 @@ import {
   CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilInfo, cilPencil, cilPlus, cilReload, cilTrash } from '@coreui/icons'
+import { cilArrowRight, cilInfo, cilPencil, cilPlus, cilReload, cilSend, cilTrash } from '@coreui/icons'
 
 import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -34,7 +34,7 @@ import { useClient, useClientAction, useDeleteClient } from '../../hooks/useClie
 import { useRefreshCreditScore } from '../../hooks/useCreditScores'
 import { useDocumentBlobUrl } from '../../hooks/useDocuments'
 import { useAuth } from '../../context/AuthContext'
-import { CLIENT_STATUS, KYC_STATUS, ROLE_GROUPS } from '../../constants/enums'
+import { CLIENT_STATUS, KYC_STATUS, LOAN_STATUS, ROLE_GROUPS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
 /** Action definitions keyed by id; drives the confirmation dialog. */
@@ -108,12 +108,17 @@ const ClientDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  const { data: client, isLoading, error } = useClient(id)
+  const { data: client, isLoading, error } = useClient(id, { withLoans: true })
+  const clientLoans = client?.loans ?? []
   const action = useClientAction()
   const deleteMutation = useDeleteClient()
   const refreshScore = useRefreshCreditScore(id)
   const { role } = useAuth()
   const canManage = ROLE_GROUPS.STAFF.includes(role)
+
+  // Mirror backend rule: block new loan if client has any loan in these statuses
+  const BLOCKING_LOAN_STATUSES = ['active', 'under_review', 'pending']
+  const hasBlockingLoan = clientLoans.some((l) => BLOCKING_LOAN_STATUSES.includes(l.status))
 
   // Derive the client photo from the documents array (loaded with the client record).
   const photoDoc = client?.documents?.find((d) => d.documentType === 'client_photo')
@@ -190,7 +195,7 @@ const ClientDetail = () => {
                     Edit
                   </CButton>
                 )}
-                {canManage && client.kycStatus === 'verified' && client.status === 'active' && (
+                {canManage && client.kycStatus === 'verified' && client.status === 'active' && !hasBlockingLoan && (
                   <CButton
                     color="success"
                     size="sm"
@@ -272,9 +277,48 @@ const ClientDetail = () => {
         </CCol>
 
         <CCol lg={4}>
+          <CCard className="mb-4">
+            <CCardHeader className='text-bg-secondary'>
+              <strong>Loans</strong>
+            </CCardHeader>
+            <CCardBody className="p-0">
+              {clientLoans.length === 0 ? (
+                <div className="text-body-secondary small px-3 py-3">No loans found.</div>
+              ) : (
+                <table className="table table-hover table-striped table-sm mb-0">
+                  <thead className="table-primary">
+                    <tr>
+                      <th className="ps-3 fw-semibold border-0">Account</th>
+                      <th className="fw-semibold border-0">Principal</th>
+                      <th className="fw-semibold border-0">Balance</th>
+                      <th className="fw-semibold border-0">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clientLoans.map((loan, i) => (
+                      <tr
+                        key={loan.id}
+                        onClick={() => navigate(`/loans/${loan.id}`)}
+                      >
+                        <td className="ps-3">
+                          <span className="text-primary fw-semibold d-inline-flex align-items-center gap-1" style={{ textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                            {loan.referenceCode || `#${loan.id}`}
+                          </span>
+                        </td>
+                        <td>{loan.principalAmount} </td>
+                        <td>{loan.outstandingBalance}</td>
+                        <td><StatusBadge enumDef={LOAN_STATUS} value={loan.status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </CCardBody>
+          </CCard>
+
           {canManage && (
             <CCard className="mb-4">
-              <CCardHeader>
+              <CCardHeader className='text-bg-info'>
                 <strong>KYC</strong>
               </CCardHeader>
               <CCardBody className="d-grid gap-2">
@@ -297,7 +341,7 @@ const ClientDetail = () => {
 
           {canManage && (
             <CCard className="mb-4">
-              <CCardHeader>
+              <CCardHeader className='text-bg-primary'>
                 <strong>Status</strong>
               </CCardHeader>
               <CCardBody className="d-grid gap-2">

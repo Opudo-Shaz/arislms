@@ -1,5 +1,6 @@
 module.exports = Object.freeze({
   DISBURSEMENT:     'disbursement',
+  DOWNPAYMENT:      'downpayment',
   REPAYMENT:        'repayment',
   TRANSFER:         'transfer',
   PRINCIPAL_UPDATE: 'principal_update',

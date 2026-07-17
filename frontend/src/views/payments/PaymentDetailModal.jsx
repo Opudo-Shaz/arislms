@@ -71,6 +71,9 @@ const PaymentDetailModal = ({ visible, payment, loanLabel, clientLabel, onClose 
           <Field label="Applied to Interest">
             {formatCurrency(payment.appliedToInterest, currency)}
           </Field>
+          <Field label="Applied to Down Payment">
+            {formatCurrency(payment.appliedToDownPayment, currency)}
+          </Field>
           <Field label="Fees">{formatCurrency(payment.fees, currency)}</Field>
           <Field label="Penalties">{formatCurrency(payment.penalties, currency)}</Field>
           <Field label="Created By">

@@ -93,12 +93,12 @@ const clientService = {
       if (kycStatus) where.kycStatus = kycStatus;
 
       if (search) {
+        const escaped = search.replace(/[%_\\]/g, '\\$&');
+        const { Sequelize } = require('sequelize');
         where[Op.or] = [
-          { firstName: { [Op.iLike]: `%${search}%` } },
-          { lastName: { [Op.iLike]: `%${search}%` } },
-          { email: { [Op.iLike]: `%${search}%` } },
-          { phone: { [Op.iLike]: `%${search}%` } },
-          { accountNumber: { [Op.iLike]: `%${search}%` } },
+          Sequelize.literal(`CONCAT(first_name, ' ', last_name) ILIKE '${escaped}%'`),
+          { accountNumber: { [Op.iLike]: `${escaped}%` } },
+          { idDocumentNumber: { [Op.iLike]: `${escaped}%` } },
         ];
       }
 
@@ -127,28 +127,38 @@ const clientService = {
   },
 
   // ✅ Get single client by ID (any authenticated user, but only admin can see all)
-  async getClientById(id) {
+  async getClientById(id, { withLoans = false } = {}) {
     try {
-      const client = await Client.findByPk(id, {
-        include: [
-          {
-            model: CreditScore,
-            as: 'creditScores',
-            required: false,
-            order: [['created_at', 'DESC']],
-            limit: 1,
-            separate: true,
-          },
-          {
-            model: Document,
-            as: 'documents',
-            required: false,
-            where: { status: { [Op.ne]: DocumentStatus.DELETED } },
-            order: [['created_at', 'DESC']],
-            separate: true,
-          },
-        ],
-      });
+      const include = [
+        {
+          model: CreditScore,
+          as: 'creditScores',
+          required: false,
+          order: [['created_at', 'DESC']],
+          limit: 1,
+          separate: true,
+        },
+        {
+          model: Document,
+          as: 'documents',
+          required: false,
+          where: { status: { [Op.ne]: DocumentStatus.DELETED } },
+          order: [['created_at', 'DESC']],
+          separate: true,
+        },
+      ];
+
+      if (withLoans) {
+        include.push({
+          model: Loan,
+          required: false,
+          attributes: ['id', 'referenceCode', 'principalAmount', 'outstandingBalance', 'currency', 'status'],
+          order: [['created_at', 'DESC']],
+          separate: true,
+        });
+      }
+
+      const client = await Client.findByPk(id, { include });
       if (!client) throw new Error('Client not found');
       logger.info(`Retrieved client ID: ${id}`);
       return client;

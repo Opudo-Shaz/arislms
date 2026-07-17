@@ -14,6 +14,7 @@ class PaymentResponseDto {
     this.status = model.status;
     this.appliedToPrincipal = model.appliedToPrincipal;
     this.appliedToInterest = model.appliedToInterest;
+    this.appliedToDownPayment = model.appliedToDownPayment ?? 0;
     this.fees = model.fees;
     this.penalties = model.penalties;
     this.notes = model.notes;
