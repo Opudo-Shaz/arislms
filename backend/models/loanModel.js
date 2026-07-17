@@ -121,7 +121,7 @@ Client.hasMany(Loan, { foreignKey: 'client_id', as: 'loans' });
 Loan.belongsTo(Client, { foreignKey: 'client_id', as: 'client' });
 
 LoanProduct.hasMany(Loan, { foreignKey: 'loan_product_id' });
-Loan.belongsTo(LoanProduct, { foreignKey: 'loan_product_id' });
+Loan.belongsTo(LoanProduct, { foreignKey: 'loan_product_id', as: 'loanProduct' });
 
 Loan.hasMany(RepaymentSchedule, { foreignKey: 'loan_id', as: 'repaymentSchedules' });
 RepaymentSchedule.belongsTo(Loan, { foreignKey: 'loan_id' });

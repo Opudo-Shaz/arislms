@@ -206,7 +206,7 @@ async createPayment(data, user, userAgent = 'unknown') {
 
     // ── Step 1: Validate loan and payment ─────────────────────────────
     const loan = await Loan.findByPk(data.loanId, {
-      include: [{ model: LoanProduct }],
+      include: [{ association: 'loanProduct', required: false }],
       transaction: t
     });
     if (!loan) throw new Error('Loan not found');

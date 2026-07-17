@@ -28,7 +28,7 @@ const MemberContribution = sequelize.define('MemberContribution', {
   },
 
   type: {
-    type: DataTypes.STRING(12),
+    type: DataTypes.STRING(32),
     allowNull: false,
     defaultValue: ContributionType.CONTRIBUTION,
     comment: 'CONTRIBUTION | WITHDRAWAL',
