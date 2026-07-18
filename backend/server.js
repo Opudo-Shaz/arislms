@@ -93,6 +93,30 @@ const withTimeout = (promise, ms, label) => {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 };
 
+const formatServerUrl = (addressInfo, preferredHost) => {
+  if (!addressInfo) {
+    return null;
+  }
+
+  if (typeof addressInfo === 'string') {
+    return addressInfo;
+  }
+
+  const normalizedPreferredHost = preferredHost?.trim();
+  const usePreferredHost = normalizedPreferredHost
+    && !['0.0.0.0', '::'].includes(normalizedPreferredHost);
+
+  const host = usePreferredHost
+    ? normalizedPreferredHost
+    : ['::', '0.0.0.0', '::1', '127.0.0.1'].includes(addressInfo.address)
+      ? 'localhost'
+      : addressInfo.family === 'IPv6'
+        ? `[${addressInfo.address}]`
+        : addressInfo.address;
+
+  return `http://${host}:${addressInfo.port}`;
+};
+
 (async () => {
   try {
     await withTimeout(sequelize.authenticate(), 10000, 'DB authentication');
@@ -112,9 +136,14 @@ const withTimeout = (promise, ms, label) => {
 
     // Start server after DB is ready
     const SERVER_PORT = Number.parseInt(process.env.SERVER_PORT, 10) || 3002;
-    app.listen(SERVER_PORT, () => {
-      logger.info(`Server running on http://localhost:${SERVER_PORT}`);
-    });
+    const SERVER_HOST = process.env.SERVER_HOST || process.env.HOST;
+    const server = SERVER_HOST
+      ? app.listen(SERVER_PORT, SERVER_HOST, () => {
+          logger.info(`Server running on ${formatServerUrl(server.address(), SERVER_HOST) || `http://${SERVER_HOST}:${SERVER_PORT}`}`);
+        })
+      : app.listen(SERVER_PORT, () => {
+          logger.info(`Server running on ${formatServerUrl(server.address()) || `http://localhost:${SERVER_PORT}`}`);
+        });
   } catch (error) {
     logger.error(`Database connection error: ${error}`);
     process.exit(1);
