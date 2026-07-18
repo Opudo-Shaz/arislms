@@ -135,7 +135,7 @@ const formatServerUrl = (addressInfo, preferredHost) => {
     loanStatusCronJob.register();
 
     // Start server after DB is ready
-    const SERVER_PORT = Number.parseInt(process.env.SERVER_PORT, 10) || 3002;
+    const SERVER_PORT = Number.parseInt(process.env.SERVER_PORT, 10) || 6505;
     const SERVER_HOST = process.env.SERVER_HOST || process.env.HOST;
     const server = SERVER_HOST
       ? app.listen(SERVER_PORT, SERVER_HOST, () => {

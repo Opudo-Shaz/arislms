@@ -3,7 +3,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/arislms
 JWT_SECRET=your_jwt_secret_key_here
 
 # Server
-SERVER_PORT=3002
+SERVER_PORT=6505
 
 # CORS
 # Comma-separated list of allowed origins (no spaces after commas)
@@ -15,7 +15,7 @@ LOG_LEVEL=info
 #File uploads configuration
 DOCUMENT_STORAGE_PROVIDER=local          # local | s3 | minio
 DOCUMENT_LOCAL_PATH=uploads/documents
-DOCUMENT_BASE_URL=http://localhost:3002
+DOCUMENT_BASE_URL=http://localhost:6505
 
 # Email / SMTP (Gmail provider)
 # Generate an App Password at: https://myaccount.google.com/apppasswords

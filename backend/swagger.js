@@ -12,7 +12,7 @@ const options = {
     },
     servers: [
       {
-        url: `http://localhost:${process.env.SERVER_PORT || 3002}`,
+        url: `http://${process.env.SERVER_HOST || 'localhost'}:${process.env.SERVER_PORT || 6505}`,
       },
     ],
     components: {

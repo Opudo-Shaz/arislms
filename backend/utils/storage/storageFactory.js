@@ -4,7 +4,7 @@
  * Configure via env vars:
  *   DOCUMENT_STORAGE_PROVIDER=local|s3|minio   (default: local)
  *   DOCUMENT_LOCAL_PATH=uploads/documents        (relative to project root)
- *   DOCUMENT_BASE_URL=http://localhost:3002       (for building public URLs)
+ *   DOCUMENT_BASE_URL=http://localhost:6505      (for building public URLs)
  *
  * Adding a new provider:
  *   1. Create a file here: utils/storage/providers/myProvider.js
