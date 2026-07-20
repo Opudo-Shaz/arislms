@@ -1,0 +1,9 @@
+2026-07-20 23:08:58 [INFO]: [loanStatusCronJob.js:247 [run]] [LoanStatusCron] Starting daily loan status job
+2026-07-20 23:08:58 [INFO]: [loanStatusCronJob.js:253 [run]] [LoanStatusCron] Thresholds — overdue: 1, defaulted: 3 missed installments
+2026-07-20 23:08:58 [INFO]: [loanStatusCronJob.js:256 [run]] [LoanStatusCron] Penalty config — enabled: true, graceDays: 0
+2026-07-20 23:08:58 [INFO]: [loanStatusCronJob.js:282 [run]] [LoanStatusCron] Done in 0.0s — checked: 2, overdue: 1, defaulted: 0, recovered: 0, provisioned: 0, errors: 0
+2026-07-20 23:14:03 [INFO]: [loanStatusCronJob.js:247 [run]] [LoanStatusCron] Starting daily loan status job
+2026-07-20 23:14:03 [INFO]: [loanStatusCronJob.js:253 [run]] [LoanStatusCron] Thresholds — overdue: 1, defaulted: 3 missed installments
+2026-07-20 23:14:03 [INFO]: [loanStatusCronJob.js:256 [run]] [LoanStatusCron] Penalty config — enabled: true, graceDays: 0
+2026-07-20 23:14:03 [INFO]: [penaltyService.js:166 [Object.applyPenalties]] [PenaltyService] Loan 8 (LN-63BAA8F0): charged 146.69 (rate=5%, base=2933.7) — installments [1]. Running penalties: 0 → 146.69
+2026-07-20 23:14:03 [INFO]: [loanStatusCronJob.js:282 [run]] [LoanStatusCron] Done in 0.0s — checked: 2, overdue: 0, defaulted: 0, recovered: 0, provisioned: 0, errors: 0

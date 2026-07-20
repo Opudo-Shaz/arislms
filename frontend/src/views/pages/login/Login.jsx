@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import {
   CAlert,
   CButton,
@@ -25,9 +25,15 @@ import { ApiError } from '../../../api'
 import { forgotPassword } from '../../../api/authApi'
 
 const Login = () => {
-  const { login } = useAuth()
+  const { login, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Already logged in — send them to where they came from or the dashboard.
+  if (isAuthenticated) {
+    const destination = location.state?.from?.pathname || '/dashboard'
+    return <Navigate to={destination} replace />
+  }
 
   // Safely determine redirect location
   // Only use location.state if it exists and appears valid (has pathname)

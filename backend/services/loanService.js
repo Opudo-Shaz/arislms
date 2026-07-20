@@ -1614,6 +1614,11 @@ const loanService = {
       }
       // For partial write-offs the schedule keeps running as-is (balance is just reduced).
 
+      // ── Step 3b: Waive outstanding penalties on full write-off ───────────
+      // Penalties are tracked as a memo balance (cash basis, never posted to GL),
+      // so the waiver only clears the balance — no journal reversal needed.
+      const waivedPenalties = isFullWriteOff ? Number(loan.penalties || 0) : 0;
+
       // ── Step 4: Update loan fields ──
       const newBalance = Number((outstanding - amount).toFixed(2));
       const newWrittenOff = Number(((Number(loan.writtenOffAmount) || 0) + amount).toFixed(2));
@@ -1624,13 +1629,16 @@ const loanService = {
         newStatus = LoanStatus.PARTIALLY_WRITTEN_OFF;
       }
 
-      await loan.update({
+      const loanWriteOffUpdates = {
         outstandingBalance: newBalance,
         writtenOffAmount: newWrittenOff,
         writtenOffDate: new Date().toISOString().split('T')[0],
         provisionedAmount: newProvisionedAmount,
         status: newStatus,
-      }, { transaction: t });
+        ...(isFullWriteOff && { penalties: 0 }),
+      };
+
+      await loan.update(loanWriteOffUpdates, { transaction: t });
 
       await t.commit();
 
@@ -1653,6 +1661,27 @@ const loanService = {
         createdBy: performedBy || null,
       });
 
+      // ── Step 5b: Emit penalty waiver transaction if applicable ───────────
+      if (waivedPenalties > 0) {
+        emitLoanTransaction({
+          loanId: loan.id,
+          transactionType: LoanTransactionType.PENALTY,
+          direction: 'CREDIT',
+          amount: waivedPenalties,
+          currency: loan.currency,
+          principalBalance: newBalance,
+          interestBalance: 0,
+          feesBalance: 0,
+          penaltiesBalance: 0,
+          totalBalance: newBalance,
+          referenceType: 'loan',
+          referenceId: loan.id,
+          transactionDate: new Date(),
+          notes: `Penalty waived on full write-off — ${reason}`,
+          createdBy: performedBy || null,
+        });
+      }
+
       // ── Step 6: Audit log ──
       await AuditLogger.log({
         entityType: 'LOAN',
@@ -1665,6 +1694,7 @@ const loanService = {
           newStatus,
           reason,
           isFullWriteOff,
+          ...(waivedPenalties > 0 && { waivedPenalties }),
         },
         actorId: performedBy || 1,
         options: { actorType: 'USER', source: userAgent },
@@ -1672,7 +1702,8 @@ const loanService = {
 
       logger.info(
         `Loan ${loanId} (${loan.referenceCode}) written off: ${amount} by user ${performedBy}. ` +
-        `Balance: ${outstanding} → ${newBalance}. Status: ${newStatus}`
+        `Balance: ${outstanding} → ${newBalance}. Status: ${newStatus}` +
+        (waivedPenalties > 0 ? `. Penalties waived: ${waivedPenalties}` : '')
       );
 
       await loan.reload({

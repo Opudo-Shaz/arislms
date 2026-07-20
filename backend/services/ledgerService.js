@@ -183,6 +183,7 @@ async function postDisbursementEntry(loan, transaction) {
  * DR 1001 Cash / Bank           (total payment = loan portion + surplus)
  * CR 1100 Loans Receivable       (principal portion)
  * CR 4001 Interest Income        (interest portion)
+ * CR 4003 Late Fee Income        (penalty portion, if any — cash basis)
  * CR 3001 Member Contributions   (overpayment surplus, if any)
  *
  * @param {object} payment
@@ -194,6 +195,7 @@ async function postPaymentEntry(payment, loan, transaction, surplus = 0) {
   const total = Number(payment.amount);
   const principal = Number(payment.appliedToPrincipal);
   const interest = Number(payment.appliedToInterest);
+  const penalty = Number(payment.appliedToPenalty || 0);
   const overpayment = Number(surplus || 0);
   const entryDate = (payment.paymentDate || new Date()).toISOString
     ? new Date(payment.paymentDate || new Date()).toISOString().split('T')[0]
@@ -229,6 +231,16 @@ async function postPaymentEntry(payment, loan, transaction, surplus = 0) {
     });
   }
 
+  if (penalty > 0) {
+    lines.push({
+      accountCode: '4003',
+      credit: penalty,
+      description: `Late fee income – Payment #${payment.id}`,
+      loanId: loan.id,
+      clientId: loan.clientId,
+    });
+  }
+
   if (overpayment > 0) {
     lines.push({
       accountCode: '3001',
@@ -239,7 +251,7 @@ async function postPaymentEntry(payment, loan, transaction, surplus = 0) {
   }
 
   // Guard: absorb any floating-point rounding gap (< 1 cent) into the last credit line
-  const creditSum = principal + interest + overpayment;
+  const creditSum = principal + interest + penalty + overpayment;
   if (Math.abs(total - creditSum) > 0.001 && creditSum > 0) {
     const diff = Number((total - creditSum).toFixed(2));
     lines[lines.length - 1].credit = Number((lines[lines.length - 1].credit + diff).toFixed(2));

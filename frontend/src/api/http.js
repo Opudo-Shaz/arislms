@@ -72,13 +72,12 @@ axiosInstance.interceptors.response.use(
     }
 
     const { status, data } = response
-    // Only redirect to login on 401 (token missing/expired).
-    // 403 means the user IS authenticated but lacks permission — show the error, don't log them out.
+    const msg = (data && (data.message || data.error)) || ''
+    // 401 = invalid/expired token; 403 = authenticated but wrong role.
     if (status === 401 && unauthorizedHandler) {
       unauthorizedHandler(status)
     }
-    const message =
-      (data && (data.message || data.error)) || `Request failed with status ${status}`
+    const message = msg || `Request failed with status ${status}`
     return Promise.reject(new ApiError(message, status, data))
   },
 )

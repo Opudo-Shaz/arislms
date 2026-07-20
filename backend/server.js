@@ -131,7 +131,6 @@ const formatServerUrl = (addressInfo, preferredHost) => {
 
     // Seed loan lifecycle threshold configs and register daily cron job
     const loanStatusCronJob = require('./utils/loanStatusCronJob');
-    await loanStatusCronJob.seedDefaultConfigs();
     loanStatusCronJob.register();
 
     // Start server after DB is ready

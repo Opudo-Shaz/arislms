@@ -8,8 +8,9 @@
  * @module context/AuthContext
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import PropTypes from 'prop-types'
+import Swal from 'sweetalert2'
 import { authApi, setUnauthorizedHandler } from '../api'
 import {
   clearStoredAuth,
@@ -35,15 +36,33 @@ const resolveRole = (token, user) => {
 
 export const AuthProvider = ({ children }) => {
   const [auth, setAuth] = useState(() => getStoredAuth())
+  const sessionAlertShown = useRef(false)
 
   const logout = useCallback(() => {
     clearStoredAuth()
     setAuth(null)
   }, [])
 
-  // Clear the session when the API reports the token is invalid/expired.
+  // Show a "session expired" alert on 401 — no automatic redirect.
+  // clearStoredAuth() stops the bad token from being re-sent on future requests
+  // without triggering the RequireAuth redirect (which would dismiss the alert).
   useEffect(() => {
-    setUnauthorizedHandler(() => logout())
+    setUnauthorizedHandler(() => {
+      if (sessionAlertShown.current) return
+      sessionAlertShown.current = true
+      clearStoredAuth()
+      Swal.fire({
+        icon: 'info',
+        title: 'Session Expired',
+        html: 'Your session has expired.<br/><a href="/login" style="color:#3b82f6;font-weight:600">Login again</a>',
+        showConfirmButton: false,
+        allowOutsideClick: true,
+        didClose: () => {
+          sessionAlertShown.current = false
+          setAuth(null)
+        },
+      })
+    })
     return () => setUnauthorizedHandler(null)
   }, [logout])
 

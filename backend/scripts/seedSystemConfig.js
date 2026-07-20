@@ -106,6 +106,26 @@ const defaults = [
     isActive: true,
     isReadOnly: false,
   },
+  {
+    key: 'loans.penalty.enabled',
+    label: 'Loan Penalty Enabled',
+    value: 'false',
+    category: 'loans',
+    description: 'Enable or disable loan penalties',
+    isBoolean: true,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
+    key: 'loans.penalty.grace_days',
+    label: 'Penalty Grace Period (days)',
+    value: '0',
+    category: 'loans',
+    description: 'Number of days after a missed installment due date before a penalty is charged. Default: 0 (charge immediately when overdue).',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  }
 ];
 
 async function seed() {

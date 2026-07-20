@@ -23,6 +23,7 @@ const SystemConfig = require('../models/systemConfigModel');
 const LoanStatus = require('../enums/loanStatus');
 const LoanTransactionType = require('../enums/loanTransactionType');
 const ledgerService = require('../services/ledgerService');
+const penaltyService = require('../services/penaltyService');
 const { emitLoanTransaction } = require('./loanTransactionEmitter');
 const AuditLogger = require('./auditLogger');
 const logger = require('../config/logger');
@@ -60,7 +61,7 @@ async function getThresholds() {
 
 // ─── per-loan processor ───────────────────────────────────────────────────────
 
-async function processLoan(loan, today, overdueAt, defaultedAt, summary) {
+async function processLoan(loan, today, overdueAt, defaultedAt, penaltyConfig, summary) {
   const schedules = loan.repaymentSchedules || [];
   const oldStatus = loan.status;
 
@@ -85,6 +86,16 @@ async function processLoan(loan, today, overdueAt, defaultedAt, summary) {
   // ── Step 2: sync missedPaymentsCount ──────────────────────────────────────
   if (Number(loan.missedPaymentsCount) !== overdueCount) {
     await loan.update({ missedPaymentsCount: overdueCount });
+  }
+
+  // ── Step 2b: apply penalties for newly-missed installments ────────────────
+  if (overdueCount > 0) {
+    try {
+      await penaltyService.applyPenalties(loan, today, penaltyConfig);
+    } catch (penaltyErr) {
+      logger.error(`[LoanStatusCron] Penalty error on loan ${loan.id}: ${penaltyErr.message}`);
+      // Non-fatal: continue status escalation
+    }
   }
 
   // Skip further escalation for terminal/written-off statuses
@@ -147,17 +158,27 @@ async function processLoan(loan, today, overdueAt, defaultedAt, summary) {
         .toFixed(2)
     );
 
-    if (overdueTotal > 0) {
-      await ledgerService.postProvisionEntry(loan, overdueTotal, null);
-      const newProvisioned = Number((Number(loan.provisionedAmount || 0) + overdueTotal).toFixed(2));
-      await loan.update({ provisionedAmount: newProvisioned });
+    // Only post the net change so we never double-count an existing provision.
+    //   gap > 0 → top-up  (post additional provision)
+    //   gap < 0 → excess  (reverse over-provisioned amount)
+    //   gap = 0 → no-op
+    const existingProvisioned = Number(loan.provisionedAmount || 0);
+    const provisionGap = Number((overdueTotal - existingProvisioned).toFixed(2));
+
+    if (Math.abs(provisionGap) >= 0.01) {
+      if (provisionGap > 0) {
+        await ledgerService.postProvisionEntry(loan, provisionGap, null);
+      } else {
+        await ledgerService.postProvisionReversalEntry(loan, Math.abs(provisionGap), null);
+      }
+      await loan.update({ provisionedAmount: overdueTotal });
       summary.provisioned++;
 
       emitLoanTransaction({
         loanId: loan.id,
-        transactionType: LoanTransactionType.PROVISION,
-        direction: 'CREDIT',
-        amount: overdueTotal,
+        transactionType: provisionGap > 0 ? LoanTransactionType.PROVISION : LoanTransactionType.PROVISION_REVERSAL,
+        direction: provisionGap > 0 ? 'CREDIT' : 'DEBIT',
+        amount: Math.abs(provisionGap),
         currency: loan.currency,
         principalBalance: Number(loan.outstandingBalance),
         interestBalance: 0,
@@ -167,7 +188,8 @@ async function processLoan(loan, today, overdueAt, defaultedAt, summary) {
         referenceType: 'loan',
         referenceId: loan.id,
         transactionDate: new Date(),
-        notes: `Cron: auto-provision on DEFAULTED — ${overdueInstallments.length} overdue installment(s) — ${loan.referenceCode}`,
+        notes: `Cron: provision ${provisionGap > 0 ? 'top-up' : 'excess reversal'} on DEFAULTED — ` +
+          `existing=${existingProvisioned}, target=${overdueTotal}, gap=${provisionGap} — ${loan.referenceCode}`,
         createdBy: null,
       });
     }
@@ -230,6 +252,9 @@ async function run() {
   const { overdueAt, defaultedAt } = await getThresholds();
   logger.info(`[LoanStatusCron] Thresholds — overdue: ${overdueAt}, defaulted: ${defaultedAt} missed installments`);
 
+  const penaltyConfig = await penaltyService.getPenaltyConfig();
+  logger.info(`[LoanStatusCron] Penalty config — enabled: ${penaltyConfig.penaltyEnabled}, graceDays: ${penaltyConfig.graceDays}`);
+
   const loans = await Loan.findAll({
     where: { status: { [Op.in]: MONITORED_STATUSES } },
     include: [{ association: 'repaymentSchedules', required: false }],
@@ -246,7 +271,7 @@ async function run() {
 
   for (const loan of loans) {
     try {
-      await processLoan(loan, today, overdueAt, defaultedAt, summary);
+      await processLoan(loan, today, overdueAt, defaultedAt, penaltyConfig, summary);
     } catch (err) {
       summary.errors++;
       logger.error(`[LoanStatusCron] Error processing loan ${loan.id}: ${err.message}`);
@@ -267,37 +292,6 @@ async function run() {
   return summary;
 }
 
-// ─── startup helpers ──────────────────────────────────────────────────────────
-
-/**
- * Seeds the threshold configs into system_configs if they don't already exist.
- * Call once at startup after DB sync.
- */
-async function seedDefaultConfigs() {
-  const defaults = [
-    {
-      key: 'loans.overdue_missed_count',
-      label: 'Overdue Threshold (missed installments)',
-      value: '1',
-      category: 'loans',
-      description: 'Number of missed installments before a loan is automatically escalated to OVERDUE. Default: 1.',
-    },
-    {
-      key: 'loans.defaulted_missed_count',
-      label: 'Defaulted Threshold (missed installments)',
-      value: '3',
-      category: 'loans',
-      description: 'Number of missed installments before a loan is automatically escalated to DEFAULTED and provisioned. Default: 3 (≈ PAR90 for monthly loans).',
-    },
-  ];
-
-  for (const d of defaults) {
-    await SystemConfig.findOrCreate({ where: { key: d.key }, defaults: { ...d, isActive: true } });
-  }
-
-  logger.info('[LoanStatusCron] Threshold configs seeded (loans.overdue_missed_count, loans.defaulted_missed_count)');
-}
-
 /**
  * Register the cron schedule. Call once at server startup.
  * Runs daily at 01:00 AM server time.
@@ -316,4 +310,4 @@ function register() {
   logger.info('[LoanStatusCron] Scheduled — daily at 01:00 AM');
 }
 
-module.exports = { register, run, seedDefaultConfigs };
+module.exports = { register, run };

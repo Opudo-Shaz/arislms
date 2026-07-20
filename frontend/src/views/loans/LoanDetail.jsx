@@ -211,7 +211,22 @@ const LoanDetail = () => {
     { key: 'principalAmount', label: 'Principal', render: (r) => formatCurrency(r.principalAmount, loan.currency) },
     { key: 'interestAmount', label: 'Interest', render: (r) => formatCurrency(r.interestAmount, loan.currency) },
     { key: 'feesAmount', label: 'Fees', render: (r) => formatCurrency(r.feesAmount, loan.currency) },
-    { key: 'totalAmount', label: 'Total', render: (r) => formatCurrency(r.totalAmount, loan.currency) },
+    {
+      key: 'penaltyAmount',
+      label: 'Penalty',
+      render: (r) =>
+        Number(r.penaltyAmount) > 0 ? (
+          <span className="text-danger fw-semibold">{formatCurrency(r.penaltyAmount, loan.currency)}</span>
+        ) : (
+          formatCurrency(0, loan.currency)
+        ),
+    },
+    {
+      key: 'totalAmount',
+      label: 'Total',
+      render: (r) =>
+        formatCurrency(Number(r.totalAmount) + Number(r.penaltyAmount || 0), loan.currency),
+    },
     { key: 'paidAmount', label: 'Paid', render: (r) => formatCurrency(r.paidAmount, loan.currency) },
     {
       key: 'status',
@@ -533,7 +548,11 @@ const LoanDetail = () => {
                   {formatCurrency(loan.installmentAmount, loan.currency)}
                 </Field>
                 <Field label="Fees">{formatCurrency(loan.fees, loan.currency)}</Field>
-                <Field label="Penalties">{formatCurrency(loan.penalties, loan.currency)}</Field>
+                <Field label="Penalties">
+                  <span className={Number(loan.penalties) > 0 ? 'text-danger fw-semibold' : undefined}>
+                    {formatCurrency(loan.penalties, loan.currency)}
+                  </span>
+                </Field>
                 <Field label="Down Payment Required">
                   {formatCurrency(loan.downPaymentRequired, loan.currency)}
                 </Field>

@@ -89,6 +89,30 @@ const RepaymentSchedule = sequelize.define('RepaymentSchedule', {
     comment: 'Whether this payment was missed (due date passed but not paid)'
   },
 
+  penaltyAmount: {
+    type: DataTypes.DECIMAL(14, 2),
+    allowNull: false,
+    defaultValue: 0,
+    field: 'penalty_amount',
+    comment: 'Cumulative penalty charged against this installment'
+  },
+
+  penaltyPaid: {
+    type: DataTypes.DECIMAL(14, 2),
+    allowNull: false,
+    defaultValue: 0,
+    field: 'penalty_paid',
+    comment: 'Portion of penaltyAmount already collected via payments'
+  },
+
+  penaltyApplied: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    field: 'penalty_applied',
+    comment: 'Idempotency flag: true once this installment has been charged a penalty by the cron'
+  },
+
   remainingBalance: { 
     type: DataTypes.DECIMAL(14,2), 
     allowNull: false, 

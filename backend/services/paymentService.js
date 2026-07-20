@@ -20,10 +20,11 @@ const paymentService = {
   /**
    * Applies a payment to the loan's repayment schedule installments.
    *
-   * Allocation strategy per installment (interest-first convention):
-   *   1. Cover any outstanding interest on the installment first
-   *   2. Cover outstanding principal with the remainder
-   *   3. Any excess rolls forward to the next installment
+   * Allocation strategy per installment (penalty-first convention):
+   *   1. Cover any outstanding penalty on the installment first
+   *   2. Cover outstanding interest with the remainder
+   *   3. Cover outstanding principal with the remainder
+   *   4. Any excess rolls forward to the next installment
    *
    * Also updates each touched installment's `remainingBalance` to reflect
    * the actual declining principal after payment.
@@ -33,12 +34,12 @@ const paymentService = {
    * @param {Date} paymentDate - Date of the payment
    * @param {number} loanOutstanding - Current loan outstanding principal balance
    * @param {object} transaction - Sequelize transaction object
-   * @returns {Promise<{appliedToPrincipal: number, appliedToInterest: number, nextDueDate: string|null}>}
+   * @returns {Promise<{appliedToPrincipal: number, appliedToInterest: number, appliedToPenalty: number, nextDueDate: string|null}>}
    */
   async applyPaymentToSchedule(loanId, paymentAmount, paymentDate, loanOutstanding, transaction) {
     try {
       const installments = await RepaymentSchedule.findAll({
-        where: { loanId, status: ['pending', 'partial'] },
+        where: { loanId, status: ['pending', 'partial', 'overdue'] },
         order: [['installmentNumber', 'ASC']],
         transaction
       });
@@ -46,51 +47,61 @@ const paymentService = {
       // No schedule entries — treat entire payment as principal reduction
       if (installments.length === 0) {
         logger.warn(`No pending installments found for loan ${loanId}, applying full amount to principal`);
-        return { appliedToPrincipal: paymentAmount, appliedToInterest: 0, nextDueDate: null };
+        return { appliedToPrincipal: paymentAmount, appliedToInterest: 0, appliedToPenalty: 0, nextDueDate: null };
       }
 
       let remaining = paymentAmount;
       let totalPrincipalApplied = 0;
       let totalInterestApplied = 0;
+      let totalPenaltyApplied = 0;
       let runningBalance = loanOutstanding;
 
       for (const installment of installments) {
         if (remaining <= 0) break;
 
         const currentPaid = Number(installment.paidAmount || 0);
-        const owed = Number(installment.totalAmount) - currentPaid;
-        if (owed <= 0) continue;
-
-        // ── Determine remaining interest & principal on this installment ──
-        // Convention: paidAmount covers interest first, then principal.
-        //   paidAmount < interestAmount  →  some interest still owed
-        //   paidAmount >= interestAmount →  interest fully covered,
-        //     excess (paidAmount − interestAmount) applied to principal
+        const penaltyOwed = Math.max(0, Number(installment.penaltyAmount || 0) - Number(installment.penaltyPaid || 0));
         const interestOnInstallment = Number(installment.interestAmount);
         const principalOnInstallment = Number(installment.principalAmount);
 
-        const interestAlreadyCovered = Math.min(currentPaid, interestOnInstallment);
-        const principalAlreadyCovered = Math.max(0, currentPaid - interestOnInstallment);
+        // Determine already-covered interest & principal
+        // paidAmount convention: penalty first, then interest, then principal
+        const paidAfterPenalty = Math.max(0, currentPaid - penaltyOwed);
+        const interestAlreadyCovered = Math.min(paidAfterPenalty, interestOnInstallment);
+        const principalAlreadyCovered = Math.max(0, paidAfterPenalty - interestOnInstallment);
 
         const interestRemaining = interestOnInstallment - interestAlreadyCovered;
         const principalRemaining = principalOnInstallment - principalAlreadyCovered;
 
-        // ── Allocate this payment: interest first, then principal ─────────
-        const payForThis = Math.min(remaining, owed);
-        const interestPortion = Math.min(payForThis, interestRemaining);
-        const principalPortion = payForThis - interestPortion;
+        // Total owed on this installment including outstanding penalty
+        const installmentOwed = penaltyOwed + interestRemaining + principalRemaining;
+        if (installmentOwed <= 0) continue;
 
+        // ── Allocate: penalty first, then interest, then principal ───────────
+        const payForThis = Math.min(remaining, installmentOwed);
+
+        const penaltyPortion = Math.min(payForThis, penaltyOwed);
+        const afterPenalty = payForThis - penaltyPortion;
+        const interestPortion = Math.min(afterPenalty, interestRemaining);
+        const principalPortion = afterPenalty - interestPortion;
+
+        totalPenaltyApplied += penaltyPortion;
         totalInterestApplied += interestPortion;
         totalPrincipalApplied += principalPortion;
         runningBalance = Math.max(0, runningBalance - principalPortion);
 
         // ── Update installment record ─────────────────────────────────────
         const newPaidAmount = Number((currentPaid + payForThis).toFixed(2));
-        const isFullyPaid = newPaidAmount >= Number(installment.totalAmount) - 0.01;
+        // Fully paid when both the base installment and any penalty are covered
+        const installmentTotal = Number(installment.totalAmount) + Number(installment.penaltyAmount || 0);
+        const isFullyPaid = newPaidAmount >= installmentTotal - 0.01;
         const isMissed = paymentDate > new Date(installment.dueDate);
+
+        const newPenaltyPaid = Number((Number(installment.penaltyPaid || 0) + penaltyPortion).toFixed(2));
 
         await installment.update({
           paidAmount: newPaidAmount,
+          penaltyPaid: newPenaltyPaid,
           paidDate: isFullyPaid ? paymentDate : installment.paidDate,
           status: isFullyPaid ? 'paid' : 'partial',
           isMissed: isMissed || installment.isMissed,
@@ -99,8 +110,8 @@ const paymentService = {
 
         logger.info(
           `Installment #${installment.installmentNumber} loan ${loanId}: ` +
-          `paid=${newPaidAmount}/${installment.totalAmount} status=${isFullyPaid ? 'paid' : 'partial'} ` +
-          `(interest=${interestPortion.toFixed(2)}, principal=${principalPortion.toFixed(2)})`
+          `paid=${newPaidAmount}/${installmentTotal.toFixed(2)} status=${isFullyPaid ? 'paid' : 'partial'} ` +
+          `(penalty=${penaltyPortion.toFixed(2)}, interest=${interestPortion.toFixed(2)}, principal=${principalPortion.toFixed(2)})`
         );
 
         remaining -= payForThis;
@@ -108,7 +119,7 @@ const paymentService = {
 
       // Determine nextPaymentDate from the first still-unpaid installment
       const nextUnpaid = await RepaymentSchedule.findOne({
-        where: { loanId, status: ['pending', 'partial'] },
+        where: { loanId, status: ['pending', 'partial', 'overdue'] },
         order: [['installmentNumber', 'ASC']],
         transaction
       });
@@ -116,6 +127,7 @@ const paymentService = {
       return {
         appliedToPrincipal: Number(totalPrincipalApplied.toFixed(2)),
         appliedToInterest: Number(totalInterestApplied.toFixed(2)),
+        appliedToPenalty: Number(totalPenaltyApplied.toFixed(2)),
         nextDueDate: nextUnpaid ? nextUnpaid.dueDate : null
       };
 
@@ -345,15 +357,16 @@ async createPayment(data, user, userAgent = 'unknown') {
     }
 
     // ── Step 2: Validate amount against schedule ──────────────────────
-    // Use total remaining on schedule (principal + interest) instead of
-    // outstandingBalance alone, so the final payment covering remaining
-    // interest is not rejected.
+    // Use total remaining on schedule (principal + interest + penalty) instead
+    // of outstandingBalance alone, so the final payment is not rejected.
     const pendingInstallments = await RepaymentSchedule.findAll({
-      where: { loanId: data.loanId, status: ['pending', 'partial'] },
+      where: { loanId: data.loanId, status: ['pending', 'partial', 'overdue'] },
       transaction: t
     });
     const totalOwed = pendingInstallments.reduce((sum, inst) => {
-      return sum + Number(inst.totalAmount) - Number(inst.paidAmount || 0);
+      const baseDue = Number(inst.totalAmount) - Number(inst.paidAmount || 0);
+      const penaltyDue = Math.max(0, Number(inst.penaltyAmount || 0) - Number(inst.penaltyPaid || 0));
+      return sum + baseDue + penaltyDue;
     }, 0);
 
     // Compute overpayment surplus — amount beyond total owed goes to member contributions
@@ -371,7 +384,7 @@ async createPayment(data, user, userAgent = 'unknown') {
     // ── Step 3: Apply payment to repayment schedule ───────────────────
     // Only apply the loan portion (effectiveAmount) to the schedule.
     // Any surplus is routed to member contributions after this step.
-    const { appliedToPrincipal, appliedToInterest, nextDueDate } =
+    const { appliedToPrincipal, appliedToInterest, appliedToPenalty, nextDueDate } =
       await this.applyPaymentToSchedule(
         data.loanId, effectiveAmount, new Date(), outstanding, t
       );
@@ -389,6 +402,7 @@ async createPayment(data, user, userAgent = 'unknown') {
       paymentDate: new Date(),
       appliedToPrincipal,
       appliedToInterest,
+      appliedToPenalty,
       fees: data.fees || 0,
       penalties: data.penalties || 0,
       processedBy: creatorId,
@@ -403,6 +417,8 @@ async createPayment(data, user, userAgent = 'unknown') {
     // outstandingBalance tracks remaining principal only
     let newBalance = Math.max(0, Number((outstanding - appliedToPrincipal).toFixed(2)));
     const currentAmountRepaid = Number(loan.amountRepaid || 0);
+    // Reduce the running penalty balance by what was just collected
+    const newPenaltiesBalance = Math.max(0, Number((Number(loan.penalties || 0) - appliedToPenalty).toFixed(2)));
 
     // The schedule is the source of truth for whether the loan is settled.
     // When no pending/partial installments remain (nextDueDate === null), the
@@ -415,6 +431,7 @@ async createPayment(data, user, userAgent = 'unknown') {
 
     const loanUpdates = {
       outstandingBalance: newBalance,
+      penalties: newPenaltiesBalance,
       // amountRepaid tracks cash applied to the loan (excludes overpayment surplus)
       amountRepaid: Number((currentAmountRepaid + effectiveAmount).toFixed(2)),
       noOfRepayments: Number(loan.noOfRepayments || 0) + 1,
@@ -508,18 +525,19 @@ async createPayment(data, user, userAgent = 'unknown') {
       principalBalance: newBalance,
       interestBalance: 0,
       feesBalance: Number(payment.fees || 0),
-      penaltiesBalance: Number(payment.penalties || 0),
+      penaltiesBalance: newPenaltiesBalance,
       totalBalance: newBalance,
       referenceId: payment.id,
       referenceType: 'payment',
       transactionDate: payment.transactionDate || new Date(),
-      notes: `Payment ${payment.externalRef}: principal=${appliedToPrincipal}, interest=${appliedToInterest}`,
+      notes: `Payment ${payment.externalRef}: principal=${appliedToPrincipal}, interest=${appliedToInterest}` +
+             (appliedToPenalty > 0 ? `, penalty=${appliedToPenalty}` : ''),
       createdBy: creatorId || null,
     });
 
     logger.info(
       `Payment ${payment.id} recorded for loan ${loan.id}: ` +
-      `amount=${paymentAmount} (principal=${appliedToPrincipal}, interest=${appliedToInterest}` +
+      `amount=${paymentAmount} (penalty=${appliedToPenalty}, principal=${appliedToPrincipal}, interest=${appliedToInterest}` +
       (surplus > 0 ? `, overpayment=${surplus}` : '') + `). ` +
       `New balance: ${newBalance}` +
       (loanUpdates.status ? `, status→${loanUpdates.status}` : '')
