@@ -12,6 +12,7 @@ class RepaymentScheduleResponseDto {
     this.totalAmount = parseFloat(schedule.totalAmount);
     this.paidAmount = parseFloat(schedule.paidAmount || 0);
     this.penaltyAmount = parseFloat(schedule.penaltyAmount || 0);
+    this.penaltyPaid = parseFloat(schedule.penaltyPaid || 0);
     this.paidDate = schedule.paidDate;
     this.status = schedule.status;
     this.remainingBalance = parseFloat(schedule.remainingBalance);

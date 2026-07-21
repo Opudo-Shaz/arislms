@@ -1802,4 +1802,90 @@ async function validateClientOpenLoans(clientId, allowedStatuses = []) {
   return true;
 }
 
+/**
+ * Attempts to de-escalate a loan from OVERDUE → ACTIVE when all overdue
+ * installments have been cleared.
+ *
+ * Handles: status + provisionedAmount update on the loan, provision reversal
+ * ledger entry, PROVISION_REVERSAL loan transaction event, and audit log.
+ * Safe to call from both the nightly cron (transaction=null) and within an
+ * open Sequelize transaction (e.g. after a payment).
+ *
+ * @param {Object} loan          - Loan model instance
+ * @param {Object} opts
+ * @param {number}       opts.principalBalance  - Current outstanding principal
+ * @param {number}       [opts.penaltiesBalance=0] - Current penalties balance
+ * @param {number|null}  opts.actorId           - Actor ID (null for system)
+ * @param {string}       opts.actorType         - 'USER' | 'SYSTEM'
+ * @param {string}       opts.source            - Audit source label (e.g. 'cron', userAgent)
+ * @param {string}       opts.context           - Human-readable context for notes ('Cron' | 'Payment')
+ * @param {Object|null}  [opts.transaction]     - Sequelize transaction or null
+ * @returns {Promise<boolean>} true if de-escalation occurred
+ */
+loanService.tryDeEscalateOverdue = async function tryDeEscalateOverdue(
+  loan,
+  { principalBalance, penaltiesBalance = 0, actorId, actorType, source, context, transaction } = {}
+) {
+  if (loan.status !== LoanStatus.OVERDUE) return false;
+
+  const txOpt = transaction ? { transaction } : {};
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const remainingOverdue = await RepaymentSchedule.count({
+    where: {
+      loanId: loan.id,
+      status: { [Op.in]: ['overdue', 'partial'] },
+      dueDate: { [Op.lt]: today },
+    },
+    ...txOpt,
+  });
+  if (remainingOverdue > 0) return false;
+
+  const loanPatch = { status: LoanStatus.ACTIVE };
+
+  const provisioned = Number(loan.provisionedAmount || 0);
+  if (provisioned > 0) {
+    await ledgerService.postProvisionReversalEntry(loan, provisioned, actorId || null, transaction || null);
+    loanPatch.provisionedAmount = 0;
+
+    emitLoanTransaction({
+      loanId: loan.id,
+      transactionType: LoanTransactionType.PROVISION_REVERSAL,
+      direction: 'DEBIT',
+      amount: provisioned,
+      currency: loan.currency,
+      principalBalance: principalBalance ?? Number(loan.outstandingBalance),
+      interestBalance: 0,
+      feesBalance: 0,
+      penaltiesBalance: penaltiesBalance ?? 0,
+      totalBalance: principalBalance ?? Number(loan.outstandingBalance),
+      referenceType: 'loan',
+      referenceId: loan.id,
+      transactionDate: new Date(),
+      notes: `${context}: provision reversed — loan ${loan.referenceCode} fully caught up`,
+      createdBy: actorId || null,
+    });
+  }
+
+  await loan.update(loanPatch, txOpt);
+
+  await AuditLogger.log({
+    entityType: 'LOAN',
+    entityId: loan.id,
+    action: 'STATUS_CHANGE',
+    data: {
+      from: LoanStatus.OVERDUE,
+      to: LoanStatus.ACTIVE,
+      reason: `${context}: all overdue installments cleared`,
+    },
+    actorId: actorId ?? AuditLogger.SYSTEM_USER_ID,
+    options: { actorType, source },
+  });
+
+  logger.info(`[tryDeEscalateOverdue] Loan ${loan.id} (${loan.referenceCode}) de-escalated OVERDUE → ACTIVE (${context})`);
+  return true;
+};
+
 module.exports = loanService;

@@ -17,8 +17,9 @@ function computeTotalOutstanding(loan) {
 
   const total = loan.repaymentSchedules.reduce((sum, s) => {
     if (!OUTSTANDING_SCHEDULE_STATUSES.includes(s.status)) return sum;
-    const owed = Number(s.totalAmount || 0) - Number(s.paidAmount || 0);
-    return sum + Math.max(0, owed);
+    const installmentOwed = Number(s.totalAmount || 0) - Number(s.paidAmount || 0);
+    const penaltyOwed = Number(s.penaltyAmount || 0) - Number(s.penaltyPaid || 0);
+    return sum + Math.max(0, installmentOwed) + Math.max(0, penaltyOwed);
   }, 0);
 
   return Number(total.toFixed(2));

@@ -24,6 +24,7 @@ const LoanStatus = require('../enums/loanStatus');
 const LoanTransactionType = require('../enums/loanTransactionType');
 const ledgerService = require('../services/ledgerService');
 const penaltyService = require('../services/penaltyService');
+const loanService = require('../services/loanService');
 const { emitLoanTransaction } = require('./loanTransactionEmitter');
 const AuditLogger = require('./auditLogger');
 const logger = require('../config/logger');
@@ -105,43 +106,15 @@ async function processLoan(loan, today, overdueAt, defaultedAt, penaltyConfig, s
 
   // ── Step 3a: De-escalate — OVERDUE → ACTIVE when fully caught up ──────────
   if (overdueCount === 0 && oldStatus === LoanStatus.OVERDUE) {
-    await loan.update({ status: LoanStatus.ACTIVE });
-    summary.recovered++;
-
-    // Reverse any outstanding provision
-    const provisioned = Number(loan.provisionedAmount || 0);
-    if (provisioned > 0) {
-      await ledgerService.postProvisionReversalEntry(loan, provisioned, null);
-      await loan.update({ provisionedAmount: 0 });
-
-      emitLoanTransaction({
-        loanId: loan.id,
-        transactionType: LoanTransactionType.PROVISION_REVERSAL,
-        direction: 'DEBIT',
-        amount: provisioned,
-        currency: loan.currency,
-        principalBalance: Number(loan.outstandingBalance),
-        interestBalance: 0,
-        feesBalance: 0,
-        penaltiesBalance: 0,
-        totalBalance: Number(loan.outstandingBalance),
-        referenceType: 'loan',
-        referenceId: loan.id,
-        transactionDate: new Date(),
-        notes: `Cron: provision reversed — loan ${loan.referenceCode} fully caught up`,
-        createdBy: null,
-      });
-    }
-
-    await AuditLogger.log({
-      entityType: 'LOAN',
-      entityId: loan.id,
-      action: 'STATUS_CHANGE',
-      data: { from: oldStatus, to: LoanStatus.ACTIVE, reason: 'Cron: all installments up to date' },
-      actorId: AuditLogger.SYSTEM_USER_ID,
-      options: { actorType: 'SYSTEM', source: 'cron' },
+    const deEscalated = await loanService.tryDeEscalateOverdue(loan, {
+      principalBalance: Number(loan.outstandingBalance),
+      actorId: null,
+      actorType: 'SYSTEM',
+      source: 'cron',
+      context: 'Cron',
+      transaction: null,
     });
-
+    if (deEscalated) summary.recovered++;
     return;
   }
 

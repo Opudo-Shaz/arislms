@@ -14,6 +14,7 @@ const memberContributionService = require('./memberContributionService');
 const { emitLoanTransaction } = require('../utils/loanTransactionEmitter');
 const LoanTransactionType = require('../enums/loanTransactionType');
 const systemConfigService = require('./systemConfigService');
+const loanService = require('./loanService');
 const { CURRENCY_EPSILON } = require('../utils/helpers');
 
 const paymentService = {
@@ -97,20 +98,26 @@ const paymentService = {
         const isFullyPaid = newPaidAmount >= installmentTotal - 0.01;
         const isMissed = paymentDate > new Date(installment.dueDate);
 
+        /* If the installment was overdue and is only partially paid it stays
+          'overdue' — switching to 'partial' would lose the past-due signal.
+          It only leaves overdue status once fully paid.
+        */
+        const newStatus = isFullyPaid ? 'paid' : (installment.status === 'overdue' ? 'overdue' : 'partial');
+
         const newPenaltyPaid = Number((Number(installment.penaltyPaid || 0) + penaltyPortion).toFixed(2));
 
         await installment.update({
           paidAmount: newPaidAmount,
           penaltyPaid: newPenaltyPaid,
           paidDate: isFullyPaid ? paymentDate : installment.paidDate,
-          status: isFullyPaid ? 'paid' : 'partial',
+          status: newStatus,
           isMissed: isMissed || installment.isMissed,
           remainingBalance: Number(runningBalance.toFixed(2))
         }, { transaction });
 
         logger.info(
           `Installment #${installment.installmentNumber} loan ${loanId}: ` +
-          `paid=${newPaidAmount}/${installmentTotal.toFixed(2)} status=${isFullyPaid ? 'paid' : 'partial'} ` +
+          `paid=${newPaidAmount}/${installmentTotal.toFixed(2)} status=${newStatus} ` +
           `(penalty=${penaltyPortion.toFixed(2)}, interest=${interestPortion.toFixed(2)}, principal=${principalPortion.toFixed(2)})`
         );
 
@@ -472,6 +479,18 @@ async createPayment(data, user, userAgent = 'unknown') {
     }
 
     await loan.update(loanUpdates, { transaction: t });
+
+    // De-escalate OVERDUE → ACTIVE immediately if all overdue installments are cleared
+    // (don't wait for the nightly cron). No-op if loan isn't OVERDUE or still has overdue rows.
+    await loanService.tryDeEscalateOverdue(loan, {
+      principalBalance: newBalance,
+      penaltiesBalance: newPenaltiesBalance,
+      actorId: creatorId,
+      actorType: 'USER',
+      source: userAgent,
+      context: 'Payment',
+      transaction: t,
+    });
 
     // ── Step 5b: Credit overpayment to member contributions ──────────
     let overpaymentContribution = null;

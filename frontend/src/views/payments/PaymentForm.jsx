@@ -199,7 +199,7 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
                     <strong>
                       {formatCurrency(selectedLoan.outstandingBalance, selectedLoan.currency)}
                     </strong>{' '}
-                    · Total outstanding (incl. interest):{' '}
+                    · Total outstanding (incl. interest & penalties):{' '}
                     <strong>
                       {formatCurrency(
                         selectedLoan.totalOutstandingBalance ?? selectedLoan.outstandingBalance,
