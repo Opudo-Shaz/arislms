@@ -12,7 +12,7 @@ const options = {
     },
     servers: [
       {
-        url: `http://${process.env.SERVER_HOST || 'localhost'}:${process.env.SERVER_PORT || 6505}`,
+        url: `${process.env.SWAGGER_SERVER_URL || 'http://localhost:6505'}`,
       },
     ],
     components: {

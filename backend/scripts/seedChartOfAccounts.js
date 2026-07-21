@@ -6,7 +6,8 @@
  *   node backend/scripts/seedChartOfAccounts.js
  */
 
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+const loadEnv = require('../config/env');
+loadEnv({ path: require('path').join(__dirname, '../.env') });
 
 const sequelize = require('../config/sequalize_db');
 const ChartOfAccount = require('../models/chartOfAccountModel');

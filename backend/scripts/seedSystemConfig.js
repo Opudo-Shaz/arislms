@@ -13,7 +13,8 @@
  *   node backend/scripts/seedSystemConfig.js
  */
 
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+const loadEnv = require('../config/env');
+loadEnv({ path: require('path').join(__dirname, '../.env') });
 
 const sequelize = require('../config/sequalize_db');
 const SystemConfig = require('../models/systemConfigModel');

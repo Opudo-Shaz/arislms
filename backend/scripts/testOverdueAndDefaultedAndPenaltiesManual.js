@@ -30,7 +30,8 @@
 'use strict';
 
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+const loadEnv = require('../config/env');
+loadEnv({ path: path.resolve(__dirname, '../.env') });
 
 const sequelize         = require('../config/sequalize_db');
 const Loan              = require('../models/loanModel');
