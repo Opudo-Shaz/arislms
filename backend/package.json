@@ -18,6 +18,7 @@
     "dotenv": "^17.2.2",
     "dotenv-expand": "^13.0.0",
     "express": "^5.1.0",
+    "googleapis": "^173.0.0",
     "joi": "^18.0.2",
     "joi-to-swagger": "^6.2.0",
     "jsonwebtoken": "^9.0.2",

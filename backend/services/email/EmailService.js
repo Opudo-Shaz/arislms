@@ -1,5 +1,7 @@
 const logger = require('../../config/logger');
 const GmailProvider = require('./providers/GmailProvider');
+const GmailApiProvider = require('./providers/GmailApiProvider');
+const systemConfigService = require('../systemConfigService');
 
 /**
  * EmailService — strategy-pattern router that delegates to the configured provider.
@@ -9,7 +11,8 @@ const GmailProvider = require('./providers/GmailProvider');
  * system configs so the next send picks up the new values.
  *
  * Supported providers:
- *   gmail — Gmail SMTP via nodemailer (configs: email.provider.gmail.*)
+ *   gmail     — Gmail SMTP via nodemailer     (configs: email.provider.gmail.*)
+ *   gmail-api — Gmail REST API via OAuth2     (configs: email.provider.gmail-api.*)
  *
  * Usage:
  *   const emailService = require('./EmailService');
@@ -20,32 +23,28 @@ class EmailService {
     this._provider = null;
   }
 
-  /** @returns {Promise<GmailProvider>} */
+  /** @returns {Promise<GmailProvider|GmailApiProvider>} */
   async _resolveProvider() {
     if (this._provider) return this._provider;
 
-    // Lazy-require to avoid circular-dependency / boot-order issues
-    const SystemConfig = require('../../models/systemConfigModel');
+    const getVal = (key, defaultValue = null) =>
+      systemConfigService.getConfigValue(key, 'string', defaultValue);
 
-    const getVal = async (key) => {
-      const row = await SystemConfig.findOne({ where: { key }, attributes: ['value'] });
-      return row?.value ?? null;
-    };
-
-    const providerName = (await getVal('email.provider')) || 'gmail';
+    const providerName = await getVal('email.provider', 'gmail');
 
     logger.info(`[EmailService] Resolving email provider: ${providerName}`);
 
     if (providerName === 'gmail') {
       const config = {
-        host:        (await getVal('email.provider.gmail.host'))    || 'smtp.gmail.com',
-        port:        (await getVal('email.provider.gmail.port'))    || '587',
-        secure:      (await getVal('email.provider.gmail.secure'))  || 'false',
-        user:        (await getVal('email.provider.gmail.user'))    || process.env.EMAIL_PROVIDER_GMAIL_USER,
-        pass:        (await getVal('email.provider.gmail.pass'))    || process.env.EMAIL_PROVIDER_GMAIL_PASS,
-        fromName:    (await getVal('email.from_name'))              || process.env.EMAIL_FROM_NAME    || 'ARISLMS',
-        fromAddress: (await getVal('email.from_address'))           || process.env.EMAIL_PROVIDER_GMAIL_USER,
+        host:        await getVal('email.provider.gmail.host',    'smtp.gmail.com'),
+        port:        await getVal('email.provider.gmail.port',    '587'),
+        secure:      await getVal('email.provider.gmail.secure',  'false'),
+        user:        await getVal('email.provider.gmail.user'),
+        pass:        await getVal('email.provider.gmail.pass'),
+        fromName:    await getVal('email.from_name',              'ARISLMS'),
+        fromAddress: await getVal('email.from_address'),
       };
+      if (!config.fromAddress) config.fromAddress = config.user;
 
       if (!config.user || !config.pass) {
         throw new Error(
@@ -59,9 +58,32 @@ class EmailService {
       return this._provider;
     }
 
+    if (providerName === 'gmail-api') {
+      const config = {
+        clientId:     await getVal('email.provider.gmail-api.client_id'),
+        clientSecret: await getVal('email.provider.gmail-api.client_secret'),
+        refreshToken: await getVal('email.provider.gmail-api.refresh_token'),
+        user:         await getVal('email.provider.gmail-api.user'),
+        fromName:     await getVal('email.from_name', 'ARISLMS'),
+        fromAddress:  await getVal('email.from_address'),
+      };
+      if (!config.fromAddress) config.fromAddress = config.user;
+
+      if (!config.clientId || !config.clientSecret || !config.refreshToken || !config.user) {
+        throw new Error(
+          'Gmail API credentials are not configured. ' +
+          'Set email.provider.gmail-api.client_id, client_secret, refresh_token, and user in System Config, ' +
+          'or set EMAIL_PROVIDER_GMAIL_API_CLIENT_ID / CLIENT_SECRET / REFRESH_TOKEN / USER environment variables.'
+        );
+      }
+
+      this._provider = new GmailApiProvider(config);
+      return this._provider;
+    }
+
     throw new Error(
       `Unsupported email provider: "${providerName}". ` +
-      'Update the email.provider system config. Currently supported: gmail'
+      'Update the email.provider system config. Currently supported: gmail, gmail-api'
     );
   }
 
