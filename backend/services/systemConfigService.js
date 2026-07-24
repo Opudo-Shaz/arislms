@@ -2,6 +2,17 @@ const SystemConfig = require('../models/systemConfigModel')
 const { Op } = require('sequelize')
 const logger = require('../config/logger')
 const AuditLogger = require('../utils/auditLogger')
+const { encrypt, decrypt, isEncrypted } = require('../utils/configEncryption')
+
+/**
+ * Return a safe plain object for API responses.
+ * Secret configs have their value replaced with '[REDACTED]'.
+ */
+function _safeDTO(cfg) {
+  const obj = cfg && typeof cfg.toJSON === 'function' ? cfg.toJSON() : { ...cfg }
+  if (obj.isSecret) obj.value = '[**redacted**]'
+  return obj
+}
 
 /**
  * Seed infra configs that mirror environment variables.
@@ -45,14 +56,19 @@ async function seedInfraConfigs() {
   ]
 
   for (const seed of infraSeeds) {
+    const storedValue = seed.isSecret && seed.value ? encrypt(seed.value) : seed.value
     const [row, created] = await SystemConfig.findOrCreate({
       where: { key: seed.key },
-      defaults: { ...seed, isActive: true, isReadOnly: true },
+      defaults: { ...seed, value: storedValue, isActive: true, isReadOnly: true },
     })
-    if (!created && row.value !== seed.value) {
-      // Env var changed since last startup — sync the new value
-      await row.update({ value: seed.value })
-      logger.info(`SystemConfig: synced updated env value for key=${seed.key}`)
+    if (!created) {
+      // Decrypt stored value for drift comparison so we don't re-encrypt on every boot
+      const currentPlain = row.isSecret && isEncrypted(row.value) ? decrypt(row.value) : row.value
+      if (currentPlain !== seed.value) {
+        const newStoredValue = seed.isSecret && seed.value ? encrypt(seed.value) : seed.value
+        await row.update({ value: newStoredValue })
+        logger.info(`SystemConfig: synced updated env value for key=${seed.key}`)
+      }
     }
   }
 
@@ -76,11 +92,12 @@ module.exports = {
       limit,
       offset,
     })
-    return { total: count, page, limit, data: rows }
+    return { total: count, page, limit, data: rows.map(_safeDTO) }
   },
 
   async getOne(id) {
-    return SystemConfig.findByPk(id)
+    const cfg = await SystemConfig.findByPk(id)
+    return cfg ? _safeDTO(cfg) : null
   },
 
   async getByKey(key) {
@@ -108,18 +125,22 @@ module.exports = {
 
       if (cfg.value == null) return defaultValue
 
+      // Decrypt transparently — no-op on plain-text legacy values
+      const rawValue = cfg.isSecret ? decrypt(cfg.value) : cfg.value
+      if (rawValue == null) return defaultValue
+
       switch (type) {
         case 'number': {
-          const n = Number(cfg.value)
+          const n = Number(rawValue)
           return isFinite(n) ? n : defaultValue
         }
         case 'boolean':
-          return cfg.value === 'true'
+          return rawValue === 'true'
         case 'json': {
-          try { return JSON.parse(cfg.value) } catch { return defaultValue }
+          try { return JSON.parse(rawValue) } catch { return defaultValue }
         }
         default:
-          return String(cfg.value)
+          return String(rawValue)
       }
     } catch (err) {
       logger.warn(`SystemConfig.getConfigValue('${key}'): ${err.message} — using default`)
@@ -131,7 +152,12 @@ module.exports = {
     const existing = await SystemConfig.findOne({ where: { key: data.key } })
     if (existing) throw new Error(`Config key '${data.key}' already exists`)
 
-    const config = await SystemConfig.create({ ...data, createdBy: creatorId, isReadOnly: false })
+    const payload = { ...data, createdBy: creatorId, isReadOnly: false }
+    if (payload.isSecret && payload.value) {
+      payload.value = encrypt(payload.value)
+    }
+
+    const config = await SystemConfig.create(payload)
 
     await AuditLogger.log({
       entityType: 'SYSTEM_CONFIG',
@@ -143,7 +169,7 @@ module.exports = {
     })
 
     logger.info(`SystemConfig created: key=${config.key} by user ${creatorId}`)
-    return config
+    return _safeDTO(config)
   },
 
   async update(id, data, actorId, userAgent = 'unknown') {
@@ -151,20 +177,36 @@ module.exports = {
     if (!config) return null
     if (config.isReadOnly) throw new Error('This config is managed by environment variables and cannot be edited here')
 
-    const before = { value: config.value, label: config.label, isActive: config.isActive }
-    await config.update(data)
+    // Determine effective isSecret — caller may be promoting the row to secret on this update
+    const effectiveIsSecret = data.isSecret != null ? data.isSecret : config.isSecret
+
+    const payload = { ...data }
+    if (effectiveIsSecret && payload.value != null && payload.value !== '') {
+      payload.value = encrypt(payload.value)
+    }
+
+    const before = {
+      value: config.isSecret ? '[REDACTED]' : config.value,
+      label: config.label,
+      isActive: config.isActive,
+    }
+    await config.update(payload)
 
     await AuditLogger.log({
       entityType: 'SYSTEM_CONFIG',
       entityId: id,
       action: 'UPDATE',
-      data: { key: config.key, before, after: data },
+      data: {
+        key: config.key,
+        before,
+        after: { ...payload, value: effectiveIsSecret ? '[REDACTED]' : payload.value },
+      },
       actorId: actorId || 1,
       options: { actorType: 'USER', source: userAgent },
     })
 
     logger.info(`SystemConfig updated: key=${config.key} by user ${actorId}`)
-    return config
+    return _safeDTO(config)
   },
 
   async toggleStatus(id, actorId, userAgent = 'unknown') {
@@ -191,7 +233,7 @@ module.exports = {
     if (!config) return null
     if (config.isReadOnly) throw new Error('This config is managed by environment variables and cannot be deleted')
 
-    const snapshot = { key: config.key, label: config.label, category: config.category, value: config.value }
+    const snapshot = { key: config.key, label: config.label, category: config.category, value: config.isSecret ? '[REDACTED]' : config.value }
     await config.destroy()
 
     await AuditLogger.log({
@@ -205,5 +247,33 @@ module.exports = {
 
     logger.warn(`SystemConfig deleted: key=${snapshot.key} by user ${actorId}`)
     return true
+  },
+
+  async reveal(id, actorId, userAgent = 'unknown') {
+    const config = await SystemConfig.findByPk(id)
+    if (!config) {
+      const err = new Error('Config not found')
+      err.status = 404
+      throw err
+    }
+    if (!config.isSecret) {
+      const err = new Error('This config is not a secret')
+      err.status = 400
+      throw err
+    }
+
+    const plainValue = decrypt(config.value)
+
+    await AuditLogger.log({
+      entityType: 'SYSTEM_CONFIG',
+      entityId: id,
+      action: 'REVEAL',
+      data: { key: config.key },
+      actorId: actorId || 1,
+      options: { actorType: 'USER', source: userAgent },
+    })
+
+    logger.info(`SystemConfig revealed: key=${config.key} by user ${actorId}`)
+    return plainValue
   },
 }

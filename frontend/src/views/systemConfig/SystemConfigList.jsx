@@ -27,6 +27,8 @@ import {
   CFormSelect,
   CFormSwitch,
   CFormTextarea,
+  CInputGroup,
+  CInputGroupText,
   CModal,
   CModalBody,
   CModalFooter,
@@ -52,6 +54,7 @@ import {
   useUpdateSystemConfig,
   useToggleSystemConfigStatus,
   useDeleteSystemConfig,
+  useRevealSystemConfig,
 } from '../../hooks/useSystemConfigs'
 
 const PAGE_SIZE = 10
@@ -75,7 +78,8 @@ const emptyForm = {
 const toForm = (c) => ({
   key: c.key || '',
   label: c.label || '',
-  value: c.value || '',
+  // Leave value blank for secrets so the form starts empty — saving blank keeps the current value
+  value: c.isSecret ? '' : (c.value || ''),
   category: c.category || 'general',
   description: c.description || '',
   isActive: c.isActive !== false,
@@ -89,17 +93,37 @@ const ConfigForm = ({ visible, config, onClose }) => {
   const isEdit = Boolean(config)
   const createMutation = useCreateSystemConfig()
   const updateMutation = useUpdateSystemConfig()
+  const revealMutation = useRevealSystemConfig()
   const saving = createMutation.isPending || updateMutation.isPending
 
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState(null)
+  const [showSecretValue, setShowSecretValue] = useState(false)
+  const [secretFetched, setSecretFetched] = useState(false)
 
   React.useEffect(() => {
     if (visible) {
       setForm(config ? toForm(config) : emptyForm)
       setError(null)
+      setShowSecretValue(false)
+      setSecretFetched(false)
     }
   }, [visible, config])
+
+  const handleSecretEye = async () => {
+    if (!secretFetched && isEdit && config?.id) {
+      try {
+        const plain = await revealMutation.mutateAsync(config.id)
+        setForm((f) => ({ ...f, value: plain }))
+        setSecretFetched(true)
+        setShowSecretValue(true)
+      } catch (err) {
+        setError(err?.data?.message || err.message || 'Failed to reveal secret')
+      }
+    } else {
+      setShowSecretValue((v) => !v)
+    }
+  }
 
   const set = (field) => (e) => {
     const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value
@@ -112,6 +136,8 @@ const ConfigForm = ({ visible, config, onClose }) => {
     try {
       if (isEdit) {
         const { key: _k, ...updatePayload } = form
+        // Don't overwrite a secret value when the field was left blank
+        if (form.isSecret && !updatePayload.value) delete updatePayload.value
         await updateMutation.mutateAsync({ id: config.id, payload: updatePayload })
       } else {
         await createMutation.mutateAsync(form)
@@ -163,13 +189,38 @@ const ConfigForm = ({ visible, config, onClose }) => {
             </CCol>
             {!form.isBoolean && (
               <CCol md={8}>
-                <CFormLabel>Value <span className="text-danger">*</span></CFormLabel>
-                <CFormInput
-                  value={form.value}
-                  onChange={set('value')}
-                  placeholder="e.g. local, azure, aws"
-                  required
-                />
+                <CFormLabel>Value {!isEdit && <span className="text-danger">*</span>}</CFormLabel>
+                {form.isSecret ? (
+                  <CInputGroup>
+                    <CFormInput
+                      type={showSecretValue ? 'text' : 'password'}
+                      value={form.value}
+                      onChange={set('value')}
+                      placeholder={isEdit ? '(leave blank to keep current value)' : 'Enter secret value'}
+                      required={!isEdit}
+                      autoComplete="new-password"
+                    />
+                    <CInputGroupText
+                      as="button"
+                      type="button"
+                      title={showSecretValue ? 'Hide value' : (secretFetched ? 'Show value' : 'Reveal current value')}
+                      onClick={handleSecretEye}
+                      disabled={revealMutation.isPending}
+                    >
+                      {revealMutation.isPending
+                        ? <CSpinner size="sm" style={{ width: 14, height: 14 }} />
+                        : showSecretValue ? <EyeOff size={14} /> : <Eye size={14} />
+                      }
+                    </CInputGroupText>
+                  </CInputGroup>
+                ) : (
+                  <CFormInput
+                    value={form.value}
+                    onChange={set('value')}
+                    placeholder="e.g. local, azure, aws"
+                    required={!isEdit}
+                  />
+                )}
               </CCol>
             )}
             <CCol md={form.isBoolean ? 12 : 4}>
@@ -233,14 +284,23 @@ const SystemConfigList = () => {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [toDelete, setToDelete] = useState(null)
-  const [revealedKeys, setRevealedKeys] = useState(new Set())
+  const [revealedValues, setRevealedValues] = useState({})
 
-  const toggleReveal = (key) =>
-    setRevealedKeys((prev) => {
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
-      return next
-    })
+  const revealMutation = useRevealSystemConfig()
+
+  const handleReveal = async (row) => {
+    if (revealedValues[row.id] !== undefined) {
+      // Already revealed — toggle off, clear stored plaintext
+      setRevealedValues((prev) => { const next = { ...prev }; delete next[row.id]; return next })
+      return
+    }
+    try {
+      const plainValue = await revealMutation.mutateAsync(row.id)
+      setRevealedValues((prev) => ({ ...prev, [row.id]: plainValue }))
+    } catch {
+      // error surfaced via revealMutation.error — nothing extra needed
+    }
+  }
 
   const queryParams = {
     page,
@@ -322,11 +382,12 @@ const SystemConfigList = () => {
           return <span className="text-body-secondary">—</span>
         }
         if (row.isSecret) {
-          const revealed = revealedKeys.has(row.key)
+          const revealed = revealedValues[row.id] !== undefined
+          const isRevealing = revealMutation.isPending && revealMutation.variables === row.id
           return (
             <span className="d-inline-flex align-items-center gap-2">
               <span className="font-monospace">
-                {revealed ? row.value : '•'.repeat(Math.min(row.value.length, 12))}
+                {revealed ? revealedValues[row.id] : '•'.repeat(12)}
               </span>
               <CButton
                 color="secondary"
@@ -334,10 +395,14 @@ const SystemConfigList = () => {
                 size="sm"
                 className="p-0 border-0"
                 style={{ lineHeight: 1 }}
-                title={revealed ? 'Hide value' : 'Show value'}
-                onClick={() => toggleReveal(row.key)}
+                title={revealed ? 'Hide value' : 'Reveal value'}
+                onClick={() => handleReveal(row)}
+                disabled={isRevealing}
               >
-                {revealed ? <EyeOff size={14} /> : <Eye size={14} />}
+                {isRevealing
+                  ? <CSpinner size="sm" style={{ width: 14, height: 14 }} />
+                  : revealed ? <EyeOff size={14} /> : <Eye size={14} />
+                }
               </CButton>
             </span>
           )

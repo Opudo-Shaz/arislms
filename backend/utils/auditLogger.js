@@ -20,7 +20,8 @@ class AuditLogger {
         'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'DISBURSE', 'REVERSE',
         'UPDATE_PRINCIPAL', 'KYC_VERIFY', 'KYC_REQUEST_INFO', 'KYC_REJECT',
         'ACTIVATE', 'DEACTIVATE', 'SUSPEND', 'BLACKLIST', 'RESET_PASSWORD', 'REJECT',
-         'WRITE_OFF', 'REPAYMENT', 'FEE_CHARGE', 'INTEREST_CHARGE', 'PENALTY_CHARGE','STATUS_CHANGE'
+         'WRITE_OFF', 'REPAYMENT', 'FEE_CHARGE', 'INTEREST_CHARGE', 'PENALTY_CHARGE','STATUS_CHANGE',
+         'REVEAL'
       ];
       if (!allowedActions.includes(action)) {
         throw new Error(`Invalid audit action: ${action}`);

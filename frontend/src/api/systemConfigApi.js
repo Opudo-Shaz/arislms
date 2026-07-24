@@ -21,3 +21,6 @@ export const toggleSystemConfigStatus = (id) =>
 
 export const deleteSystemConfig = (id) =>
   http.delete(`${BASE}/${id}`).then(unwrap)
+
+export const revealSystemConfig = (id) =>
+  http.get(`${BASE}/${id}/reveal`).then((res) => res.value)

@@ -22,4 +22,7 @@ router.patch('/:id/status', authenticate, authorize([1]), controller.toggleStatu
 // DELETE — admin only
 router.delete('/:id', authenticate, authorize([1]), controller.remove)
 
+// GET reveal decrypted secret value — admin only, always audit-logged
+router.get('/:id/reveal', authenticate, authorize([1]), controller.reveal)
+
 module.exports = router

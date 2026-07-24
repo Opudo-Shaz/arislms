@@ -5,6 +5,7 @@ import {
   updateSystemConfig,
   toggleSystemConfigStatus,
   deleteSystemConfig,
+  revealSystemConfig,
 } from '../api/systemConfigApi'
 
 export const systemConfigKeys = {
@@ -50,3 +51,8 @@ export const useDeleteSystemConfig = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: systemConfigKeys.all }),
   })
 }
+
+export const useRevealSystemConfig = () =>
+  useMutation({
+    mutationFn: (id) => revealSystemConfig(id),
+  })

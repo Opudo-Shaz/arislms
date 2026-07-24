@@ -125,4 +125,15 @@ module.exports = {
       res.status(status).json({ success: false, message: err.message })
     }
   },
+
+  async reveal(req, res) {
+    try {
+      const value = await service.reveal(req.params.id, getUserId(req), req.headers['user-agent'])
+      res.json({ success: true, value })
+    } catch (err) {
+      logger.error(`SystemConfigController.reveal: ${err.message}`)
+      const status = err.status || 500
+      res.status(status).json({ success: false, message: err.message })
+    }
+  },
 }
