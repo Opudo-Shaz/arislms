@@ -55,6 +55,7 @@ const memberContributionRoutes = require('./routes/memberContributionRoutes');
 const documentRoutes = require('./routes/documentRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const systemConfigRoutes = require('./routes/systemConfigRoutes');
+const codeRoutes = require('./routes/codeRoutes');
 
 
 app.use('/api/users', userRoutes);
@@ -74,6 +75,7 @@ app.use('/api/member-contributions', memberContributionRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/system-configs', systemConfigRoutes);
+app.use('/api/codes', codeRoutes);
 
 
 

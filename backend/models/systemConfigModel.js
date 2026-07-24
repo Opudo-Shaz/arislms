@@ -49,6 +49,14 @@ const SystemConfig = sequelize.define('SystemConfig', {
     field: 'is_boolean',
   },
 
+  // Dropdown-backed configs: value must match one of the linked Code's values
+  // (the link itself lives in system_config_code_relations, not here).
+  isDropdown: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'is_dropdown',
+  },
+
   // Read-only configs are seeded from env; the UI shows them but cannot edit them
   isReadOnly: {
     type: DataTypes.BOOLEAN,

@@ -27,6 +27,7 @@ import {
   cilLockLocked,
   cilBell,
   cilSettings,
+  cilBarcode,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem, CNavTitle } from '@coreui/react'
 
@@ -153,6 +154,13 @@ const _nav = [
     name: 'System Configuration',
     to: '/settings/system-config',
     icon: <CIcon icon={cilSettings} customClassName="nav-icon" />,
+    roles: [1],
+  },
+  {
+    component: CNavItem,
+    name: 'Codes',
+    to: '/admin/codes',
+    icon: <CIcon icon={cilBarcode} customClassName="nav-icon" />,
     roles: [1],
   },
   {

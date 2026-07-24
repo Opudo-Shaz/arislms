@@ -43,6 +43,7 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilLockLocked, cilPencil, cilPlus, cilReload, cilTrash } from '@coreui/icons'
 import { Eye, EyeOff } from 'lucide-react'
+import Select from 'react-select'
 
 import DataTable from '../../components/DataTable'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -56,6 +57,7 @@ import {
   useDeleteSystemConfig,
   useRevealSystemConfig,
 } from '../../hooks/useSystemConfigs'
+import { useCodes, useCodeValues } from '../../hooks/useCodes'
 
 const PAGE_SIZE = 10
 
@@ -73,6 +75,8 @@ const emptyForm = {
   isActive: true,
   isBoolean: false,
   isSecret: false,
+  isDropdown: false,
+  codeId: null,
 }
 
 const toForm = (c) => ({
@@ -85,6 +89,8 @@ const toForm = (c) => ({
   isActive: c.isActive !== false,
   isBoolean: c.isBoolean === true,
   isSecret: c.isSecret === true,
+  isDropdown: c.isDropdown === true,
+  codeId: c.codeId || null,
 })
 
 // ── Inline create/edit modal ──────────────────────────────────────────────────
@@ -101,6 +107,11 @@ const ConfigForm = ({ visible, config, onClose }) => {
   const [showSecretValue, setShowSecretValue] = useState(false)
   const [secretFetched, setSecretFetched] = useState(false)
 
+  const { data: codes } = useCodes()
+  const codeOptions = (codes || []).map((c) => ({ value: c.id, label: `${c.name} (${c.key})` }))
+  const selectedCodeOption = codeOptions.find((o) => o.value === form.codeId) || null
+  const { data: codeValues } = useCodeValues(form.codeId, { activeOnly: true })
+
   React.useEffect(() => {
     if (visible) {
       setForm(config ? toForm(config) : emptyForm)
@@ -109,6 +120,10 @@ const ConfigForm = ({ visible, config, onClose }) => {
       setSecretFetched(false)
     }
   }, [visible, config])
+
+  const handleCodeChange = (opt) => {
+    setForm((f) => ({ ...f, codeId: opt ? opt.value : null, value: '' }))
+  }
 
   const handleSecretEye = async () => {
     if (!secretFetched && isEdit && config?.id) {
@@ -185,9 +200,60 @@ const ConfigForm = ({ visible, config, onClose }) => {
                 label="Boolean / feature-flag config (uses Status toggle as the value)"
                 checked={form.isBoolean}
                 onChange={set('isBoolean')}
+                disabled={form.isDropdown}
               />
             </CCol>
-            {!form.isBoolean && (
+            <CCol xs={12}>
+              <CFormSwitch
+                label="Dropdown config (value must be one of a Code's values)"
+                checked={form.isDropdown}
+                onChange={(e) => {
+                  const checked = e.target.checked
+                  setForm((f) => ({ ...f, isDropdown: checked, ...(checked ? {} : { codeId: null }) }))
+                }}
+                disabled={form.isBoolean}
+              />
+            </CCol>
+            {form.isDropdown && (
+              <>
+                <CCol md={6}>
+                  <CFormLabel>Source Code <span className="text-danger">*</span></CFormLabel>
+                  <Select
+                    inputId="systemConfigCodeSelect"
+                    options={codeOptions}
+                    value={selectedCodeOption}
+                    onChange={handleCodeChange}
+                    placeholder="Search codes…"
+                    isClearable
+                    styles={{
+                      control: (base, state) => ({
+                        ...base,
+                        borderColor: state.isFocused ? '#321fdb' : '#b1b7c1',
+                        boxShadow: state.isFocused ? '0 0 0 0.25rem rgba(50,31,219,.25)' : 'none',
+                        '&:hover': { borderColor: '#321fdb' },
+                        minHeight: '36px',
+                      }),
+                      menu: (base) => ({ ...base, zIndex: 9999 }),
+                    }}
+                  />
+                </CCol>
+                <CCol md={6}>
+                  <CFormLabel>Value {!isEdit && <span className="text-danger">*</span>}</CFormLabel>
+                  <CFormSelect
+                    value={form.value}
+                    onChange={set('value')}
+                    disabled={!form.codeId}
+                    required={!isEdit}
+                  >
+                    <option value="">{form.codeId ? 'Select a value…' : 'Select a code first'}</option>
+                    {(codeValues || []).map((cv) => (
+                      <option key={cv.id} value={cv.value}>{cv.value}</option>
+                    ))}
+                  </CFormSelect>
+                </CCol>
+              </>
+            )}
+            {!form.isBoolean && !form.isDropdown && (
               <CCol md={8}>
                 <CFormLabel>Value {!isEdit && <span className="text-danger">*</span>}</CFormLabel>
                 {form.isSecret ? (

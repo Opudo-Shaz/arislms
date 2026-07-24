@@ -36,6 +36,7 @@ const AuditTrail = React.lazy(() => import('./views/reports/AuditTrail'))
 const PortfolioAging = React.lazy(() => import('./views/reports/PortfolioAging'))
 const UserProfile = React.lazy(() => import('./views/profile/UserProfile'))
 const SystemConfigList = React.lazy(() => import('./views/systemConfig/SystemConfigList'))
+const CodesList = React.lazy(() => import('./views/admin/CodesList'))
 
 export const routes = [
   { path: '/', exact: true, name: 'Home' },
@@ -120,6 +121,9 @@ export const routes = [
 
   // System Configuration (admin)
   { path: '/settings/system-config', name: 'System Configuration', element: SystemConfigList },
+
+  // Codes (admin)
+  { path: '/admin/codes', name: 'Codes', element: CodesList },
 ]
 
 export default routes

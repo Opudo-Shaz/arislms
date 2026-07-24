@@ -13,6 +13,15 @@ const createSchema = Joi.object({
     .messages({ 'string.pattern.base': 'Key must be lowercase letters, digits, dots, or underscores' }),
   label: Joi.string().trim().max(200).required(),
   isBoolean: Joi.boolean().default(false),
+  isDropdown: Joi.boolean().default(false)
+    .when('isBoolean', { is: true, then: Joi.valid(false).messages({ 'any.only': 'A boolean config cannot also be a dropdown' }) }),
+  codeId: Joi.when('isDropdown', {
+    is: true,
+    then: Joi.number().integer().required().messages({
+      'any.required': 'Code is required when Is Dropdown is enabled',
+    }),
+    otherwise: Joi.number().integer().optional().allow(null),
+  }),
   // value required only when isBoolean is false
   value: Joi.when('isBoolean', {
     is: true,
@@ -31,6 +40,8 @@ const createSchema = Joi.object({
 const updateSchema = Joi.object({
   label: Joi.string().trim().max(200),
   isBoolean: Joi.boolean(),
+  isDropdown: Joi.boolean(),
+  codeId: Joi.number().integer().allow(null),
   value: Joi.string().allow('', null),
   category: Joi.string().valid(...CATEGORIES),
   description: Joi.string().allow('', null),

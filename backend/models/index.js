@@ -18,6 +18,9 @@ const LoanTransaction = require('./loanTransactionModel');
 const Collateral = require('./collateralModel');
 const Document   = require('./documentModel');
 const SystemConfig = require('./systemConfigModel');
+const Code = require('./codeModel');
+const CodeValue = require('./codeValueModel');
+const SystemConfigCodeRelation = require('./systemConfigCodeRelationModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
@@ -128,6 +131,16 @@ Document.belongsTo(Loan, { foreignKey: 'loan_id' });
 Collateral.hasMany(Document, { foreignKey: 'collateral_id', as: 'documents' });
 Document.belongsTo(Collateral, { foreignKey: 'collateral_id' });
 
+// Code <-> CodeValue associations
+Code.hasMany(CodeValue, { foreignKey: 'code_id', as: 'values' });
+CodeValue.belongsTo(Code, { foreignKey: 'code_id', as: 'code' });
+
+// SystemConfig <-> Code (dropdown-backed configs)
+SystemConfig.hasOne(SystemConfigCodeRelation, { foreignKey: 'system_config_id', as: 'codeRelation' });
+SystemConfigCodeRelation.belongsTo(SystemConfig, { foreignKey: 'system_config_id' });
+SystemConfigCodeRelation.belongsTo(Code, { foreignKey: 'code_id', as: 'code' });
+Code.hasMany(SystemConfigCodeRelation, { foreignKey: 'code_id' });
+
 module.exports = {
   sequelize,
   Role,
@@ -145,4 +158,8 @@ module.exports = {
   LoanTransaction,
   Collateral,
   Document,
+  Code,
+  CodeValue,
+  SystemConfig,
+  SystemConfigCodeRelation,
 };
