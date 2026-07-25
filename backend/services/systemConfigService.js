@@ -68,20 +68,6 @@ async function _syncCodeRelation(systemConfigId, { isDropdown, codeId }) {
 async function seedInfraConfigs() {
   const infraSeeds = [
     {
-      key: 'storage.provider',
-      label: 'Storage Provider',
-      value: process.env.STORAGE_PROVIDER || 'local',
-      category: 'storage',
-      description: 'Document storage backend: local | azure | aws | minio',
-    },
-    {
-      key: 'storage.container',
-      label: 'Storage Container / Bucket',
-      value: process.env.STORAGE_CONTAINER || '',
-      category: 'storage',
-      description: 'Blob container (Azure) or bucket name (AWS/Minio) for document uploads',
-    },
-    {
       key: 'email.provider.gmail.user',
       label: 'Gmail SMTP Username',
       value: process.env.EMAIL_PROVIDER_GMAIL_USER || '',

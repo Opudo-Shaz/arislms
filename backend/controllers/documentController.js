@@ -135,7 +135,12 @@ const documentController = {
   // GET /api/documents/:id/download
   async downloadDocument(req, res) {
     try {
-      const { filePath, mimeType, originalName } = await documentService.getDownloadInfo(req.params.id);
+      const { filePath, redirectUrl, mimeType, originalName } = await documentService.getDownloadInfo(req.params.id);
+
+      if (redirectUrl) {
+        return res.redirect(redirectUrl);
+      }
+
       res.setHeader('Content-Type', mimeType || 'application/octet-stream');
       res.setHeader('Content-Disposition', `inline; filename="${originalName}"`);
       return res.sendFile(filePath);

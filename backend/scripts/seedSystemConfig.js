@@ -6,8 +6,9 @@
  *   - have sensible defaults on first install, AND
  *   - can be changed by admins via the System Config UI after that.
  *
- * Env-driven, read-only infra configs (storage.*, email.provider.gmail.user/pass)
+ * Env-driven, read-only infra configs (email.provider.gmail.user/pass)
  * are seeded automatically on server startup via systemConfigService.seedInfraConfigs().
+ * Everything else, including storage.* (local/S3 settings), is UI-editable and lives here.
  *
  * Usage:
  *   node backend/scripts/seedSystemConfig.js
@@ -20,6 +21,109 @@ const sequelize = require('../config/sequalize_db');
 const SystemConfig = require('../models/systemConfigModel');
 
 const defaults = [
+  // ── Storage ────────────────────────────────────────────────────────────
+  {
+    key: 'storage.provider',
+    label: 'Storage Provider',
+    value: 'local',
+    category: 'storage',
+    description: 'Document storage backend: local | s3 | minio. Must match the DOCUMENT_STORAGE_PROVIDER env var for the change to take effect.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
+    key: 'storage.local.path',
+    label: 'Local Storage Path',
+    value: 'uploads/documents',
+    category: 'storage',
+    description: 'Filesystem path (relative to project root) used when storage.provider = local.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
+    key: 'storage.local.base_url',
+    label: 'Storage Base URL',
+    value: '',
+    category: 'storage',
+    description: 'Base URL of this API server, used to build local document links.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
+    key: 'storage.s3.endpoint',
+    label: 'S3 Endpoint',
+    value: '',
+    category: 'storage',
+    description: 'Custom endpoint for S3-compatible storage (e.g. Cloudflare R2, MinIO). Leave blank for real AWS S3.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
+    key: 'storage.s3.region',
+    label: 'S3 Region',
+    value: 'auto',
+    category: 'storage',
+    description: 'Bucket region. R2/MinIO ignore this (use "auto"); AWS S3 requires a real region.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
+    key: 'storage.s3.bucket',
+    label: 'S3 Bucket',
+    value: '',
+    category: 'storage',
+    description: 'Bucket name used when storage.provider = s3 or minio.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
+    key: 'storage.s3.access_key_id',
+    label: 'S3 Access Key ID',
+    value: '',
+    category: 'storage',
+    description: 'Access key for the S3-compatible storage account (e.g. Cloudflare R2 API token key ID).',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+    isSecret: true,
+  },
+  {
+    key: 'storage.s3.secret_access_key',
+    label: 'S3 Secret Access Key',
+    value: '',
+    category: 'storage',
+    description: 'Secret key for the S3-compatible storage account.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+    isSecret: true,
+  },
+  {
+    key: 'storage.s3.force_path_style',
+    label: 'S3 Force Path-Style URLs',
+    value: 'true',
+    category: 'storage',
+    description: 'Required by R2/MinIO. Set to false for AWS S3 virtual-hosted-style URLs.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
+    key: 'storage.s3.signed_url_expiry_seconds',
+    label: 'S3 Signed URL Expiry (seconds)',
+    value: '300',
+    category: 'storage',
+    description: 'How long generated document download links remain valid before expiring.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
   // ── Loans ──────────────────────────────────────────────────────────────
   {
     key: 'payment.min_overpayment_surplus',

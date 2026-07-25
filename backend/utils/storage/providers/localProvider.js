@@ -60,4 +60,13 @@ function getAbsolutePath(storedName) {
   return path.join(BASE_DIR, storedName);
 }
 
-module.exports = { save, remove, getAbsolutePath };
+/**
+ * Return info needed to serve a stored file to the client.
+ * @param {string} storedName
+ * @returns {{ type: 'file', filePath: string }}
+ */
+async function getDownloadInfo(storedName) {
+  return { type: 'file', filePath: getAbsolutePath(storedName) };
+}
+
+module.exports = { save, remove, getAbsolutePath, getDownloadInfo };

@@ -1,3 +1,4 @@
+const fs = require('fs');
 const Document = require('../models/documentModel');
 const { Op } = require('sequelize');
 const logger = require('../config/logger');
@@ -142,23 +143,32 @@ const documentService = {
   /**
    * Return the information needed to stream a document to the client.
    * For local storage this is an absolute filesystem path.
-   * For cloud providers this would be a signed URL (future).
+   * For S3-compatible providers this is a short-lived signed URL.
    */
   async getDownloadInfo(id) {
     const doc = await this.getDocumentById(id);
 
-    if (doc.storageProvider === 'local') {
-      const { getAbsolutePath } = require('../utils/storage/providers/localProvider');
-      const filePath = getAbsolutePath(doc.storedName);
-      const fs = require('fs');
-      if (!fs.existsSync(filePath)) {
-        throw Object.assign(new Error('File not found on disk'), { statusCode: 404 });
-      }
-      return { filePath, mimeType: doc.mimeType, originalName: doc.originalName };
+    if (doc.storageProvider !== providerName) {
+      throw Object.assign(
+        new Error(`Document was stored with provider "${doc.storageProvider}" but the active provider is "${providerName}"`),
+        { statusCode: 501 },
+      );
     }
 
-    // Future: return { redirectUrl: signedUrl } for s3/minio
-    throw Object.assign(new Error(`Download not yet implemented for provider: ${doc.storageProvider}`), { statusCode: 501 });
+    const info = await provider.getDownloadInfo(doc.storedName);
+
+    if (info.type === 'file') {
+      if (!fs.existsSync(info.filePath)) {
+        throw Object.assign(new Error('File not found on disk'), { statusCode: 404 });
+      }
+      return { filePath: info.filePath, mimeType: doc.mimeType, originalName: doc.originalName };
+    }
+
+    if (info.type === 'redirect') {
+      return { redirectUrl: info.url, mimeType: doc.mimeType, originalName: doc.originalName };
+    }
+
+    throw Object.assign(new Error(`Unsupported download info type: ${info.type}`), { statusCode: 500 });
   },
 
   // ─── Soft-delete ──────────────────────────────────────────────────────────
