@@ -3,7 +3,7 @@ const Document = require('../models/documentModel');
 const { Op } = require('sequelize');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
-const { provider, providerName } = require('../utils/storage/storageFactory');
+const { resolveProvider } = require('../utils/storage/storageFactory');
 const DocumentStatus = require('../enums/documentStatus');
 
 const documentService = {
@@ -20,6 +20,7 @@ const documentService = {
    */
   async uploadDocument(file, meta, actor, userAgent = 'unknown') {
     const actorId = actor?.id || null;
+    const { provider, providerName } = await resolveProvider();
 
     // Build a sub-path so files are grouped: <category>/<userId|clientId|loanId>
     const folder = meta.userId
@@ -147,6 +148,7 @@ const documentService = {
    */
   async getDownloadInfo(id) {
     const doc = await this.getDocumentById(id);
+    const { provider, providerName } = await resolveProvider();
 
     if (doc.storageProvider !== providerName) {
       throw Object.assign(
@@ -176,6 +178,7 @@ const documentService = {
   async deleteDocument(id, actor, userAgent = 'unknown') {
     const actorId = actor?.id || null;
     const doc = await this.getDocumentById(id);
+    const { provider } = await resolveProvider();
 
     await doc.update({
       status:    DocumentStatus.DELETED,
