@@ -114,20 +114,43 @@ async function remove(storedName) {
 
 /**
  * Return info needed to serve a stored object to the client.
- * Used by the download endpoint after auth — S3 objects are served via a
- * short-lived signed URL rather than streamed through the API server.
+ * Used by the download endpoint after auth. The object bytes are fetched
+ * server-side and streamed through the API — the browser never talks to
+ * the bucket directly, so no CORS configuration is needed on the bucket
+ * and no signed URL is ever exposed to the client.
  * @param {string} storedName
- * @returns {{ type: 'redirect', url: string }}
+ * @returns {{ type: 'stream', body: import('stream').Readable, contentType: string|undefined, contentLength: number|undefined, etag: string|undefined }}
  */
 async function getDownloadInfo(storedName) {
   const config = await getConfig();
   const client = buildClient(config);
-  const url = await getSignedUrl(
+  const object = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: storedName }));
+  return {
+    type: 'stream',
+    body: object.Body,
+    contentType: object.ContentType,
+    contentLength: object.ContentLength,
+    etag: object.ETag,
+  };
+}
+
+/**
+ * Generate a short-lived presigned URL for direct access to a stored object.
+ * NOT used by the current download flow (which streams bytes through the API
+ * instead — see getDownloadInfo above). Kept as a reserved helper for a
+ * possible future "external share link" feature. Requires the bucket/CORS
+ * to allow direct browser access if ever wired up to a route.
+ * @param {string} storedName
+ * @returns {Promise<string>}
+ */
+async function getSignedDownloadUrl(storedName) {
+  const config = await getConfig();
+  const client = buildClient(config);
+  return getSignedUrl(
     client,
     new GetObjectCommand({ Bucket: config.bucket, Key: storedName }),
     { expiresIn: config.signedUrlExpirySeconds },
   );
-  return { type: 'redirect', url };
 }
 
-module.exports = { save, remove, getDownloadInfo };
+module.exports = { save, remove, getDownloadInfo, getSignedDownloadUrl };

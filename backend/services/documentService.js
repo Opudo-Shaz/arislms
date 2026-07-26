@@ -31,6 +31,17 @@ const documentService = {
           ? `${meta.documentCategory}/loan_${meta.loanId}`
           : meta.documentCategory;
 
+    // An owner (user / client / loan [/ collateral]) may only have one active
+    // document of a given documentType: if a matching row already exists,
+    // replace its stored file and update its metadata in place instead of
+    // creating a duplicate document record. This applies uniformly to e.g.
+    // a user's profile photo, a client's national_id scan, or a loan's
+    // title_deed being re-uploaded/updated.
+    const existing = await this._findReplaceableDocument(meta);
+    if (existing) {
+      return this._replaceDocument(existing, file, meta, folder, provider, providerName, actorId, userAgent);
+    }
+
     const { storedName, documentLink, fileSize, mimeType } = await provider.save(file, folder);
 
     const doc = await Document.create({
@@ -67,6 +78,75 @@ const documentService = {
 
     logger.info(`Document ${doc.id} uploaded by user ${actorId}`);
     return doc;
+  },
+
+  /**
+   * Find an existing, non-deleted document for the same owner + documentType
+   * as the one being uploaded, so it can be replaced in place rather than
+   * duplicated. "Owner" is whichever of userId/clientId/loanId/collateralId
+   * were supplied in meta (only those actually provided are matched on).
+   * @private
+   */
+  async _findReplaceableDocument(meta) {
+    const where = {
+      documentType: meta.documentType,
+      status:       { [Op.ne]: DocumentStatus.DELETED },
+    };
+    if (meta.userId)       where.userId = meta.userId;
+    if (meta.clientId)     where.clientId = meta.clientId;
+    if (meta.loanId)       where.loanId = meta.loanId;
+    if (meta.collateralId) where.collateralId = meta.collateralId;
+
+    return Document.findOne({ where });
+  },
+
+  /**
+   * Replace the file behind an existing document row: save the new file to
+   * storage, update the row's metadata in place (id/documentLink unchanged),
+   * then best-effort delete the previous file from storage.
+   * @private
+   */
+  async _replaceDocument(existing, file, meta, folder, provider, providerName, actorId, userAgent) {
+    const previousStoredName = existing.storedName;
+    const previousProvider   = existing.storageProvider;
+
+    const { storedName, fileSize, mimeType } = await provider.save(file, folder);
+
+    await existing.update({
+      originalName:     file.originalname,
+      storedName,
+      mimeType,
+      fileSize,
+      storageProvider:  providerName,
+      status:           DocumentStatus.ACTIVE,
+      expiresAt:        meta.expiresAt    !== undefined ? meta.expiresAt    : existing.expiresAt,
+      description:      meta.description  !== undefined ? meta.description : existing.description,
+      updatedBy:        actorId,
+    });
+
+    // Best-effort cleanup of the previous file. Only possible when it was
+    // stored under the currently active provider.
+    if (previousProvider === providerName) {
+      try {
+        await provider.remove(previousStoredName);
+      } catch (e) {
+        logger.warn(`Could not delete previous file for document ${existing.id}: ${e.message}`);
+      }
+    } else {
+      logger.warn(`Skipped deleting previous file for document ${existing.id}: stored under provider "${previousProvider}", active provider is "${providerName}"`);
+    }
+
+    await AuditLogger.log({
+      entityType: 'DOCUMENT',
+      entityId:   existing.id,
+      action:     'UPDATE',
+      data:       { documentType: existing.documentType, documentCategory: existing.documentCategory, replacedFile: true },
+      actorId:    actorId || 1,
+      options:    { actorType: 'USER', source: userAgent },
+    });
+
+    logger.info(`Document ${existing.id} (${existing.documentType}) replaced by user ${actorId}`);
+    return existing;
   },
 
   // ─── List / Query ─────────────────────────────────────────────────────────
@@ -142,9 +222,10 @@ const documentService = {
   // ─── Download / serve ─────────────────────────────────────────────────────
 
   /**
-   * Return the information needed to stream a document to the client.
+   * Return the information needed to serve a document to the client.
    * For local storage this is an absolute filesystem path.
-   * For S3-compatible providers this is a short-lived signed URL.
+   * For S3-compatible providers (S3/R2/MinIO) this is a live object stream —
+   * fetched from the bucket server-side and piped through the API
    */
   async getDownloadInfo(id) {
     const doc = await this.getDocumentById(id);
@@ -166,8 +247,13 @@ const documentService = {
       return { filePath: info.filePath, mimeType: doc.mimeType, originalName: doc.originalName };
     }
 
-    if (info.type === 'redirect') {
-      return { redirectUrl: info.url, mimeType: doc.mimeType, originalName: doc.originalName };
+    if (info.type === 'stream') {
+      return {
+        stream: info.body,
+        contentLength: info.contentLength,
+        mimeType: doc.mimeType || info.contentType,
+        originalName: doc.originalName,
+      };
     }
 
     throw Object.assign(new Error(`Unsupported download info type: ${info.type}`), { statusCode: 500 });

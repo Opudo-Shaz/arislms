@@ -135,14 +135,33 @@ const documentController = {
   // GET /api/documents/:id/download
   async downloadDocument(req, res) {
     try {
-      const { filePath, redirectUrl, mimeType, originalName } = await documentService.getDownloadInfo(req.params.id);
+      const { filePath, stream, contentLength, mimeType, originalName } = await documentService.getDownloadInfo(req.params.id);
 
-      if (redirectUrl) {
-        return res.redirect(redirectUrl);
+      // Strip CR/LF/quotes from the user-supplied filename before it goes into a header value,
+      // to prevent header injection / response splitting.
+      const safeName = String(originalName || 'download').replace(/["\r\n]/g, '_');
+
+      if (stream) {
+        res.setHeader('Content-Type', mimeType || 'application/octet-stream');
+        if (contentLength) res.setHeader('Content-Length', contentLength);
+        res.setHeader('Cache-Control', 'private, no-store');
+        res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+
+        stream.on('error', (err) => {
+          logger.error(`Download Document Stream Error: ${err.message}`);
+          if (!res.headersSent) {
+            res.status(500).json({ success: false, message: 'Error streaming file' });
+          } else {
+            res.destroy(err);
+          }
+        });
+
+        return stream.pipe(res);
       }
 
       res.setHeader('Content-Type', mimeType || 'application/octet-stream');
-      res.setHeader('Content-Disposition', `inline; filename="${originalName}"`);
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
       return res.sendFile(filePath);
     } catch (error) {
       logger.error(`Download Document Error: ${error.message}`);

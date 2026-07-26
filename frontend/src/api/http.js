@@ -54,7 +54,6 @@ axiosInstance.interceptors.request.use((requestConfig) => {
       requestConfig.headers.Authorization = `Bearer ${token}`
     }
   }
-  delete requestConfig.skipAuth
   return requestConfig
 })
 
@@ -74,7 +73,10 @@ axiosInstance.interceptors.response.use(
     const { status, data } = response
     const msg = (data && (data.message || data.error)) || ''
     // 401 = invalid/expired token; 403 = authenticated but wrong role.
-    if (status === 401 && unauthorizedHandler) {
+    // Skip the global session-expired handler for requests that were never
+    // authenticated to begin with (e.g. wrong credentials on /auth/login) —
+    // those 401s are handled locally by the caller, not as a session timeout.
+    if (status === 401 && unauthorizedHandler && !error.config?.skipAuth) {
       unauthorizedHandler(status)
     }
     const message = msg || `Request failed with status ${status}`
