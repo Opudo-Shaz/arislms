@@ -31,6 +31,10 @@ import {
 import { useCreateLoanProduct, useUpdateLoanProduct } from '../../hooks/useLoanProducts'
 import { COLLATERAL_TYPE, DOWN_PAYMENT_TYPE } from '../../constants/enums'
 
+const CHECKBOX_STYLE = { width: '1.25em', height: '1.25em', margin: 0, cursor: 'pointer' }
+
+const CHECKBOX_WRAPPER_CLASS = 'd-flex align-items-center gap-2 ps-0'
+
 const emptyForm = {
   name: '',
   description: '',
@@ -270,14 +274,16 @@ const LoanProductForm = ({ visible, product, onClose }) => {
                 onChange={setField('fees')}
               />
             </CCol>
-            <CCol md={4} className="d-flex align-items-end">
+
+            <CCol xs={12}>
               <CFormCheck
                 label="Active"
                 checked={form.isActive}
                 onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                style={CHECKBOX_STYLE}
+                className={CHECKBOX_WRAPPER_CLASS}
               />
             </CCol>
-
             <CCol xs={12}>
               <CFormCheck
                 label="Requires collateral"
@@ -285,6 +291,8 @@ const LoanProductForm = ({ visible, product, onClose }) => {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, requiresCollateral: e.target.checked }))
                 }
+                style={CHECKBOX_STYLE}
+                className={CHECKBOX_WRAPPER_CLASS}
               />
             </CCol>
             <CCol xs={12}>
@@ -294,6 +302,8 @@ const LoanProductForm = ({ visible, product, onClose }) => {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, requiresCoSigner: e.target.checked }))
                 }
+                style={CHECKBOX_STYLE}
+                className={CHECKBOX_WRAPPER_CLASS}
               />
             </CCol>
             {form.requiresCollateral && (
@@ -306,6 +316,8 @@ const LoanProductForm = ({ visible, product, onClose }) => {
                       label={COLLATERAL_TYPE.labels[type]}
                       checked={form.allowedCollateralTypes.includes(type)}
                       onChange={() => toggleCollateralType(type)}
+                      style={CHECKBOX_STYLE}
+                      className={CHECKBOX_WRAPPER_CLASS}
                     />
                   ))}
                 </div>
