@@ -4,6 +4,7 @@ const User = require('./userModel');
 const LoanProduct = require('./loanProductModel');
 const Client = require('./clientModel');
 const InterestType = require('../enums/interestType');
+const InterestRatePeriod = require('../enums/interestRatePeriod');
 const LoanStatus = require('../enums/loanStatus');
 const RepaymentSchedule = require('./repaymentScheduleModel');
 
@@ -24,6 +25,13 @@ const Loan = sequelize.define('Loan', {
 
   interestRate: { type: DataTypes.DECIMAL(6,4), allowNull: false, field: 'interest_rate' },
   interestType: { type: DataTypes.STRING, allowNull: true, defaultValue: InterestType.FIXED, field: 'interest_type' },
+
+  interestRatePeriod: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: InterestRatePeriod.ANNUAL,
+    field: 'interest_rate_period'
+  },
 
   termMonths: { type: DataTypes.INTEGER, allowNull: false, field: 'term_months' },
 

@@ -12,7 +12,7 @@ const logger = require('../config/logger');
 const { calculateEndDate,isAdmin, CURRENCY_EPSILON } = require('../utils/helpers'); 
 const LoanStatus = require('../enums/loanStatus');
 const AuditLogger = require('../utils/auditLogger');
-const { generateAmortizationSchedule } = require('../utils/loanCalculator');
+const { generateAmortizationSchedule, calculateMonthlyPayment } = require('../utils/loanCalculator');
 const { getDecisionFromScore } = require('./riskPolicyService');
 const creditScoreService = require('./creditScoreService');
 const ledgerService = require('./ledgerService');
@@ -69,25 +69,6 @@ function validateAmountAgainstProduct(amount, product) {
       { statusCode: 422 }
     );
   }
-}
-
-// Calculates monthly payment
-function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
-  const P = Number.parseFloat(principal);
-  const r = Number.parseFloat(interestRate) / 100 / 12;
-  const n = Number.parseInt(termMonths, 10);
-
-  if (!P || !n) return null;
-
-  if (!r) return (P / n).toFixed(2);
-
-  if (interestType === 'flat') {
-    const totalInterest = P * (Number.parseFloat(interestRate) / 100) * (n / 12);
-    return ((P + totalInterest) / n).toFixed(2);
-  }
-
-  // Reducing balance method
-  return (P * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1)).toFixed(2);
 }
 
 /**
@@ -283,6 +264,7 @@ const loanService = {
     // Apply product rules
     const interestRate = product.interestRate;
     const interestType = product.interestType;
+    const interestRatePeriod = product.interestRatePeriod || 'annual';
     const termMonths = useProvidedTermMonths
       ? (data.termMonths || product.repaymentPeriodMonths)
       : product.repaymentPeriodMonths;
@@ -301,7 +283,8 @@ const loanService = {
       data.principalAmount,
       interestRate,
       termMonths,
-      interestType
+      interestType,
+      interestRatePeriod
     );
 
     // Resolve the down payment required for this loan from the product rules
@@ -316,6 +299,7 @@ const loanService = {
 
       interestRate,
       interestType,
+      interestRatePeriod,
       termMonths,
 
       startDate: data.startDate,
@@ -511,13 +495,14 @@ const loanService = {
       const oldStatus = loan.status;
 
       // Recalculate if key fields changed
-      if (data.principalAmount || data.interestRate || data.termMonths || data.interestType) {
+      if (data.principalAmount || data.interestRate || data.termMonths || data.interestType || data.interestRatePeriod) {
         const principal = data.principalAmount || loan.principalAmount;
         const rate = data.interestRate || loan.interestRate;
         const term = data.termMonths || loan.termMonths;
         const type = data.interestType || loan.interestType;
+        const ratePeriod = data.interestRatePeriod || loan.interestRatePeriod || 'annual';
 
-        data.installmentAmount = calculateMonthlyPayment(principal, rate, term, type);
+        data.installmentAmount = calculateMonthlyPayment(principal, rate, term, type, ratePeriod);
         data.paymentSchedule = {
           type,
           termMonths: term,
@@ -939,6 +924,7 @@ const loanService = {
         interestRate: loan.interestRate,
         termMonths: loan.termMonths,
         interestType: loan.interestType,
+        interestRatePeriod: loan.interestRatePeriod,
         startDate: disbursement,
         paymentFrequency: loan.paymentFrequency || 'monthly'
       });
@@ -1121,6 +1107,7 @@ const loanService = {
         interestRate: loan.interestRate,
         termMonths: loan.termMonths,
         interestType: loan.interestType,
+        interestRatePeriod: loan.interestRatePeriod,
         startDate: disbursement,
         paymentFrequency: loan.paymentFrequency || 'monthly'
       });
@@ -1230,6 +1217,7 @@ const loanService = {
         interestRate: loan.interestRate,
         termMonths: loan.termMonths,
         interestType: loan.interestType,
+        interestRatePeriod: loan.interestRatePeriod,
         startDate: loan.disbursementDate,
         paymentFrequency: loan.paymentFrequency || 'monthly'
       });
@@ -1381,7 +1369,8 @@ const loanService = {
         newPrincipal,
         loan.interestRate,
         loan.termMonths,
-        loan.interestType
+        loan.interestType,
+        loan.interestRatePeriod
       );
 
        const updateData = {

@@ -6,6 +6,7 @@ class LoanProductRequestDto {
     this.description = data.description;
     this.interestRate = data.interestRate;
     this.interestType = data.interestType ?? 'reducing';
+    this.interestRatePeriod = data.interestRatePeriod ?? 'annual';
     this.penaltyRate = data.penaltyRate ?? 0;
     this.minimumDownPayment = data.minimumDownPayment ?? 0;
     this.downPaymentType = data.downPaymentType ?? 'amount';
@@ -44,6 +45,11 @@ class LoanProductRequestDto {
     interestType: Joi.string().valid('flat', 'reducing').default('reducing')
       .messages({
         'any.only': 'Interest type must be flat or reducing'
+      }),
+
+    interestRatePeriod: Joi.string().valid('monthly', 'annual').default('annual')
+      .messages({
+        'any.only': 'Interest rate period must be monthly or annual'
       }),
 
     penaltyRate: Joi.number().min(0).default(0)

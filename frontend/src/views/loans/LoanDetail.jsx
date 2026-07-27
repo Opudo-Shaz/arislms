@@ -541,7 +541,9 @@ const LoanDetail = () => {
                     loan.currency,
                   )}
                 </Field>
-                <Field label="Interest Rate">{formatPercent(loan.interestRate)}</Field>
+                <Field label="Interest Rate">
+                  {formatPercent(loan.interestRate)} / {loan.interestRatePeriod === 'monthly' ? 'month' : 'year'}
+                </Field>
                 <Field label="Interest Type">{loan.interestType || '—'}</Field>
                 <Field label="Term">{loan.termMonths ? `${loan.termMonths} months` : '—'}</Field>
                 <Field label="Installment Amount">

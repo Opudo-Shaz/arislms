@@ -11,6 +11,7 @@ class LoanProductResponseDto {
     this.maxAmount = product.maxLoanAmount;
     this.interestRate = product.interestRate;
     this.interestType = product.interestType;
+    this.interestRatePeriod = product.interestRatePeriod ?? 'annual';
     this.repaymentPeriodMonths = product.repaymentPeriodMonths;
     this.termMonths = product.repaymentPeriodMonths;
     this.repaymentFrequency = product.repaymentFrequency || null;

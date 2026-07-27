@@ -1,16 +1,39 @@
-function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing') {
+/**
+ * Converts a periodic interest rate into the effective monthly rate used for
+ * amortization math, based on how the rate is expressed on the loan/product.
+ * @param {number} interestRate - Interest rate (percentage)
+ * @param {string} interestRatePeriod - 'monthly' or 'annual' (default 'annual')
+ * @returns {number} Monthly rate as a decimal (e.g. 0.015 for 1.5%)
+ */
+function toMonthlyRate(interestRate, interestRatePeriod = 'annual') {
+  const rate = Number(interestRate) / 100;
+  return interestRatePeriod === 'monthly' ? rate : rate / 12;
+}
+
+/**
+ * Calculates the fixed periodic installment for a loan.
+ * @param {number} principal - Principal amount
+ * @param {number} interestRate - Interest rate (percentage)
+ * @param {number} termMonths - Loan term in months
+ * @param {string} [interestType='reducing'] - 'reducing' or 'flat'
+ * @param {string} [interestRatePeriod='annual'] - Whether interestRate is a 'monthly' or 'annual' rate
+ * @returns {string|null} Installment amount (2dp string) or null if inputs are invalid
+ */
+function calculateMonthlyPayment(principal, interestRate, termMonths, interestType = 'reducing', interestRatePeriod = 'annual') {
   const P = Number(principal);
-  const r = Number(interestRate) / 100 / 12;
   const n = Number(termMonths);
+  const r = toMonthlyRate(interestRate, interestRatePeriod);
 
   if (!P || !n) return null;
 
-  if (interestRate === 0 || !r) {
+  if (!interestRate || !r) {
     return (P / n).toFixed(2);
   }
 
   if (interestType === 'flat') {
-    const totalInterest = P * (interestRate / 100) * (n / 12);
+    // Total interest over the full term, derived from the monthly-equivalent rate
+    // so the result is consistent regardless of how the source rate was quoted.
+    const totalInterest = P * r * n;
     return ((P + totalInterest) / n).toFixed(2);
   }
 
@@ -21,9 +44,10 @@ function calculateMonthlyPayment(principal, interestRate, termMonths, interestTy
  * Generates a complete amortization schedule for a loan
  * @param {Object} options - Loan parameters
  * @param {number} options.principal - Principal loan amount
- * @param {number} options.interestRate - Annual interest rate (percentage)
+ * @param {number} options.interestRate - Interest rate (percentage)
  * @param {number} options.termMonths - Loan term in months
  * @param {string} options.interestType - 'reducing' or 'flat'
+ * @param {string} [options.interestRatePeriod='annual'] - Whether interestRate is a 'monthly' or 'annual' rate
  * @param {Date|string} options.startDate - Loan disbursement date
  * @param {string} options.paymentFrequency - 'monthly', 'bi-weekly', 'weekly', 'quarterly'
  * @returns {Array} Array of installment objects
@@ -34,13 +58,13 @@ function generateAmortizationSchedule(options) {
     interestRate,
     termMonths,
     interestType = 'reducing',
+    interestRatePeriod = 'annual',
     startDate,
     paymentFrequency = 'monthly'
   } = options;
 
   const P = parseFloat(principal);
-  const annualRate = parseFloat(interestRate) / 100;
-  const monthlyRate = annualRate / 12;
+  const monthlyRate = toMonthlyRate(interestRate, interestRatePeriod);
   const n = parseInt(termMonths, 10);
 
   if (!P || !n) {
@@ -62,8 +86,10 @@ function generateAmortizationSchedule(options) {
   const frequency = frequencyMap[paymentFrequency] || frequencyMap.monthly;
 
   if (interestType === 'flat') {
-    // Flat interest: Total interest calculated upfront and divided equally
-    const totalInterest = P * annualRate * (n / 12);
+    // Flat interest: Total interest calculated upfront and divided equally.
+    // Derived from the monthly-equivalent rate so results are consistent
+    // regardless of how the source rate is quoted (monthly vs annual).
+    const totalInterest = P * monthlyRate * n;
     const totalAmount = P + totalInterest;
     const installmentAmount = totalAmount / n;
     const principalPerInstallment = P / n;
@@ -87,7 +113,7 @@ function generateAmortizationSchedule(options) {
     }
   } else {
     // Reducing balance: Interest calculated on remaining balance
-    const monthlyPayment = parseFloat(calculateMonthlyPayment(P, interestRate, n, 'reducing'));
+    const monthlyPayment = parseFloat(calculateMonthlyPayment(P, interestRate, n, 'reducing', interestRatePeriod));
 
     for (let i = 1; i <= n; i++) {
       const interestPayment = remainingBalance * monthlyRate;
@@ -125,17 +151,19 @@ function generateAmortizationSchedule(options) {
 /**
  * Calculate total interest for a loan
  * @param {number} principal - Principal amount
- * @param {number} interestRate - Annual interest rate (percentage)
+ * @param {number} interestRate - Interest rate (percentage)
  * @param {number} termMonths - Term in months
  * @param {string} interestType - 'reducing' or 'flat'
+ * @param {string} [interestRatePeriod='annual'] - Whether interestRate is a 'monthly' or 'annual' rate
  * @returns {number} Total interest amount
  */
-function calculateTotalInterest(principal, interestRate, termMonths, interestType = 'reducing') {
+function calculateTotalInterest(principal, interestRate, termMonths, interestType = 'reducing', interestRatePeriod = 'annual') {
   const schedule = generateAmortizationSchedule({
     principal,
     interestRate,
     termMonths,
     interestType,
+    interestRatePeriod,
     startDate: new Date()
   });
 

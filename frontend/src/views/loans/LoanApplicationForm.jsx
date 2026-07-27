@@ -189,7 +189,7 @@ const LoanApplicationForm = () => {
                 <option value="">Select a product…</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} — {formatPercent(p.interestRate)} {p.interestType}
+                    {p.name} — {formatPercent(p.interestRate)}/{p.interestRatePeriod === 'monthly' ? 'mo' : 'yr'} {p.interestType}
                   </option>
                 ))}
               </CFormSelect>

@@ -116,6 +116,12 @@ export const INTEREST_TYPE = buildEnum({
   reducing: 'secondary',
 })
 
+/** Whether a loan product's interestRate is expressed monthly or annually (must match backend enums/interestRatePeriod.js). */
+export const INTEREST_RATE_PERIOD = buildEnum(
+  { monthly: 'info', annual: 'secondary' },
+  { monthly: 'Monthly', annual: 'Annual' },
+)
+
 /** Reasons required when deleting a loan (must match backend enums/loanDeletionReason.js). */
 export const LOAN_DELETION_REASONS = [
   { value: 'data_entry_error', label: 'Data entry error' },

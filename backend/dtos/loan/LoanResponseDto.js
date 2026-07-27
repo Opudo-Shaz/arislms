@@ -37,6 +37,7 @@ function LoanResponseDto(loan) {
     currency: loan.currency,
     interestRate: loan.interestRate,
     interestType: loan.interestType,
+    interestRatePeriod: loan.interestRatePeriod ?? 'annual',
     termMonths: loan.termMonths,
     startDate: loan.startDate,
     endDate: loan.endDate,

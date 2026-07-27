@@ -36,6 +36,7 @@ const emptyForm = {
   description: '',
   interestRate: '',
   interestType: 'reducing',
+  interestRatePeriod: 'annual',
   penaltyRate: '0',
   minimumDownPayment: '0',
   downPaymentType: 'amount',
@@ -55,6 +56,7 @@ const toForm = (p) => ({
   description: p.description || '',
   interestRate: p.interestRate ?? '',
   interestType: p.interestType || 'reducing',
+  interestRatePeriod: p.interestRatePeriod || 'annual',
   penaltyRate: p.penaltyRate ?? '0',
   minimumDownPayment: p.minimumDownPayment ?? '0',
   downPaymentType: p.downPaymentType || 'amount',
@@ -76,6 +78,7 @@ const toPayload = (form) => ({
   description: form.description.trim() || null,
   interestRate: Number(form.interestRate),
   interestType: form.interestType,
+  interestRatePeriod: form.interestRatePeriod,
   penaltyRate: Number(form.penaltyRate || 0),
   minimumDownPayment: Number(form.minimumDownPayment || 0),
   downPaymentType: form.downPaymentType,
@@ -185,6 +188,13 @@ const LoanProductForm = ({ visible, product, onClose }) => {
               <CFormSelect value={form.interestType} onChange={setField('interestType')}>
                 <option value="reducing">Reducing</option>
                 <option value="flat">Flat</option>
+              </CFormSelect>
+            </CCol>
+            <CCol md={4}>
+              <CFormLabel>Rate period</CFormLabel>
+              <CFormSelect value={form.interestRatePeriod} onChange={setField('interestRatePeriod')}>
+                <option value="annual">Annual</option>
+                <option value="monthly">Monthly</option>
               </CFormSelect>
             </CCol>
             <CCol md={4}>

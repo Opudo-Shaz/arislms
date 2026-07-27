@@ -2,6 +2,7 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/sequalize_db');
 const InterestType = require('../enums/interestType');
 const DownPaymentType = require('../enums/downPaymentType');
+const InterestRatePeriod = require('../enums/interestRatePeriod');
 
 const LoanProduct = sequelize.define('LoanProduct', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -15,6 +16,14 @@ const LoanProduct = sequelize.define('LoanProduct', {
     type: DataTypes.STRING(20),
     allowNull: true,
     defaultValue: InterestType.FIXED
+  },
+  // Whether `interestRate` is expressed as a monthly or annual (yearly) rate.
+  interestRatePeriod: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: InterestRatePeriod.ANNUAL,
+    field: 'interest_rate_period',
+    comment: 'How interestRate is expressed: monthly | annual'
   },
 
   penaltyRate: { type: DataTypes.DECIMAL(5,2), defaultValue: 0 },

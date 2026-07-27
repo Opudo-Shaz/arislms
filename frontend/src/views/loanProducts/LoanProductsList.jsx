@@ -66,7 +66,9 @@ const LoanProductsList = () => {
       label: 'Interest',
       render: (row) => (
         <div>
-          <div>{formatPercent(row.interestRate)}</div>
+          <div>
+            {formatPercent(row.interestRate)} / {row.interestRatePeriod === 'monthly' ? 'mo' : 'yr'}
+          </div>
           <StatusBadge enumDef={INTEREST_TYPE} value={row.interestType} />
         </div>
       ),
