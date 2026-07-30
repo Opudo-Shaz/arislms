@@ -15,8 +15,8 @@
  *   loans.defaulted_missed_count  (default 3 — approx. 90 days for monthly loans)
  */
 
-const cron = require('node-cron');
 const { Op } = require('sequelize');
+const cronRegistry = require('./cronRegistry');
 const Loan = require('../models/loanModel');
 const RepaymentSchedule = require('../models/repaymentScheduleModel');
 const SystemConfig = require('../models/systemConfigModel');
@@ -266,21 +266,22 @@ async function run() {
 }
 
 /**
- * Register the cron schedule. Call once at server startup.
- * Runs daily at 01:00 AM server time.
+ * Register the cron schedule with the central cron registry.
+ * Call once at server startup. Runs daily at 01:00 AM (job timezone).
+ * The registry handles scheduling, concurrency locking, run persistence,
+ * and exposing the job for admin visibility + manual runs.
  */
 function register() {
-  cron.schedule('0 1 * * *', async () => {
-    try {
-      await run();
-    } catch (err) {
-      logger.error(`[LoanStatusCron] Unhandled error: ${err.message}`);
-    }
-  }, {
+  cronRegistry.register({
+    key: 'loan-status',
+    name: 'Loan Status & Penalties',
+    description:
+      'Marks overdue installments, applies penalties, and escalates/de-escalates loan status based on missed-payment thresholds.',
+    schedule: '0 1 * * *',
+    scheduleLabel: 'Daily at 01:00',
     timezone: process.env.TZ || 'Africa/Nairobi',
+    handler: run,
   });
-
-  logger.info('[LoanStatusCron] Scheduled — daily at 01:00 AM');
 }
 
 module.exports = { register, run };

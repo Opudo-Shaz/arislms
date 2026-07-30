@@ -56,6 +56,7 @@ const documentRoutes = require('./routes/documentRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const systemConfigRoutes = require('./routes/systemConfigRoutes');
 const codeRoutes = require('./routes/codeRoutes');
+const cronRoutes = require('./routes/cronRoutes');
 
 
 app.use('/api/users', userRoutes);
@@ -76,6 +77,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/system-configs', systemConfigRoutes);
 app.use('/api/codes', codeRoutes);
+app.use('/api/cron-jobs', cronRoutes);
 
 
 

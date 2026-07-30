@@ -37,6 +37,7 @@ const PortfolioAging = React.lazy(() => import('./views/reports/PortfolioAging')
 const UserProfile = React.lazy(() => import('./views/profile/UserProfile'))
 const SystemConfigList = React.lazy(() => import('./views/systemConfig/SystemConfigList'))
 const CodesList = React.lazy(() => import('./views/admin/CodesList'))
+const CronJobsList = React.lazy(() => import('./views/admin/CronJobsList'))
 
 export const routes = [
   { path: '/', exact: true, name: 'Home' },
@@ -124,6 +125,9 @@ export const routes = [
 
   // Codes (admin)
   { path: '/admin/codes', name: 'Codes', element: CodesList },
+
+  // Scheduled Jobs (admin)
+  { path: '/admin/cron-jobs', name: 'Scheduled Jobs', element: CronJobsList },
 ]
 
 export default routes

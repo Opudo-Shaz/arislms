@@ -21,6 +21,7 @@ const SystemConfig = require('./systemConfigModel');
 const Code = require('./codeModel');
 const CodeValue = require('./codeValueModel');
 const SystemConfigCodeRelation = require('./systemConfigCodeRelationModel');
+const CronJobRun = require('./cronJobRunModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
@@ -141,6 +142,9 @@ SystemConfigCodeRelation.belongsTo(SystemConfig, { foreignKey: 'system_config_id
 SystemConfigCodeRelation.belongsTo(Code, { foreignKey: 'code_id', as: 'code' });
 Code.hasMany(SystemConfigCodeRelation, { foreignKey: 'code_id' });
 
+// Cron job run history — who manually triggered a run
+CronJobRun.belongsTo(User, { foreignKey: 'triggered_by_id', as: 'triggeredByUser', constraints: false });
+
 module.exports = {
   sequelize,
   Role,
@@ -162,4 +166,5 @@ module.exports = {
   CodeValue,
   SystemConfig,
   SystemConfigCodeRelation,
+  CronJobRun,
 };
