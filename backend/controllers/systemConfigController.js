@@ -147,4 +147,15 @@ module.exports = {
       res.status(status).json({ success: false, message: err.message })
     }
   },
+
+  // GET /api/system-config/cache/inspect — debug: view shared appCache contents
+  async inspectCache(req, res) {
+    try {
+      const data = service.inspectCache()
+      res.json({ success: true, data })
+    } catch (err) {
+      logger.error(`SystemConfigController.inspectCache: ${err.message}`)
+      res.status(500).json({ success: false, message: 'Failed to inspect cache' })
+    }
+  },
 }

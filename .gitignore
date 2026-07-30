@@ -15,3 +15,7 @@ frontend/.env.local
 
 # Build output
 frontend/build/
+
+#Log files
+logs/
+*.log

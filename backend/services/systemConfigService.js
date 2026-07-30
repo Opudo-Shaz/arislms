@@ -6,6 +6,8 @@ const { Op } = require('sequelize')
 const logger = require('../config/logger')
 const AuditLogger = require('../utils/auditLogger')
 const { encrypt, decrypt, isEncrypted } = require('../utils/configEncryption')
+const appCache = require('../utils/appCache')
+const { getOrSet } = require('../utils/cacheAside')
 
 // Eager-load spec reused by getAll/getOne/create/update so callers always see
 // the linked code (id/key/name) for dropdown-backed configs.
@@ -96,6 +98,7 @@ async function seedInfraConfigs() {
       if (currentPlain !== seed.value) {
         const newStoredValue = seed.isSecret && seed.value ? encrypt(seed.value) : seed.value
         await row.update({ value: newStoredValue })
+        appCache.del(seed.key)
         logger.info(`SystemConfig: synced updated env value for key=${seed.key}`)
       }
     }
@@ -135,6 +138,28 @@ module.exports = {
   },
 
   /**
+   * Debug helper: inspect the current contents of the shared app cache.
+   * Secret values are redacted, same as the regular API responses.
+   */
+  inspectCache() {
+    const keys = appCache.keys()
+    const stats = appCache.getStats()
+    const entries = keys.map((key) => {
+      const entry = appCache.get(key)
+      const ttlMs = appCache.getTtl(key)
+      return {
+        key,
+        found: entry !== null,
+        isActive: entry?.isActive ?? null,
+        isBoolean: entry?.isBoolean ?? null,
+        value: entry?.isSecret ? '[**redacted**]' : (entry?.rawValue ?? null),
+        expiresAt: ttlMs ? new Date(ttlMs).toISOString() : null,
+      }
+    })
+    return { stats, entries }
+  },
+
+  /**
    * Retrieve a config value by key, cast to the requested type, with a fallback default.
    *
    * @param {string} key           - The config key (e.g. 'payment.min_overpayment_surplus')
@@ -144,33 +169,42 @@ module.exports = {
    */
   async getConfigValue(key, type = 'string', defaultValue = null) {
     try {
-      const cfg = await SystemConfig.findOne({ where: { key } })
-      if (!cfg || !cfg.isActive) return defaultValue
+      // Cache the resolved row essentials (post-decryption) keyed by `key` only —
+      // type-casting/defaultValue below is cheap and applied on every call, so it
+      // doesn't need to be duplicated per (key, type) combination in the cache.
+      const entry = await getOrSet(appCache, key, undefined, async () => {
+        const cfg = await SystemConfig.findOne({ where: { key } })
+        if (!cfg) return null
+        return {
+          isActive: cfg.isActive,
+          isBoolean: cfg.isBoolean,
+          isSecret: cfg.isSecret,
+          rawValue: cfg.value == null ? null : (cfg.isSecret ? decrypt(cfg.value) : cfg.value),
+        }
+      })
+
+      if (!entry || !entry.isActive) return defaultValue
 
       // Boolean configs: the value IS isActive; the text value is irrelevant
-      if (cfg.isBoolean) {
-        if (type === 'boolean') return cfg.isActive
+      if (entry.isBoolean) {
+        if (type === 'boolean') return entry.isActive
         return defaultValue
       }
 
-      if (cfg.value == null) return defaultValue
-
-      // Decrypt transparently — no-op on plain-text legacy values
-      const rawValue = cfg.isSecret ? decrypt(cfg.value) : cfg.value
-      if (rawValue == null) return defaultValue
+      if (entry.rawValue == null) return defaultValue
 
       switch (type) {
         case 'number': {
-          const n = Number(rawValue)
+          const n = Number(entry.rawValue)
           return isFinite(n) ? n : defaultValue
         }
         case 'boolean':
-          return rawValue === 'true'
+          return entry.rawValue === 'true'
         case 'json': {
-          try { return JSON.parse(rawValue) } catch { return defaultValue }
+          try { return JSON.parse(entry.rawValue) } catch { return defaultValue }
         }
         default:
-          return String(rawValue)
+          return String(entry.rawValue)
       }
     } catch (err) {
       logger.warn(`SystemConfig.getConfigValue('${key}'): ${err.message} — using default`)
@@ -197,6 +231,7 @@ module.exports = {
 
     const config = await SystemConfig.create(payload)
     await _syncCodeRelation(config.id, { isDropdown, codeId })
+    appCache.del(config.key)
 
     await AuditLogger.log({
       entityType: 'SYSTEM_CONFIG',
@@ -249,6 +284,7 @@ module.exports = {
     }
     await config.update(payload)
     await _syncCodeRelation(id, { isDropdown: effectiveIsDropdown, codeId: targetCodeId })
+    appCache.del(config.key)
 
     await AuditLogger.log({
       entityType: 'SYSTEM_CONFIG',
@@ -273,6 +309,7 @@ module.exports = {
     if (!config) return null
     const prev = config.isActive
     await config.update({ isActive: !prev })
+    appCache.del(config.key)
 
     await AuditLogger.log({
       entityType: 'SYSTEM_CONFIG',
@@ -295,6 +332,7 @@ module.exports = {
     const snapshot = { key: config.key, label: config.label, category: config.category, value: config.isSecret ? '[REDACTED]' : config.value }
     await SystemConfigCodeRelation.destroy({ where: { systemConfigId: id } })
     await config.destroy()
+    appCache.del(snapshot.key)
 
     await AuditLogger.log({
       entityType: 'SYSTEM_CONFIG',
