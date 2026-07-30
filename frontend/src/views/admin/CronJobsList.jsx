@@ -69,7 +69,7 @@ const SummaryView = ({ run }) => {
   return (
     <div className="d-flex flex-wrap gap-2">
       {Object.entries(summary).map(([k, v]) => (
-        <span key={k} className="badge bg-light text-body border">
+        <span key={k} className="badge bg-light text-dark border">
           {k}: <strong className="ms-1">{String(v)}</strong>
         </span>
       ))}
