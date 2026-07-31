@@ -181,6 +181,7 @@ const CronJobsList = () => {
           <CButton
             color="light"
             size="sm"
+            className="d-inline-flex align-items-center text-nowrap"
             title="Run history"
             onClick={() => setHistoryJob(row)}
           >
@@ -191,6 +192,7 @@ const CronJobsList = () => {
             <CButton
               color="primary"
               size="sm"
+              className="d-inline-flex align-items-center text-nowrap"
               disabled={row.isRunning || (runMutation.isPending && toRun?.key === row.key)}
               title={row.isRunning ? 'Job is running' : 'Run now'}
               onClick={() => {

@@ -82,6 +82,7 @@ const CodesList = () => {
         <CButton
           color="light"
           size="sm"
+          className="d-inline-flex align-items-center text-nowrap"
           title="Manage Values"
           onClick={(e) => {
             e.stopPropagation()
