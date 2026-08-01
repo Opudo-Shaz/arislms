@@ -11,8 +11,7 @@ const Page404 = () => {
 
   return (
     <div
-      className="bg-body-tertiary min-vh-100 d-flex flex-row align-items-center"
-      style={{ background: 'linear-gradient(135deg, var(--cui-body-bg) 0%, var(--cui-tertiary-bg) 100%)' }}
+      className="app-view-bg min-vh-100 d-flex flex-row align-items-center"
     >
       <CContainer>
         <CRow className="justify-content-center">

@@ -36,7 +36,7 @@ const ResetPassword = () => {
 
   if (!token) {
     return (
-      <div style={{ background: '#321fdb' }} className="min-vh-100 d-flex flex-row align-items-center">
+      <div className="app-view-bg min-vh-100 d-flex flex-row align-items-center">
         <CContainer>
           <CRow className="justify-content-center">
             <CCol md={5}>
@@ -82,7 +82,7 @@ const ResetPassword = () => {
   }
 
   return (
-    <div style={{ background: '#321fdb' }} className="min-vh-100 d-flex flex-row align-items-center">
+    <div className="app-view-bg min-vh-100 d-flex flex-row align-items-center">
       <CContainer>
         <CRow className="justify-content-center">
           <CCol md={5}>

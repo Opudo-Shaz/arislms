@@ -10,7 +10,7 @@ import { CButton, CCol, CContainer, CRow } from '@coreui/react'
 const Unauthorized = () => {
   const navigate = useNavigate()
   return (
-    <div className="bg-body-tertiary min-vh-100 d-flex flex-row align-items-center">
+    <div className="app-view-bg min-vh-100 d-flex flex-row align-items-center">
       <CContainer>
         <CRow className="justify-content-center">
           <CCol md={6} className="text-center">
