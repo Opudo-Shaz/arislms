@@ -15,6 +15,7 @@ const {
 } = require('../controllers/loanController');
 
 const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
 
@@ -95,7 +96,7 @@ router.get('/my', authenticate, getMyLoans);
  *               status: active
  *               balance: 4200
  */
-router.get('/:id', authenticate, getLoanById);
+router.get('/:id', authenticate, validateIdParam(), getLoanById);
 
 /**
  * @openapi
@@ -302,7 +303,7 @@ router.post('/without-scoring', authenticate, authorize([1,2]), createLoanWithou
  *       200:
  *         description: Loan updated successfully
  */
-router.put('/:id', authenticate, authorize([1,2]), updateLoan);
+router.put('/:id', authenticate, authorize([1,2]), validateIdParam(), updateLoan);
 
 /**
  * @openapi
@@ -324,7 +325,7 @@ router.put('/:id', authenticate, authorize([1,2]), updateLoan);
  *       200:
  *         description: Loan deleted successfully
  */
-router.delete('/:id', authenticate, authorize([1,2]), deleteLoan);
+router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), deleteLoan);
 
 /**
  * @openapi
@@ -494,7 +495,7 @@ router.post('/:id/reject', authenticate, authorize([1,2]), rejectLoan);
  *       404:
  *         description: Loan not found
  */
-router.put('/:id/update_principal', authenticate, authorize([1, 2]), updatePrincipalAmount);
+router.put('/:id/update_principal', authenticate, authorize([1, 2]), validateIdParam(), updatePrincipalAmount);
 
 /**
  * @openapi

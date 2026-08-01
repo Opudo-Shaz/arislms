@@ -1,6 +1,7 @@
 const express = require('express')
 const controller = require('../controllers/systemConfigController')
 const { authenticate, authorize } = require('../middleware/authMiddleware')
+const { validateIdParam } = require('../middleware/validateIdParam')
 
 const router = express.Router()
 
@@ -103,13 +104,13 @@ router.get('/cache/inspect', authenticate, authorize([1]), controller.inspectCac
  *         description: Config not found
  */
 // GET one
-router.get('/:id', authenticate, authorize([1, 2]), controller.getOne)
+router.get('/:id', authenticate, authorize([1, 2]), validateIdParam(), controller.getOne)
 
 // POST create — admin only
 router.post('/', authenticate, authorize([1]), controller.create)
 
 // PUT update value/label/category/description — admin only
-router.put('/:id', authenticate, authorize([1]), controller.update)
+router.put('/:id', authenticate, authorize([1]), validateIdParam(), controller.update)
 
 /**
  * @openapi
@@ -133,10 +134,10 @@ router.put('/:id', authenticate, authorize([1]), controller.update)
  *         description: Config not found
  */
 // PATCH toggle isActive — admin only (inline table toggle)
-router.patch('/:id/status', authenticate, authorize([1]), controller.toggleStatus)
+router.patch('/:id/status', authenticate, authorize([1]), validateIdParam(), controller.toggleStatus)
 
 // DELETE — admin only
-router.delete('/:id', authenticate, authorize([1]), controller.remove)
+router.delete('/:id', authenticate, authorize([1]), validateIdParam(), controller.remove)
 
 /**
  * @openapi
@@ -160,6 +161,6 @@ router.delete('/:id', authenticate, authorize([1]), controller.remove)
  *         description: Config not found
  */
 // GET reveal decrypted secret value — admin only, always audit-logged
-router.get('/:id/reveal', authenticate, authorize([1]), controller.reveal)
+router.get('/:id/reveal', authenticate, authorize([1]), validateIdParam(), controller.reveal)
 
 module.exports = router

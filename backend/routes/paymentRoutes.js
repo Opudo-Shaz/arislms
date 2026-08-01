@@ -1,6 +1,7 @@
 const express = require('express');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
 const paymentController = require('../controllers/paymentController');
+const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
 
@@ -56,7 +57,7 @@ router.get('/', authenticate, paymentController.getAll);
  *                 amount: 250
  *                 paymentDate: 2026-01-10
  */
-router.get('/loan/:loanId', authenticate, paymentController.getByLoan);
+router.get('/loan/:loanId', authenticate, validateIdParam('loanId'), paymentController.getByLoan);
 
 /**
  * @openapi
@@ -116,6 +117,6 @@ router.post('/', authenticate, paymentController.create);
  *       200:
  *         description: Payment deleted successfully
  */
-router.delete('/:id', authenticate, authorize([1,2]), paymentController.delete);
+router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), paymentController.delete);
 
 module.exports = router;

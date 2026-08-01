@@ -1,6 +1,7 @@
 const express = require('express');
 const { getUsers, getUser, createUser, updateUser, deleteUser, resetUserPassword, changeOwnPassword } = require('../controllers/userController');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
 
@@ -63,7 +64,7 @@ router.get('/', authenticate, getUsers);
  *               email: jane@test.com
  *               role: user
  */
-router.get('/:id', authenticate, getUser);
+router.get('/:id', authenticate, validateIdParam(), getUser);
 
 /**
  * @openapi
@@ -189,7 +190,7 @@ router.post('/', authenticate, authorize([1,2]), createUser);
  *       200:
  *         description: User updated successfully
  */
-router.put('/:id', authenticate, updateUser);
+router.put('/:id', authenticate, validateIdParam(), updateUser);
 
 /**
  * @openapi
@@ -211,6 +212,6 @@ router.put('/:id', authenticate, updateUser);
  *       200:
  *         description: User deleted successfully
  */
-router.delete('/:id', authenticate, authorize([1,2]), deleteUser);
+router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), deleteUser);
 
 module.exports = router;

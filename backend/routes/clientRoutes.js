@@ -1,6 +1,7 @@
 const express = require('express');
 const clientController = require('../controllers/clientController');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
 
@@ -92,7 +93,7 @@ router.get('/', authenticate, clientController.getClients);
  *               phone: "+1234567890"
  *               address: "456 Elm Street"
  */
-router.get('/:id', authenticate, clientController.getClient);
+router.get('/:id', authenticate, validateIdParam(), clientController.getClient);
 
 /**
  * @openapi
@@ -121,7 +122,7 @@ router.get('/:id', authenticate, clientController.getClient);
  *       200:
  *         description: Client updated successfully
  */
-router.put('/:id', authenticate, authorize([1,2]), clientController.updateClient);
+router.put('/:id', authenticate, authorize([1,2]), validateIdParam(), clientController.updateClient);
 
 /**
  * @openapi
@@ -143,7 +144,7 @@ router.put('/:id', authenticate, authorize([1,2]), clientController.updateClient
  *       200:
  *         description: Client deleted successfully
  */
-router.delete('/:id', authenticate, authorize([1,2]), clientController.deleteClient);
+router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), clientController.deleteClient);
 
 /**
  * @openapi

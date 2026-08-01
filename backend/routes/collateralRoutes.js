@@ -1,6 +1,7 @@
 const express = require('express');
 const collateralController = require('../controllers/collateralController');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ const router = express.Router();
  *     tags:
  *       - Collaterals
  */
-router.get('/loan/:loanId', authenticate, collateralController.getByLoan);
+router.get('/loan/:loanId', authenticate, validateIdParam('loanId'), collateralController.getByLoan);
 
 /**
  * @openapi
@@ -22,7 +23,7 @@ router.get('/loan/:loanId', authenticate, collateralController.getByLoan);
  *     tags:
  *       - Collaterals
  */
-router.patch('/:id/status', authenticate, authorize([1, 2]), collateralController.updateStatus);
-router.patch('/:id', authenticate, authorize([1]), collateralController.updateParticulars);
+router.patch('/:id/status', authenticate, authorize([1, 2]), validateIdParam(), collateralController.updateStatus);
+router.patch('/:id', authenticate, authorize([1]), validateIdParam(), collateralController.updateParticulars);
 
 module.exports = router;

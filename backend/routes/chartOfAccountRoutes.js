@@ -1,5 +1,6 @@
 const express = require('express');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { validateIdParam } = require('../middleware/validateIdParam');
 const chartOfAccountController = require('../controllers/chartOfAccountController');
 
 const router = express.Router();
@@ -69,7 +70,7 @@ router.get('/', authenticate, chartOfAccountController.getAll);
  *       404:
  *         description: Account not found
  */
-router.get('/:id', authenticate, chartOfAccountController.getById);
+router.get('/:id', authenticate, validateIdParam(), chartOfAccountController.getById);
 
 /**
  * @openapi
@@ -140,7 +141,7 @@ router.post('/', authenticate, authorize([1, 2]), chartOfAccountController.creat
  *       404:
  *         description: Account not found
  */
-router.put('/:id', authenticate, authorize([1, 2]), chartOfAccountController.update);
+router.put('/:id', authenticate, authorize([1, 2]), validateIdParam(), chartOfAccountController.update);
 
 /**
  * @openapi
@@ -169,6 +170,6 @@ router.put('/:id', authenticate, authorize([1, 2]), chartOfAccountController.upd
  *       404:
  *         description: Account not found
  */
-router.delete('/:id', authenticate, authorize([1, 2]), chartOfAccountController.deactivate);
+router.delete('/:id', authenticate, authorize([1, 2]), validateIdParam(), chartOfAccountController.deactivate);
 
 module.exports = router;

@@ -1,6 +1,7 @@
 const express = require('express');
 const controller = require('../controllers/loanProductController');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
 
@@ -92,7 +93,7 @@ router.get('/', authenticate, controller.getAll);
  *               maxAmount: 80000
  *               termMonths: 60
  */
-router.get('/:id', authenticate, controller.getOne);
+router.get('/:id', authenticate, validateIdParam(), controller.getOne);
 
 /**
  * @openapi
@@ -121,7 +122,7 @@ router.get('/:id', authenticate, controller.getOne);
  *       200:
  *         description: Loan product updated successfully
  */
-router.put('/:id', authenticate, authorize([1,2]), controller.update);
+router.put('/:id', authenticate, authorize([1,2]), validateIdParam(), controller.update);
 
 /**
  * @openapi
@@ -143,6 +144,6 @@ router.put('/:id', authenticate, authorize([1,2]), controller.update);
  *       200:
  *         description: Loan product deleted successfully
  */
-router.delete('/:id', authenticate, authorize([1,2]), controller.delete);
+router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), controller.delete);
 
 module.exports = router;

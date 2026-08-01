@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const RoleController = require('../controllers/roleController');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { validateIdParam } = require('../middleware/validateIdParam');
 
 /**
  * @openapi
@@ -79,7 +80,7 @@ router.get('/', authenticate, RoleController.getAllRoles);
  *               name: Admin
  *               description: Full system access
  */
-router.get('/:id', authenticate, RoleController.getRoleById);
+router.get('/:id', authenticate, validateIdParam(), RoleController.getRoleById);
 
 /**
  * @openapi
@@ -108,7 +109,7 @@ router.get('/:id', authenticate, RoleController.getRoleById);
  *       200:
  *         description: Role updated successfully
  */
-router.put('/:id', authenticate, authorize([1,2]), RoleController.updateRole);
+router.put('/:id', authenticate, authorize([1,2]), validateIdParam(), RoleController.updateRole);
 
 /**
  * @openapi
@@ -164,7 +165,7 @@ router.post('/:id/permissions', authenticate, authorize([1,2]), RoleController.a
  *       200:
  *         description: Permission removed successfully
  */
-router.delete('/:id/permissions', authenticate, authorize([1,2]), RoleController.removePermission);
+router.delete('/:id/permissions', authenticate, authorize([1,2]), validateIdParam(), RoleController.removePermission);
 
 /**
  * @openapi
@@ -186,6 +187,6 @@ router.delete('/:id/permissions', authenticate, authorize([1,2]), RoleController
  *       200:
  *         description: Role deleted successfully
  */
-router.delete('/:id', authenticate, authorize([1,2]), RoleController.deleteRole);
+router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), RoleController.deleteRole);
 
 module.exports = router;

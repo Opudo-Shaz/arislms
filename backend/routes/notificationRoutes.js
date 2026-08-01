@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const notificationController = require('../controllers/notificationController');
 const { authenticate } = require('../middleware/authMiddleware');
+const { validateIdParam } = require('../middleware/validateIdParam');
 
 /**
  * @openapi
@@ -56,6 +57,6 @@ router.get('/', authenticate, notificationController.getMyNotifications);
  *               id: 1
  *               read: true
  */
-router.put('/:id/read', authenticate, notificationController.markNotificationRead);
+router.put('/:id/read', authenticate, validateIdParam(), notificationController.markNotificationRead);
 
 module.exports = router;

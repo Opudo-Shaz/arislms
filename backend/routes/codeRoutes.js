@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const CodeController = require('../controllers/codeController');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { validateIdParam } = require('../middleware/validateIdParam');
 
 /**
  * @openapi
@@ -41,14 +42,14 @@ router.post('/:key/validate', authenticate, CodeController.validate);
 router.get('/key/:key', authenticate, CodeController.getCodeByKey);
 
 // Code values nested under a code
-router.get('/:codeId/values', authenticate, CodeController.listCodeValues);
+router.get('/:codeId/values', authenticate, validateIdParam('codeId'), CodeController.listCodeValues);
 router.post('/:codeId/values', authenticate, authorize([1]), CodeController.createCodeValue);
-router.put('/values/:valueId', authenticate, authorize([1]), CodeController.updateCodeValue);
-router.delete('/values/:valueId', authenticate, authorize([1]), CodeController.deleteCodeValue);
+router.put('/values/:valueId', authenticate, authorize([1]), validateIdParam('valueId'), CodeController.updateCodeValue);
+router.delete('/values/:valueId', authenticate, authorize([1]), validateIdParam('valueId'), CodeController.deleteCodeValue);
 
 // Code CRUD by id
-router.get('/:id', authenticate, CodeController.getCodeById);
-router.put('/:id', authenticate, authorize([1]), CodeController.updateCode);
-router.delete('/:id', authenticate, authorize([1]), CodeController.deleteCode);
+router.get('/:id', authenticate, validateIdParam(), CodeController.getCodeById);
+router.put('/:id', authenticate, authorize([1]), validateIdParam(), CodeController.updateCode);
+router.delete('/:id', authenticate, authorize([1]), validateIdParam(), CodeController.deleteCode);
 
 module.exports = router;

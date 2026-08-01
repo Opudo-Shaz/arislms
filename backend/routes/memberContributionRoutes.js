@@ -1,6 +1,7 @@
 const express = require('express');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
 const memberContributionController = require('../controllers/memberContributionController');
+const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
 
@@ -83,7 +84,7 @@ router.get('/', authenticate, memberContributionController.getAll);
  *       404:
  *         description: Client not found
  */
-router.get('/member/:clientId', authenticate, memberContributionController.getByMember);
+router.get('/member/:clientId', authenticate, validateIdParam('clientId'), memberContributionController.getByMember);
 
 /**
  * @openapi
