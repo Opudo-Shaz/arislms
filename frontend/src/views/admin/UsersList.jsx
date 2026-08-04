@@ -20,16 +20,18 @@ import {
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilLockLocked, cilPencil, cilPlus, cilReload, cilTrash } from '@coreui/icons'
+import { cilLockLocked, cilPencil, cilPlus, cilReload, cilShieldAlt, cilTrash } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
 import ConfirmModal from '../../components/ConfirmModal'
+import StatusBadge from '../../components/StatusBadge'
 import UserForm from './UserForm'
 import ResetPasswordModal from './ResetPasswordModal'
+import UserStatusModal from './UserStatusModal'
 import { useUsers, useDeleteUser } from '../../hooks/useUsers'
 import { useRoles } from '../../hooks/useRoles'
 import { useAuth } from '../../context/AuthContext'
-import { ROLES, ROLE_GROUPS, ROLE_LABELS } from '../../constants/enums'
+import { ROLES, ROLE_GROUPS, ROLE_LABELS, USER_STATUS } from '../../constants/enums'
 import { formatDate } from '../../utils/format'
 
 const fullName = (u) =>
@@ -48,6 +50,7 @@ const UsersList = () => {
   const [editing, setEditing] = useState(null)
   const [toDelete, setToDelete] = useState(null)
   const [toReset, setToReset] = useState(null)
+  const [toChangeStatus, setToChangeStatus] = useState(null)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
 
@@ -89,6 +92,7 @@ const UsersList = () => {
     { key: 'email', label: 'Email' },
     { key: 'phone', label: 'Phone', render: (row) => row.phone || '—' },
     { key: 'role', label: 'Role', render: (row) => roleName(row.role) },
+    { key: 'status', label: 'Status', render: (row) => <StatusBadge enumDef={USER_STATUS} value={row.status} /> },
     { key: 'created_at', label: 'Created', render: (row) => formatDate(row.created_at) },
   ]
 
@@ -99,6 +103,17 @@ const UsersList = () => {
       className: 'text-end',
       render: (row) => (
         <div className="d-flex gap-2 justify-content-end">
+          <CButton
+            color="light"
+            size="sm"
+            title="Change status"
+            onClick={(e) => {
+              e.stopPropagation()
+              setToChangeStatus(row)
+            }}
+          >
+            <CIcon icon={cilShieldAlt} />
+          </CButton>
           {isAdmin && (
             <CButton
               color="light"
@@ -205,6 +220,12 @@ const UsersList = () => {
         visible={Boolean(toReset)}
         user={toReset}
         onClose={() => setToReset(null)}
+      />
+
+      <UserStatusModal
+        visible={Boolean(toChangeStatus)}
+        user={toChangeStatus}
+        onClose={() => setToChangeStatus(null)}
       />
 
       <ConfirmModal

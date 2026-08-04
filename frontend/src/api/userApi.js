@@ -36,6 +36,14 @@ export const updateUser = async (id, payload) => http.put(`/users/${id}`, payloa
 export const deleteUser = async (id) => http.delete(`/users/${id}`)
 
 /**
+ * Update a user's status (active/inactive/suspended). Admin/manager only.
+ * @param {number|string} id
+ * @param {string} status
+ * @returns {Promise<object>}
+ */
+export const updateUserStatus = async (id, status) => http.patch(`/users/${id}/status`, { status })
+
+/**
  * Reset a user's password (super admin / role 1 only).
  * @param {object} payload { userId, email, newPassword }
  * @returns {Promise<object>}
@@ -57,6 +65,7 @@ export default {
   createUser,
   updateUser,
   deleteUser,
+  updateUserStatus,
   resetUserPassword,
   updateMe,
   changePassword,

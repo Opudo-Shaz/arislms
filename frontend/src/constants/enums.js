@@ -66,6 +66,12 @@ export const KYC_STATUS = buildEnum({
   rejected: 'danger',
 })
 
+export const USER_STATUS = buildEnum({
+  active: 'success',
+  inactive: 'secondary',
+  suspended: 'warning',
+})
+
 export const ACCOUNT_TYPE = buildEnum(
   {
     ASSET: 'primary',

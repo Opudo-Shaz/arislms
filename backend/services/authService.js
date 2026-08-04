@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
+const UserStatus = require('../enums/userStatus');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
 
@@ -19,6 +20,14 @@ const login = async (email, password, userAgent = 'unknown') => {
     if (!validPassword) {
       const error = new Error('Invalid credentials');
       error.status = 401;
+      throw error;
+    }
+
+    // Only active users may log in
+    if (user.status !== UserStatus.ACTIVE) {
+      logger.warn(`Login blocked for user ${user.id} (${email}): status=${user.status}`);
+      const error = new Error(`Account is ${user.status}. Please contact an administrator.`);
+      error.status = 403;
       throw error;
     }
 

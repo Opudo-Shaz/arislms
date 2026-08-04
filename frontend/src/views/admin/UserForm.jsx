@@ -18,6 +18,8 @@ import {
   CFormInput,
   CFormLabel,
   CFormSelect,
+  CInputGroup,
+  CInputGroupText,
   CModal,
   CModalBody,
   CModalFooter,
@@ -26,6 +28,7 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
+import { Eye, EyeOff } from 'lucide-react'
 
 import { useCreateUser, useUpdateUser } from '../../hooks/useUsers'
 import { useRoles } from '../../hooks/useRoles'
@@ -62,11 +65,13 @@ const UserForm = ({ visible, user, onClose }) => {
 
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     if (visible) {
       setForm(user ? toForm(user) : emptyForm)
       setError(null)
+      setShowPassword(false)
     }
   }, [visible, user])
 
@@ -178,14 +183,24 @@ const UserForm = ({ visible, user, onClose }) => {
             </CCol>
             <CCol md={4}>
               <CFormLabel>{isEdit ? 'New password' : 'Password *'}</CFormLabel>
-              <CFormInput
-                type="password"
-                value={form.password}
-                onChange={setField('password')}
-                required={!isEdit}
-                autoComplete="new-password"
-                placeholder={isEdit ? 'Leave blank to keep' : ''}
-              />
+              <CInputGroup>
+                <CFormInput
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={setField('password')}
+                  required={!isEdit}
+                  autoComplete="new-password"
+                  placeholder={isEdit ? 'Leave blank to keep' : ''}
+                />
+                <CInputGroupText
+                  role="button"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword((v) => !v)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+                </CInputGroupText>
+              </CInputGroup>
             </CCol>
           </CRow>
         </CModalBody>

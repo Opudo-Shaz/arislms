@@ -148,6 +148,39 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// Update a user's status (active/inactive/suspended) — admin/manager only
+const updateUserStatus = async (req, res) => {
+  try {
+    const actorId = getUserId(req);
+    const userAgent = req.headers['user-agent'];
+    const targetId = Number(req.params.id);
+
+    const validation = validateSync(req.body, UserRequestDto.statusSchema);
+    if (!validation.valid) {
+      logger.warn(`User status update validation failed: ${JSON.stringify(validation.errors)}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: validation.errors
+      });
+    }
+
+    const { status } = validation.value;
+    const updated = await userService.updateUserStatus(targetId, status, actorId, userAgent);
+
+    logger.info(`User ${targetId} status set to ${status} by actor ${actorId}`);
+    res.json({
+      success: true,
+      message: 'User status updated successfully',
+      data: new UserResponseDto(updated)
+    });
+  } catch (err) {
+    const status = err.status || 500;
+    logger.error(`Error updating status for user ${req.params.id}: ${err.message}`);
+    res.status(status).json({ success: false, message: err.message });
+  }
+};
+
 // Reset a user's password — super admin only (role 1)
 const resetUserPassword = async (req, res) => {
   try {
@@ -212,6 +245,7 @@ module.exports = {
   createUser,
   updateUser,
   deleteUser,
+  updateUserStatus,
   resetUserPassword,
   changeOwnPassword,
 };

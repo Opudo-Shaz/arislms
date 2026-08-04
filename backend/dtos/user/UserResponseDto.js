@@ -8,6 +8,7 @@ class UserResponseDto {
     this.phone = user.phone;
     this.id_number = user.id_number;
     this.role = user.role_id;
+    this.status = user.status;
     this.created_at = user.created_at;
   }
 }

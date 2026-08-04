@@ -15,6 +15,8 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
+  CInputGroup,
+  CInputGroupText,
   CModal,
   CModalBody,
   CModalFooter,
@@ -22,6 +24,7 @@ import {
   CModalTitle,
   CSpinner,
 } from '@coreui/react'
+import { Eye, EyeOff } from 'lucide-react'
 
 import { useResetUserPassword } from '../../hooks/useUsers'
 
@@ -30,12 +33,14 @@ const ResetPasswordModal = ({ visible, user, onClose }) => {
   const [newPassword, setNewPassword] = useState('')
   const [error, setError] = useState(null)
   const [done, setDone] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     if (visible) {
       setNewPassword('')
       setError(null)
       setDone(false)
+      setShowPassword(false)
     }
   }, [visible])
 
@@ -76,14 +81,24 @@ const ResetPasswordModal = ({ visible, user, onClose }) => {
                 Set a new password for <strong>{user?.email}</strong>.
               </p>
               <CFormLabel>New password *</CFormLabel>
-              <CFormInput
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                minLength={8}
-                required
-                autoComplete="new-password"
-              />
+              <CInputGroup>
+                <CFormInput
+                  type={showPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  minLength={8}
+                  required
+                  autoComplete="new-password"
+                />
+                <CInputGroupText
+                  role="button"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword((v) => !v)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+                </CInputGroupText>
+              </CInputGroup>
             </>
           )}
         </CModalBody>

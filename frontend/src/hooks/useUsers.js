@@ -58,6 +58,18 @@ export const useDeleteUser = () => {
   })
 }
 
+/** Update a user's status (active/inactive/suspended). */
+export const useUpdateUserStatus = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, status }) => userApi.updateUserStatus(id, status),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: userKeys.lists() })
+      qc.invalidateQueries({ queryKey: userKeys.detail(id) })
+    },
+  })
+}
+
 /** Reset a user's password (admin only). */
 export const useResetUserPassword = () =>
   useMutation({

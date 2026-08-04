@@ -1,6 +1,7 @@
 const Joi = require('joi');
 const j2s = require('joi-to-swagger');
 const { pattern: pwPattern, message: pwMessage, minLength: pwMinLength } = require('../../utils/passwordPolicy');
+const UserStatus = require('../../enums/userStatus');
 
 class UserRequestDto {
   constructor(data) {
@@ -201,6 +202,16 @@ class UserRequestDto {
         'string.min': `New password must be at least ${pwMinLength} characters`,
         'string.pattern.base': pwMessage,
         'any.required': 'New password is required'
+      })
+  });
+
+  // Joi validation schema for changing a user's status (admin/manager only)
+  static statusSchema = Joi.object({
+    status: Joi.string().valid(...Object.values(UserStatus)).required()
+      .example(UserStatus.ACTIVE)
+      .messages({
+        'any.only': `Status must be one of: ${Object.values(UserStatus).join(', ')}`,
+        'any.required': 'Status is required'
       })
   });
 

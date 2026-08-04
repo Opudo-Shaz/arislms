@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/sequalize_db');
 const Role = require('./roleModel');
+const UserStatus = require('../enums/userStatus');
 
 const User = sequelize.define(
   'User',
@@ -50,6 +51,13 @@ const User = sequelize.define(
     password: {
       type: DataTypes.STRING(255),
       allowNull: false,
+    },
+
+    status: {
+      type: DataTypes.ENUM(Object.values(UserStatus)),
+      allowNull: false,
+      defaultValue: UserStatus.ACTIVE,
+      field: 'status',
     },
 
     createdBy: {

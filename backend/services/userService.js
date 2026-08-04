@@ -2,6 +2,7 @@ const User = require('../models/userModel');
 const bcrypt = require('bcrypt');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
+const UserStatus = require('../enums/userStatus');
 
 
 const buildFullName = (user) =>
@@ -152,6 +153,52 @@ const deleteUser = async (id, deletorId = null, userAgent = 'unknown') => {
   }
 };
 
+const updateUserStatus = async (id, status, actorId = null, userAgent = 'unknown') => {
+  try {
+    if (!Object.values(UserStatus).includes(status)) {
+      const err = new Error(`Invalid status. Must be one of: ${Object.values(UserStatus).join(', ')}`);
+      err.status = 400;
+      throw err;
+    }
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      const err = new Error('User not found');
+      err.status = 404;
+      throw err;
+    }
+
+    if (actorId && Number(actorId) === Number(id)) {
+      const err = new Error('You cannot change your own status');
+      err.status = 400;
+      throw err;
+    }
+
+    const previousStatus = user.status;
+    await user.update({ status });
+
+    await AuditLogger.log({
+      entityType: 'USER',
+      entityId: id,
+      action: 'UPDATE',
+      data: { statusChanged: { from: previousStatus, to: status } },
+      actorId: actorId || 'system',
+      options: {
+        actorType: 'USER',
+        source: userAgent
+      }
+    });
+
+    logger.info(
+      `User status updated: id=${id} name=${buildFullName(user)} ${previousStatus} -> ${status} by user ${actorId}`
+    );
+    return user;
+  } catch (error) {
+    logger.error(`Error in updateUserStatus (${id}): ${error.message}`);
+    throw error;
+  }
+};
+
 const resetUserPassword = async (userId, email, newPassword, actorId = null, userAgent = 'unknown') => {
   try {
     const user = await User.findOne({ where: { id: userId, email } });
@@ -223,6 +270,7 @@ module.exports = {
   createUser,
   updateUser,
   deleteUser,
+  updateUserStatus,
   resetUserPassword,
   changeOwnPassword,
 };

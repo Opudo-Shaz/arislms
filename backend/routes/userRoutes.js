@@ -1,5 +1,5 @@
 const express = require('express');
-const { getUsers, getUser, createUser, updateUser, deleteUser, resetUserPassword, changeOwnPassword } = require('../controllers/userController');
+const { getUsers, getUser, createUser, updateUser, deleteUser, updateUserStatus, resetUserPassword, changeOwnPassword } = require('../controllers/userController');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
 
@@ -191,6 +191,44 @@ router.post('/', authenticate, authorize([1,2]), createUser);
  *         description: User updated successfully
  */
 router.put('/:id', authenticate, validateIdParam(), updateUser);
+
+/**
+ * @openapi
+ * /api/users/{id}/status:
+ *   patch:
+ *     summary: Update a user's status (active/inactive/suspended)
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 10
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive, suspended]
+ *                 example: suspended
+ *     responses:
+ *       200:
+ *         description: User status updated successfully
+ *       400:
+ *         description: Validation error, or actor tried to change own status
+ *       404:
+ *         description: User not found
+ */
+router.patch('/:id/status', authenticate, authorize([1,2]), validateIdParam(), updateUserStatus);
 
 /**
  * @openapi
