@@ -15,7 +15,7 @@ import CIcon from '@coreui/icons-react'
 import { useAuth } from '../../context/AuthContext'
 import { useUserDocuments, useDocumentBlobUrl } from '../../hooks/useDocuments'
 import { USER_PHOTO_DOCUMENT_TYPE } from '../../constants/enums'
-import avatar8 from './../../assets/images/avatars/8.jpg'
+import placeholderAvatar from './../../assets/images/avatars/default-avatar-male.jpg'
 
 /** Tiny helper: resolves the user's latest profile photo blob URL. */
 const useProfilePhotoUrl = (userId) => {
@@ -42,7 +42,7 @@ const AppHeaderDropdown = () => {
   return (
     <CDropdown variant="nav-item">
       <CDropdownToggle placement="bottom-end" className="py-0 pe-0" caret={false}>
-        <CAvatar src={photoUrl || avatar8} size="md" />
+        <CAvatar src={photoUrl || placeholderAvatar} size="md" />
       </CDropdownToggle>
       <CDropdownMenu className="pt-0" placement="bottom-end">
         <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">

@@ -1,7 +1,9 @@
 const jwt = require('jsonwebtoken');
 const logger = require('../config/logger'); 
+const UserStatus = require('../enums/userStatus');
+const { getCachedAuthUser } = require('../utils/authUserCache');
 
-const authenticate = (req, res, next) => {
+const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     logger?.warn('Unauthorized: Missing or invalid Authorization header');
@@ -12,7 +14,34 @@ const authenticate = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretkey');
-    req.user = decoded;
+
+    // Re-check the account on every request (via the shared app cache, not a
+    // DB hit each time — see utils/authUserCache.js). A JWT stays
+    // cryptographically valid until it expires, so without this a
+    // deleted/suspended user (or one whose password was reset) could keep
+    // using an old token until it naturally expired. token_version lets us
+    // force-invalidate tokens on demand (see userService: deleteUser/
+    // updateUserStatus/resetUserPassword/changeOwnPassword and
+    // passwordResetService.confirmPasswordReset — all of which also evict
+    // the cache entry so revocation takes effect immediately).
+    const user = await getCachedAuthUser(decoded.id);
+
+    if (!user) {
+      logger?.warn(`Unauthorized: user ${decoded.id} for token no longer exists`);
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+
+    if (user.status !== UserStatus.ACTIVE) {
+      logger?.warn(`Unauthorized: user ${decoded.id} is ${user.status}`);
+      return res.status(403).json({ message: 'Account is no longer active' });
+    }
+
+    if ((decoded.tokenVersion || 0) !== (user.token_version || 0)) {
+      logger?.warn(`Unauthorized: stale token_version for user ${decoded.id}`);
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+
+    req.user = { id: user.id, role: user.role_id, status: user.status };
     next();
   } catch (err) {
     logger?.warn(`Token verification failed: ${err.message}`);

@@ -66,6 +66,13 @@ const User = sequelize.define(
       field: 'created_by',
     },
 
+    token_version: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      field: 'token_version',
+    },
+
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: true,

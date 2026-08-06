@@ -31,9 +31,11 @@ const login = async (email, password, userAgent = 'unknown') => {
       throw error;
     }
 
-    // Generate JWT token
+    // Generate JWT token. tokenVersion is embedded so it can be compared
+    // against the current DB value on every request (see authMiddleware) —
+    // bumping user.token_version invalidates this token before it expires.
     const token = jwt.sign(
-      { id: user.id, role: user.role_id },
+      { id: user.id, role: user.role_id, tokenVersion: user.token_version },
       process.env.JWT_SECRET || 'secretkey',
       { expiresIn: '1d' }
     );

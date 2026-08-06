@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
 const UserStatus = require('../enums/userStatus');
+const { invalidateAuthUser } = require('../utils/authUserCache');
 
 
 const buildFullName = (user) =>
@@ -130,6 +131,8 @@ const deleteUser = async (id, deletorId = null, userAgent = 'unknown') => {
     const deletedData = user.toJSON();
     await user.destroy();
 
+    invalidateAuthUser(id);
+
     // Log to audit table after successful deletion
     await AuditLogger.log({
       entityType: 'USER',
@@ -175,7 +178,9 @@ const updateUserStatus = async (id, status, actorId = null, userAgent = 'unknown
     }
 
     const previousStatus = user.status;
-    await user.update({ status });
+    
+    await user.update({ status, token_version: user.token_version + 1 });
+    invalidateAuthUser(id);
 
     await AuditLogger.log({
       entityType: 'USER',
@@ -210,7 +215,9 @@ const resetUserPassword = async (userId, email, newPassword, actorId = null, use
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
-    await user.update({ password: hashedPassword });
+    // Invalidate any tokens issued before this reset.
+    await user.update({ password: hashedPassword, token_version: user.token_version + 1 });
+    invalidateAuthUser(userId);
 
     await AuditLogger.log({
       entityType: 'USER',
@@ -249,7 +256,9 @@ const changeOwnPassword = async (userId, currentPassword, newPassword, userAgent
 
   const salt = await bcrypt.genSalt(10);
   const hashed = await bcrypt.hash(newPassword, salt);
-  await user.update({ password: hashed });
+  
+  await user.update({ password: hashed, token_version: user.token_version + 1 });
+  invalidateAuthUser(userId);
 
   await AuditLogger.log({
     entityType: 'USER',

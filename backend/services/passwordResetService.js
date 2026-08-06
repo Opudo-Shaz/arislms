@@ -7,6 +7,7 @@ const emailService = require('./email/EmailService');
 const { resetPasswordTemplate } = require('./email/templates/resetPassword');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
+const { invalidateAuthUser } = require('../utils/authUserCache');
 
 /** Token TTL in minutes */
 const TOKEN_EXPIRY_MINUTES = 30;
@@ -110,8 +111,10 @@ async function confirmPasswordReset(rawToken, newPassword, userAgent = 'unknown'
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-  // Persist new password and mark token as used atomically-ish
-  await user.update({ password: hashedPassword });
+  // Persist new password and mark token as used atomically-ish. Bump
+  // token_version so any previously issued JWT is invalidated immediately.
+  await user.update({ password: hashedPassword, token_version: user.token_version + 1 });
+  invalidateAuthUser(user.id);
   await tokenRecord.update({ usedAt: new Date() });
 
   await AuditLogger.log({
