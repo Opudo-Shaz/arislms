@@ -1,5 +1,16 @@
 @use "@coreui/coreui/scss/coreui" as * with (
   $enable-deprecation-messages: false,
+  // Brand: Bright Cyan/Turquoise
+  $primary: #5dcae2,
+  // Deep navy blue emphasis (light mode only — dark mode keeps its own value below)
+  $primary-text-emphasis: #2b2b5b,
+  $primary-text-emphasis-dark: #284f57,
+  $body-emphasis-color: #2b2b5b,
+  // Original (pre-brand-update) $body-color was the CoreUI default:
+  // Revert by removing the $body-color line below.
+  $body-color: rgba(43, 43, 91, 0.95),
+  $primary-bg-subtle: #dff4f9,
+  $primary-border-subtle: #9edfee,
 );
 @use "@coreui/chartjs/scss/coreui-chartjs";
 @use "vendors/simplebar";
@@ -16,10 +27,10 @@ body {
 .app-view-bg {
   background-color: var(--cui-tertiary-bg);
   background-image:
-    radial-gradient(circle at 12% 18%, rgba(var(--cui-primary-rgb), 0.20) 0%, rgba(var(--cui-primary-rgb), 0) 42%),
+    radial-gradient(circle at 12% 18%, rgba(var(--cui-primary-rgb), 0.22) 0%, rgba(var(--cui-primary-rgb), 0) 42%),
     radial-gradient(circle at 84% 22%, rgba(var(--cui-info-rgb), 0.17) 0%, rgba(var(--cui-info-rgb), 0) 40%),
-    radial-gradient(circle at 68% 78%, rgba(102, 16, 242, 0.12) 0%, rgba(102, 16, 242, 0) 45%),
-    radial-gradient(circle at 24% 82%, rgba(32, 201, 151, 0.10) 0%, rgba(32, 201, 151, 0) 46%),
+    radial-gradient(circle at 68% 78%, rgba(43, 48, 65, 0.12) 0%, rgba(43, 48, 65, 0) 45%),
+    radial-gradient(circle at 24% 82%, rgba(23, 184, 183, 0.12) 0%, rgba(23, 184, 183, 0) 46%),
     radial-gradient(circle at 52% 44%, rgba(220, 53, 69, 0.09) 0%, rgba(220, 53, 69, 0) 38%),
     linear-gradient(130deg, rgba(var(--cui-body-bg-rgb), 0.97) 0%, rgba(var(--cui-tertiary-bg-rgb), 0.94) 100%);
   background-repeat: no-repeat;
@@ -38,11 +49,11 @@ body {
 }
 
 .sidebar {
-  background-color: #0e1424;
+  background-color: #2b3041;
   background-image:
-    radial-gradient(circle at 18% 16%, rgba(var(--cui-primary-rgb), 0.20) 0%, rgba(var(--cui-primary-rgb), 0) 42%),
-    radial-gradient(circle at 82% 78%, rgba(var(--cui-info-rgb), 0.12) 0%, rgba(var(--cui-info-rgb), 0) 44%),
-    linear-gradient(180deg, #10182b 0%, #0a101f 100%);
+    radial-gradient(circle at 18% 16%, rgba(var(--cui-primary-rgb), 0.24) 0%, rgba(var(--cui-primary-rgb), 0) 42%),
+    radial-gradient(circle at 82% 78%, rgba(var(--cui-info-rgb), 0.14) 0%, rgba(var(--cui-info-rgb), 0) 44%),
+    linear-gradient(180deg, #323849 0%, #232735 100%);
 }
 
 .sidebar .sidebar-header,
@@ -155,53 +166,133 @@ body {
   .app-view-bg {
     background-color: var(--cui-dark-bg-subtle);
     background-image:
-      radial-gradient(circle at 12% 18%, rgba(var(--cui-primary-rgb), 0.24) 0%, rgba(var(--cui-primary-rgb), 0) 44%),
+      radial-gradient(circle at 12% 18%, rgba(var(--cui-primary-rgb), 0.26) 0%, rgba(var(--cui-primary-rgb), 0) 44%),
       radial-gradient(circle at 84% 22%, rgba(var(--cui-info-rgb), 0.20) 0%, rgba(var(--cui-info-rgb), 0) 42%),
-      radial-gradient(circle at 68% 78%, rgba(102, 16, 242, 0.14) 0%, rgba(102, 16, 242, 0) 45%),
-      radial-gradient(circle at 24% 82%, rgba(32, 201, 151, 0.11) 0%, rgba(32, 201, 151, 0) 46%),
+      radial-gradient(circle at 68% 78%, rgba(43, 48, 65, 0.30) 0%, rgba(43, 48, 65, 0) 45%),
+      radial-gradient(circle at 24% 82%, rgba(23, 184, 183, 0.14) 0%, rgba(23, 184, 183, 0) 46%),
       radial-gradient(circle at 52% 44%, rgba(220, 53, 69, 0.11) 0%, rgba(220, 53, 69, 0) 40%),
       linear-gradient(130deg, rgba(12, 19, 34, 0.96) 0%, rgba(18, 27, 46, 0.92) 100%);
   }
 
+  // Header/footer share the sidebar's brand navy (#2b3041) in dark mode
   .app-shell-bg .header,
   .app-shell-bg .footer {
-    background-color: rgba(8, 14, 26, 0.78);
+    background-color: rgba(43, 48, 65, 0.82);
     background-image: linear-gradient(
       115deg,
-      rgba(18, 28, 46, 0.88) 0%,
-      rgba(14, 24, 40, 0.84) 52%,
-      rgba(22, 24, 42, 0.82) 100%
+      rgba(53, 59, 79, 0.88) 0%,
+      rgba(45, 50, 68, 0.84) 52%,
+      rgba(50, 54, 74, 0.82) 100%
     );
   }
 
   .app-shell-bg .header > .container-fluid:first-child {
-    background-color: rgba(10, 18, 31, 0.72);
+    background-color: rgba(43, 48, 65, 0.76);
     background-image: linear-gradient(
       115deg,
-      rgba(20, 31, 52, 0.90) 0%,
-      rgba(15, 26, 44, 0.86) 46%,
-      rgba(24, 26, 46, 0.84) 100%
+      rgba(58, 64, 86, 0.90) 0%,
+      rgba(48, 53, 72, 0.86) 46%,
+      rgba(53, 57, 78, 0.84) 100%
     );
   }
 
   .app-shell-bg .header > .container-fluid + .container-fluid {
-    background-color: rgba(12, 22, 37, 0.56);
+    background-color: rgba(43, 48, 65, 0.60);
     background-image: linear-gradient(
       115deg,
-      rgba(16, 28, 48, 0.80) 0%,
-      rgba(12, 24, 41, 0.76) 45%,
-      rgba(20, 23, 42, 0.74) 100%
+      rgba(50, 55, 75, 0.80) 0%,
+      rgba(42, 46, 63, 0.76) 45%,
+      rgba(47, 50, 68, 0.74) 100%
     );
   }
 
   .sidebar {
     background-image:
-      radial-gradient(circle at 14% 14%, rgba(var(--cui-primary-rgb), 0.22) 0%, rgba(var(--cui-primary-rgb), 0) 42%),
-      radial-gradient(circle at 84% 84%, rgba(var(--cui-info-rgb), 0.14) 0%, rgba(var(--cui-info-rgb), 0) 44%),
-      linear-gradient(180deg, #0d1425 0%, #070c18 100%);
+      radial-gradient(circle at 14% 14%, rgba(var(--cui-primary-rgb), 0.26) 0%, rgba(var(--cui-primary-rgb), 0) 42%),
+      radial-gradient(circle at 84% 84%, rgba(var(--cui-info-rgb), 0.16) 0%, rgba(var(--cui-info-rgb), 0) 44%),
+      linear-gradient(180deg, #2b3041 0%, #1e2230 100%);
   }
 
   .footer {
     --cui-footer-bg: var(--cui-body-bg);
+  }
+
+  // Inputs blend into the dark background — give them a touch more contrast
+  // and a faint tint so they read as clearly delineated fields.
+  .form-control,
+  .form-select {
+    --cui-border-color: rgba(255, 255, 255, 0.16);
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+
+  // Table row dividers are very faint against the dark card — bump contrast.
+  .table-modern {
+    --cui-table-border-color: rgba(255, 255, 255, 0.09);
+  }
+}
+
+// "Modern" table treatment shared by DataTable instances app-wide: subtle
+// zebra striping, an accent-tinted hover state (echoes the brand/primary
+// color used elsewhere), tighter row spacing, and a sticky-header-friendly
+// background so headers don't go transparent when scrolled.
+.table-modern {
+  --cui-table-hover-bg: rgba(var(--cui-primary-rgb), 0.06);
+  --cui-table-row-radius: 0.5rem;
+
+  // Give each data row its own gap (border-collapse: separate lets us space
+  // rows apart) so the rounded left/right corners below are actually visible
+  // instead of being hidden by the next row's edge — same per-row treatment
+  // the zebra striping already uses, just applied to shape instead of tint.
+  border-collapse: separate;
+  border-spacing: 0 0.3rem;
+  margin-block: -0.3rem 0;
+
+  > :not(caption) > * > * {
+    padding-block: 0.6rem;
+  }
+
+  tbody tr:nth-of-type(even) {
+    --cui-table-accent-bg: rgba(var(--cui-body-color-rgb), 0.055);
+  }
+
+  // Rounded, borderless "card" rows — corners are set per-row (first/last
+  // cell of each <tr>) rather than once on the table, so every row is its
+  // own independent rounded rectangle.
+  tbody tr > *:first-child {
+    border-start-start-radius: var(--cui-table-row-radius);
+    border-end-start-radius: var(--cui-table-row-radius);
+  }
+
+  tbody tr > *:last-child {
+    border-start-end-radius: var(--cui-table-row-radius);
+    border-end-end-radius: var(--cui-table-row-radius);
+  }
+
+  tbody tr > * {
+    border-top: 0;
+    border-bottom: 0;
+  }
+
+  thead th {
+    position: relative;
+    background-color: var(--cui-card-bg, var(--cui-body-bg));
+  }
+
+  thead th[role='button'] {
+    cursor: pointer;
+
+    &:hover {
+      color: var(--cui-primary);
+    }
+  }
+}
+
+@include color-mode(dark) {
+  .table-modern {
+    --cui-table-hover-bg: rgba(var(--cui-primary-rgb), 0.12);
+
+    tbody tr:nth-of-type(even) {
+      --cui-table-accent-bg: rgba(255, 255, 255, 0.06);
+    }
   }
 }

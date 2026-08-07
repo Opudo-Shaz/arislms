@@ -11,7 +11,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import {
-  CBadge,
   CCard,
   CCardBody,
   CCardHeader,
@@ -41,6 +40,7 @@ import { useDashboardStats } from '../../hooks/useReports'
 import { useAuditLogs } from '../../hooks/useAudits'
 import { AUDIT_ACTION, LOAN_STATUS } from '../../constants/enums'
 import { formatCurrency, formatDateTime } from '../../utils/format'
+import StatusBadge from '../../components/StatusBadge'
 
 // Aging bucket colours: green (current) → dark red (most overdue)
 const BUCKET_COLORS = ['#2eb85c', '#f9b115', '#f86c3b', '#e55353', '#8a1c1c']
@@ -323,10 +323,10 @@ const Dashboard = () => {
                 View full audit trail →
               </Link>
             </CCardHeader>
-            <CCardBody className='p-0'>
+            <CCardBody>
               {auditLoading
                 ? <div className='text-center py-4'><CSpinner color='secondary' /></div>
-                : <CTable hover responsive align='middle' className='mb-0'>
+                : <CTable hover responsive align='middle' className='mb-0 table-modern'>
                     <CTableHead>
                       <CTableRow>
                         <CTableHeaderCell>Entity</CTableHeaderCell>
@@ -346,13 +346,13 @@ const Dashboard = () => {
                       {recentLogs.map((log) => (
                         <CTableRow key={log.audit_id}>
                           <CTableDataCell>
-                            <CBadge color='secondary' className='me-1'>{log.entity_type}</CBadge>
+                            <span className='badge rounded-pill fw-medium px-2 py-1 bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle me-1'>
+                              {log.entity_type}
+                            </span>
                             <span className='text-body-secondary small'>#{log.entity_id}</span>
                           </CTableDataCell>
                           <CTableDataCell>
-                            <CBadge color={AUDIT_ACTION.colors[log.action] ?? 'secondary'}>
-                              {AUDIT_ACTION.labels[log.action] ?? log.action}
-                            </CBadge>
+                            <StatusBadge enumDef={AUDIT_ACTION} value={log.action} />
                           </CTableDataCell>
                           <CTableDataCell className='small'>
                             {log.actor_type === 'SYSTEM' || log.actor_type === 'SERVICE'

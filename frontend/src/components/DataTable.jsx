@@ -3,7 +3,9 @@
  *
  * Lightweight, reusable table built on CoreUI `CTable` with built-in
  * loading, error, and empty states. Columns are declarative; an optional
- * `render` per column customizes cell output.
+ * `render` per column customizes cell output. Ships with a "modern" visual
+ * treatment (row hover tint, subtle zebra striping, tighter row spacing)
+ * plus opt-in column sorting indicators and a sticky header.
  *
  * @example
  * const columns = [
@@ -27,19 +29,51 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilSortAscending, cilSortDescending, cilSwapVertical } from '@coreui/icons'
 
-const DataTable = ({ columns, rows, loading, error, emptyMessage, onRowClick, rowKey }) => {
+const SortIndicator = ({ direction }) => (
+  <CIcon
+    icon={direction === 'asc' ? cilSortAscending : direction === 'desc' ? cilSortDescending : cilSwapVertical}
+    size="sm"
+    className={`ms-1 ${direction ? 'text-primary' : 'text-body-secondary opacity-50'}`}
+  />
+)
+
+const DataTable = ({
+  columns,
+  rows,
+  loading,
+  error,
+  emptyMessage,
+  onRowClick,
+  rowKey,
+  sortConfig,
+  onSortChange,
+  stickyHeader,
+  maxHeight,
+}) => {
   const colSpan = columns.length
 
-  return (
-    <CTable hover responsive align="middle" className="mb-0 border">
-      <CTableHead className="text-nowrap">
+  const table = (
+    <CTable hover responsive align="middle" className="mb-0 table-modern">
+      <CTableHead className={`text-nowrap${stickyHeader ? ' sticky-top' : ''}`}>
         <CTableRow>
-          {columns.map((col) => (
-            <CTableHeaderCell key={col.key} className={col.headerClassName}>
-              {col.label}
-            </CTableHeaderCell>
-          ))}
+          {columns.map((col) => {
+            const isSorted = sortConfig?.key === col.key
+            return (
+              <CTableHeaderCell
+                key={col.key}
+                className={`${col.headerClassName || ''}${col.sortable ? ' user-select-none' : ''}`}
+                style={col.headerStyle}
+                role={col.sortable ? 'button' : undefined}
+                onClick={col.sortable && onSortChange ? () => onSortChange(col.key) : undefined}
+              >
+                {col.label}
+                {col.sortable && <SortIndicator direction={isSorted ? sortConfig.direction : null} />}
+              </CTableHeaderCell>
+            )
+          })}
         </CTableRow>
       </CTableHead>
       <CTableBody>
@@ -76,7 +110,7 @@ const DataTable = ({ columns, rows, loading, error, emptyMessage, onRowClick, ro
               style={onRowClick ? { cursor: 'pointer' } : undefined}
             >
               {columns.map((col) => (
-                <CTableDataCell key={col.key} className={col.className}>
+                <CTableDataCell key={col.key} className={col.className} style={col.style}>
                   {col.render ? col.render(row) : row[col.key]}
                 </CTableDataCell>
               ))}
@@ -84,6 +118,14 @@ const DataTable = ({ columns, rows, loading, error, emptyMessage, onRowClick, ro
           ))}
       </CTableBody>
     </CTable>
+  )
+
+  if (!stickyHeader) return table
+
+  return (
+    <div className="border rounded overflow-auto" style={{ maxHeight }}>
+      {table}
+    </div>
   )
 }
 
@@ -95,6 +137,9 @@ DataTable.propTypes = {
       render: PropTypes.func,
       className: PropTypes.string,
       headerClassName: PropTypes.string,
+      style: PropTypes.object,
+      headerStyle: PropTypes.object,
+      sortable: PropTypes.bool,
     }),
   ).isRequired,
   rows: PropTypes.array,
@@ -103,6 +148,17 @@ DataTable.propTypes = {
   emptyMessage: PropTypes.string,
   onRowClick: PropTypes.func,
   rowKey: PropTypes.func,
+  /** `{ key, direction: 'asc'|'desc' }` — pairs with a sortable column's `key`. */
+  sortConfig: PropTypes.shape({
+    key: PropTypes.string,
+    direction: PropTypes.oneOf(['asc', 'desc']),
+  }),
+  /** Called with the clicked column's `key` when a sortable header is clicked. */
+  onSortChange: PropTypes.func,
+  /** Wraps the table in a scrollable container with a sticky header. */
+  stickyHeader: PropTypes.bool,
+  /** Max height of the scroll container when `stickyHeader` is set. */
+  maxHeight: PropTypes.string,
 }
 
 DataTable.defaultProps = {
@@ -110,6 +166,8 @@ DataTable.defaultProps = {
   loading: false,
   error: null,
   emptyMessage: 'No records found.',
+  stickyHeader: false,
+  maxHeight: '65vh',
 }
 
 export default DataTable

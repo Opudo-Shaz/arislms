@@ -8,9 +8,10 @@
  * @module views/clients/ClientsList
  */
 
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  CAvatar,
   CButton,
   CCard,
   CCardBody,
@@ -33,6 +34,11 @@ import { CLIENT_STATUS, KYC_STATUS, ROLE_GROUPS } from '../../constants/enums'
 
 const PAGE_SIZE = 10
 
+// Deterministic accent color per client so avatar initials aren't all the
+// same color — cycles through the app's badge palette.
+const AVATAR_COLORS = ['primary', 'info', 'success', 'warning', 'danger', 'secondary']
+const avatarColorFor = (id) => AVATAR_COLORS[Number(id ?? 0) % AVATAR_COLORS.length]
+
 const ClientsList = () => {
   const navigate = useNavigate()
   const { role } = useAuth()
@@ -43,10 +49,19 @@ const ClientsList = () => {
   const [kycStatus, setKycStatus] = useState('')
   const [queueOnly, setQueueOnly] = useState(false)
   const [page, setPage] = useState(1)
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
 
   const resetPageAnd = (setter) => (value) => {
     setter(value)
     setPage(1)
+  }
+
+  const handleSortChange = (key) => {
+    setSortConfig((prev) =>
+      prev.key === key
+        ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' },
+    )
   }
 
   const params = {
@@ -59,49 +74,121 @@ const ClientsList = () => {
   }
 
   const { data, isLoading, error, refetch, isFetching } = useClients(params)
-  const clients = data?.clients ?? []
   const total = data?.pagination?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  // Sorting is applied client-side to the current page only (the backend list
+  // endpoint doesn't take a sort param); this still gives the header arrows a
+  // real effect while keeping server-side pagination/filtering as-is.
+  const SORT_ACCESSORS = {
+    name: (r) => `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim().toLowerCase(),
+    contact: (r) => (r.email ?? '').toLowerCase(),
+    idNumber: (r) => (r.idDocumentNumber ?? '').toLowerCase(),
+    address: (r) => [r.address?.city, r.address?.country].filter(Boolean).join(', ').toLowerCase(),
+    status: (r) => r.status ?? '',
+    kycStatus: (r) => r.kycStatus ?? '',
+  }
+
+  const clients = useMemo(() => {
+    const rows = data?.clients ?? []
+    if (!sortConfig.key) return rows
+    const accessor = SORT_ACCESSORS[sortConfig.key]
+    if (!accessor) return rows
+    const sorted = [...rows].sort((a, b) => {
+      const av = accessor(a)
+      const bv = accessor(b)
+      if (av < bv) return sortConfig.direction === 'asc' ? -1 : 1
+      if (av > bv) return sortConfig.direction === 'asc' ? 1 : -1
+      return 0
+    })
+    return sorted
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, sortConfig])
 
   const columns = [
     {
       key: 'name',
       label: 'Name',
+      sortable: true,
+      headerStyle: { width: '32%' },
       render: (row) => (
-        <div>
-          <div className="fw-semibold">
-            {row.firstName} {row.lastName}
+        <div className="d-flex align-items-center gap-2">
+          <CAvatar color={avatarColorFor(row.id)} textColor="white" size="sm" className="flex-shrink-0">
+            {`${row.firstName?.[0] || ''}${row.lastName?.[0] || ''}`.toUpperCase()}
+          </CAvatar>
+          <div>
+            <div className="fw-semibold lh-sm">
+              {row.firstName} {row.lastName}
+            </div>
+            {row.accountNumber && (
+              <div className="small text-body-secondary font-monospace lh-sm">
+                {row.accountNumber}
+              </div>
+            )}
           </div>
-          {row.accountNumber && (
-            <div className="small text-body-secondary">{row.accountNumber}</div>
-          )}
         </div>
       ),
     },
     {
       key: 'contact',
       label: 'Contact',
+      sortable: true,
       render: (row) => (
         <div>
-          <div>{row.email}</div>
-          <div className="small text-body-secondary">{row.phone}</div>
+          <div className="lh-sm">{row.email}</div>
+          <div className="small text-body-secondary lh-sm">{row.phone}</div>
         </div>
       ),
     },
     {
+      key: 'idNumber',
+      label: 'ID Number',
+      sortable: true,
+      className: 'text-nowrap',
+      render: (row) => <div className="lh-sm font-monospace">{row.idDocumentNumber || '—'}</div>,
+    },
+    {
+      key: 'address',
+      label: 'Address',
+      sortable: true,
+      render: (row) => {
+        const a = row.address
+        if (!a || (!a.street && !a.city && !a.state && !a.country)) {
+          return <span className="text-body-secondary">—</span>
+        }
+        const line2 = [a.city, a.state].filter(Boolean).join(', ')
+        const line3 = [a.country, a.postalCode].filter(Boolean).join(' ')
+        return (
+          <div className="lh-sm">
+            {a.street && <div>{a.street}</div>}
+            {line2 && <div className="small text-body-secondary">{line2}</div>}
+            {line3 && <div className="small text-body-secondary">{line3}</div>}
+          </div>
+        )
+      },
+    },
+    {
       key: 'status',
       label: 'Status',
+      sortable: true,
+      className: 'text-nowrap',
+      headerClassName: 'text-nowrap',
+      headerStyle: { width: '1%' },
       render: (row) => <StatusBadge enumDef={CLIENT_STATUS} value={row.status} />,
     },
     {
       key: 'kycStatus',
       label: 'KYC',
+      sortable: true,
+      className: 'text-nowrap',
+      headerClassName: 'text-nowrap',
+      headerStyle: { width: '1%' },
       render: (row) => <StatusBadge enumDef={KYC_STATUS} value={row.kycStatus} />,
     },
   ]
 
   return (
-    <CCard className="mb-4">
+    <CCard className="mb-4 shadow-sm">
       <CCardHeader className="d-flex justify-content-between align-items-center">
         <strong>Clients</strong>
         <div className="d-flex gap-2">
@@ -175,13 +262,16 @@ const ClientsList = () => {
           error={error}
           emptyMessage="No clients match your filters."
           onRowClick={(row) => navigate(`/clients/${row.id}`)}
+          sortConfig={sortConfig}
+          onSortChange={handleSortChange}
         />
 
-        {totalPages > 1 && (
-          <div className="d-flex justify-content-between align-items-center mt-3">
-            <span className="small text-body-secondary">
-              {total} clients · page {page} of {totalPages}
-            </span>
+        <div className="d-flex justify-content-between align-items-center mt-3">
+          <span className="small text-body-secondary">
+            Showing {clients.length} of {total} client{total === 1 ? '' : 's'}
+            {totalPages > 1 ? ` · page ${page} of ${totalPages}` : ''}
+          </span>
+          {totalPages > 1 && (
             <CPagination className="mb-0">
               <CPaginationItem disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                 Previous
@@ -193,8 +283,8 @@ const ClientsList = () => {
                 Next
               </CPaginationItem>
             </CPagination>
-          </div>
-        )}
+          )}
+        </div>
       </CCardBody>
     </CCard>
   )
