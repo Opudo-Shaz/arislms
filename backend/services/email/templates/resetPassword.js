@@ -49,9 +49,9 @@ function resetPasswordTemplate({ name, resetUrl, expiresMinutes = 30, appName = 
           <!--[if mso]>
           <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
             href="${safeUrl}" style="height:48px;v-text-anchor:middle;width:240px;"
-            arcsize="10%" stroke="f" fillcolor="#321fdb">
+            arcsize="10%" stroke="f" fillcolor="#5dcae2">
             <w:anchorlock/>
-            <center style="color:#ffffff;font-family:'Segoe UI',Helvetica,Arial,sans-serif;
+            <center style="color:#080a0c;font-family:'Segoe UI',Helvetica,Arial,sans-serif;
                            font-size:15px;font-weight:700;">
               Reset My Password
             </center>
@@ -59,7 +59,7 @@ function resetPasswordTemplate({ name, resetUrl, expiresMinutes = 30, appName = 
           <![endif]-->
           <!--[if !mso]><!-->
           <a href="${safeUrl}"
-            style="display:inline-block;background-color:#321fdb;color:#ffffff;
+            style="display:inline-block;background-color:#5dcae2;color:#080a0c;
                    font-family:'Segoe UI',Helvetica,Arial,sans-serif;
                    font-size:15px;font-weight:700;text-decoration:none;
                    padding:14px 36px;border-radius:6px;
@@ -92,14 +92,14 @@ function resetPasswordTemplate({ name, resetUrl, expiresMinutes = 30, appName = 
       If the button above doesn&rsquo;t work, copy and paste this URL into your browser:
     </p>
     <p style="margin:0 0 24px;font-size:12px;word-break:break-all;
-              font-family:monospace,monospace;color:#321fdb;">
+              font-family:monospace,monospace;color:#2b3041;">
       ${safeUrl}
     </p>
 
     <!-- Security note -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
-        <td style="background-color:#f8f9fa;border-left:4px solid #321fdb;
+        <td style="background-color:#f8f9fa;border-left:4px solid #5dcae2;
                    border-radius:0 4px 4px 0;padding:14px 16px;">
           <p style="margin:0;font-size:13px;line-height:1.5;color:#636f83;
                     font-family:'Segoe UI',Helvetica,Arial,sans-serif;">

@@ -66,7 +66,7 @@ const Login = () => {
       inputAttributes: { autocomplete: 'email' },
       showCancelButton: true,
       confirmButtonText: 'Send reset link',
-      confirmButtonColor: '#321fdb',
+      confirmButtonColor: '#5dcae2',
       cancelButtonText: 'Cancel',
       showLoaderOnConfirm: true,
       preConfirm: async (value) => {

@@ -65,7 +65,7 @@ function baseTemplate({ title, bodyContent, appName = 'ARISLMS' }) {
           <!-- Header -->
           <tr>
             <td class="email-header"
-              style="background-color:#321fdb;border-radius:8px 8px 0 0;padding:28px 40px;text-align:center;">
+              style="background-color:#2b3041;border-radius:8px 8px 0 0;padding:28px 40px;text-align:center;">
               <img src="${logoUrl}" alt="${appName}" width="160" height="auto"
                 style="display:block;margin:0 auto;max-width:160px;height:auto;border:0;"
               />
