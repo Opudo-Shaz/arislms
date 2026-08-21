@@ -88,7 +88,7 @@ const UserForm = ({ visible, user, onClose }) => {
       email: form.email.trim(),
       phone: form.phone.trim() || null,
       role: Number(form.role),
-      id_number: form.id_number.trim(),
+      id_number: form.id_number.trim() || null,
     }
 
     try {
@@ -162,12 +162,11 @@ const UserForm = ({ visible, user, onClose }) => {
             </CCol>
 
             <CCol md={4}>
-              <CFormLabel>ID number *</CFormLabel>
+              <CFormLabel>ID number</CFormLabel>
               <CFormInput
                 value={form.id_number}
                 onChange={setField('id_number')}
                 maxLength={50}
-                required
               />
             </CCol>
             <CCol md={4}>

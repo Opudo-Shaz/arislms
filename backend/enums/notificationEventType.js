@@ -5,4 +5,5 @@ module.exports = Object.freeze({
   LOAN_DEFAULTED: 'loan_defaulted',
   LOAN_APPROVED: 'loan_approved',
   LOAN_REJECTED: 'loan_rejected',
+  REGISTRATION_INVITE: 'registration_invite',
 });

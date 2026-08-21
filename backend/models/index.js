@@ -25,6 +25,7 @@ const CronJobRun = require('./cronJobRunModel');
 const Notification = require('./notificationModel');
 const NotificationTemplate = require('./notificationTemplateModel');
 const NotificationOutbox = require('./notificationOutboxModel');
+const UserInvitation = require('./userInvitationModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
@@ -153,6 +154,11 @@ NotificationOutbox.belongsTo(User, { foreignKey: 'recipient_user_id', as: 'recip
 NotificationOutbox.belongsTo(Loan, { foreignKey: 'related_loan_id', as: 'loan', constraints: false });
 NotificationOutbox.belongsTo(Payment, { foreignKey: 'related_payment_id', as: 'payment', constraints: false });
 
+// User invitation associations — invite pre-fills role; inviter/createdUser both User FKs
+UserInvitation.belongsTo(Role, { foreignKey: 'role_id', as: 'role' });
+UserInvitation.belongsTo(User, { foreignKey: 'invited_by', as: 'inviter', constraints: false });
+UserInvitation.belongsTo(User, { foreignKey: 'created_user_id', as: 'createdUser', constraints: false });
+
 module.exports = {
   sequelize,
   Role,
@@ -178,4 +184,5 @@ module.exports = {
   SystemConfig,
   SystemConfigCodeRelation,
   CronJobRun,
+  UserInvitation,
 };

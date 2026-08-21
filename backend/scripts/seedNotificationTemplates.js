@@ -78,6 +78,17 @@ const defaults = [
     inAppTitle: 'Loan Rejected',
     inAppBody: 'Loan application {{referenceCode}} was not approved.{{rejectionNote}}',
   },
+  {
+    eventKey: NotificationEventType.REGISTRATION_INVITE,
+    description: 'Sent when an admin invites someone to register a new account.',
+    emailSubject: 'You\u2019re invited to join {{appName}}',
+    emailBody: '<p>Hi {{name}},</p><p>You have been invited to join {{appName}} as a {{roleName}}. Click the link below to complete your registration:</p><p><a href="{{inviteUrl}}">{{inviteUrl}}</a></p><p>This link expires in {{expiresHours}} hours.</p>',
+    smsBody: 'You are invited to join {{appName}} as a {{roleName}}. Complete registration: {{inviteUrl}} (expires in {{expiresHours}}h).',
+    pushTitle: 'You\u2019re invited',
+    pushBody: 'Complete your {{appName}} registration.',
+    inAppTitle: 'Registration Invite',
+    inAppBody: '{{name}} was invited to join as a {{roleName}}.',
+  },
 ];
 
 async function seedNotificationTemplates() {

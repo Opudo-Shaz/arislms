@@ -30,6 +30,7 @@ import {
   cilBarcode,
   cilClock,
   cilEnvelopeLetter,
+  cilEnvelopeOpen,
   cilInbox,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem, CNavTitle } from '@coreui/react'
@@ -150,6 +151,13 @@ const _nav = [
     name: 'Roles & Permissions',
     to: '/admin/roles',
     icon: <CIcon icon={cilLockLocked} customClassName="nav-icon" />,
+    roles: [1, 2],
+  },
+  {
+    component: CNavItem,
+    name: 'Invitations',
+    to: '/admin/invitations',
+    icon: <CIcon icon={cilEnvelopeOpen} customClassName="nav-icon" />,
     roles: [1, 2],
   },
   {

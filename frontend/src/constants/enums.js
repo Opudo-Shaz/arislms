@@ -72,6 +72,13 @@ export const USER_STATUS = buildEnum({
   suspended: 'warning',
 })
 
+export const INVITATION_STATUS = buildEnum({
+  pending: 'warning',
+  accepted: 'success',
+  expired: 'secondary',
+  revoked: 'danger',
+})
+
 export const ACCOUNT_TYPE = buildEnum(
   {
     ASSET: 'primary',

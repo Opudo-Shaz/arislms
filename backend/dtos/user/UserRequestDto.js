@@ -62,11 +62,11 @@ class UserRequestDto {
         'number.base': 'Role ID must be a number'
       }),
 
-    id_number: Joi.string().trim().min(4).max(50).required()
+    id_number: Joi.string().trim().min(4).max(50).allow(null, '')
       .example('ID1234')
       .messages({
-        'string.empty': 'ID number is required',
-        'any.required': 'ID number is required'
+        'string.min': 'ID number must be at least 4 characters',
+        'string.max': 'ID number cannot exceed 50 characters'
       }),
 
     password: Joi.string()

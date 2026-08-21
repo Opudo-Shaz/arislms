@@ -59,6 +59,7 @@ const codeRoutes = require('./routes/codeRoutes');
 const cronRoutes = require('./routes/cronRoutes');
 const notificationTemplateRoutes = require('./routes/notificationTemplateRoutes');
 const notificationOutboxRoutes = require('./routes/notificationOutboxRoutes');
+const invitationRoutes = require('./routes/invitationRoutes');
 
 
 app.use('/api/users', userRoutes);
@@ -82,6 +83,7 @@ app.use('/api/codes', codeRoutes);
 app.use('/api/cron-jobs', cronRoutes);
 app.use('/api/notification-templates', notificationTemplateRoutes);
 app.use('/api/notification-outbox', notificationOutboxRoutes);
+app.use('/api/invitations', invitationRoutes);
 
 
 

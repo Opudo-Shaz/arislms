@@ -20,12 +20,13 @@ import {
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilLockLocked, cilPencil, cilPlus, cilReload, cilShieldAlt, cilTrash } from '@coreui/icons'
+import { cilLockLocked, cilPencil, cilPlus, cilReload, cilSend, cilShieldAlt, cilTrash } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
 import ConfirmModal from '../../components/ConfirmModal'
 import StatusBadge from '../../components/StatusBadge'
 import UserForm from './UserForm'
+import InviteUserModal from './InviteUserModal'
 import ResetPasswordModal from './ResetPasswordModal'
 import UserStatusModal from './UserStatusModal'
 import { useUsers, useDeleteUser } from '../../hooks/useUsers'
@@ -47,6 +48,7 @@ const UsersList = () => {
   const deleteMutation = useDeleteUser()
 
   const [showForm, setShowForm] = useState(false)
+  const [showInvite, setShowInvite] = useState(false)
   const [editing, setEditing] = useState(null)
   const [toDelete, setToDelete] = useState(null)
   const [toReset, setToReset] = useState(null)
@@ -176,6 +178,12 @@ const UsersList = () => {
             Refresh
           </CButton>
           {canManage && (
+            <CButton color="secondary" variant="outline" size="sm" onClick={() => setShowInvite(true)}>
+              <CIcon icon={cilSend} className="me-1" />
+              Invite User
+            </CButton>
+          )}
+          {canManage && (
             <CButton color="primary" size="sm" onClick={openCreate}>
               <CIcon icon={cilPlus} className="me-1" />
               New User
@@ -215,6 +223,8 @@ const UsersList = () => {
       </CCardBody>
 
       <UserForm visible={showForm} user={editing} onClose={() => setShowForm(false)} />
+
+      <InviteUserModal visible={showInvite} onClose={() => setShowInvite(false)} />
 
       <ResetPasswordModal
         visible={Boolean(toReset)}

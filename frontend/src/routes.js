@@ -31,6 +31,7 @@ const MemberContributionsList = React.lazy(
 )
 const UsersList = React.lazy(() => import('./views/admin/UsersList'))
 const RolesList = React.lazy(() => import('./views/admin/RolesList'))
+const InvitationsList = React.lazy(() => import('./views/admin/InvitationsList'))
 const NotificationsList = React.lazy(() => import('./views/notifications/NotificationsList'))
 const AuditTrail = React.lazy(() => import('./views/reports/AuditTrail'))
 const PortfolioAging = React.lazy(() => import('./views/reports/PortfolioAging'))
@@ -112,6 +113,11 @@ export const routes = [
     path: '/admin/roles',
     name: 'Roles & Permissions',
     element: RolesList,
+  },
+  {
+    path: '/admin/invitations',
+    name: 'Invitations',
+    element: InvitationsList,
   },
 
   // Notifications (Phase 5)
