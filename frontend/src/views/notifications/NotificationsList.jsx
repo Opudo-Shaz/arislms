@@ -19,17 +19,20 @@ import {
   CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilCheck, cilCheckAlt, cilReload } from '@coreui/icons'
+import { cilCheck, cilCheckAlt, cilReload, cilTrash } from '@coreui/icons'
 
 import StatusBadge from '../../components/StatusBadge'
-import { useNotifications, useMarkNotificationRead } from '../../hooks/useNotifications'
+import ConfirmModal from '../../components/ConfirmModal'
+import { useNotifications, useMarkNotificationRead, useDeleteNotification } from '../../hooks/useNotifications'
 import { NOTIFICATION_TYPE } from '../../constants/enums'
 import { formatDateTime } from '../../utils/format'
 
 const NotificationsList = () => {
   const { data: notifications = [], isLoading, error, refetch, isFetching } = useNotifications()
   const markRead = useMarkNotificationRead()
+  const deleteMutation = useDeleteNotification()
   const [unreadOnly, setUnreadOnly] = useState(false)
+  const [toDelete, setToDelete] = useState(null)
 
   const visible = useMemo(
     () => (unreadOnly ? notifications.filter((n) => !n.isRead) : notifications),
@@ -40,6 +43,15 @@ const NotificationsList = () => {
 
   const markAll = async () => {
     await Promise.allSettled(unread.map((n) => markRead.mutateAsync(n.id)))
+  }
+
+  const runDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(toDelete.id)
+      setToDelete(null)
+    } catch {
+      // Error surfaced via mutation state; modal stays open.
+    }
   }
 
   return (
@@ -105,22 +117,45 @@ const NotificationsList = () => {
                   <div className="text-body-secondary">{n.message}</div>
                   <small className="text-body-secondary">{formatDateTime(n.created_at)}</small>
                 </div>
-                {!n.isRead && (
+                <div className="d-flex gap-2">
+                  {!n.isRead && (
+                    <CButton
+                      color="light"
+                      size="sm"
+                      title="Mark as read"
+                      onClick={() => markRead.mutate(n.id)}
+                      disabled={markRead.isPending}
+                    >
+                      <CIcon icon={cilCheck} />
+                    </CButton>
+                  )}
                   <CButton
-                    color="light"
+                    color="danger"
+                    variant="outline"
                     size="sm"
-                    title="Mark as read"
-                    onClick={() => markRead.mutate(n.id)}
-                    disabled={markRead.isPending}
+                    title="Delete"
+                    onClick={() => setToDelete(n)}
+                    disabled={deleteMutation.isPending}
                   >
-                    <CIcon icon={cilCheck} />
+                    <CIcon icon={cilTrash} />
                   </CButton>
-                )}
+                </div>
               </CListGroupItem>
             ))}
           </CListGroup>
         )}
       </CCardBody>
+
+      <ConfirmModal
+        visible={Boolean(toDelete)}
+        title="Delete Notification"
+        body={toDelete ? `Delete notification "${toDelete.title}"? This cannot be undone.` : ''}
+        confirmText="Delete"
+        confirmColor="danger"
+        loading={deleteMutation.isPending}
+        onConfirm={runDelete}
+        onClose={() => setToDelete(null)}
+      />
     </CCard>
   )
 }

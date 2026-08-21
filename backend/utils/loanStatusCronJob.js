@@ -28,6 +28,9 @@ const loanService = require('../services/loanService');
 const { emitLoanTransaction } = require('./loanTransactionEmitter');
 const AuditLogger = require('./auditLogger');
 const logger = require('../config/logger');
+const Client = require('../models/clientModel');
+const NotificationEventType = require('../enums/notificationEventType');
+const { buildRecipients, safeNotify } = require('../services/notification/notificationTriggers');
 
 // Loan statuses the job actively monitors
 const MONITORED_STATUSES = [
@@ -182,6 +185,19 @@ async function processLoan(loan, today, overdueAt, defaultedAt, penaltyConfig, s
       options: { actorType: 'SYSTEM', source: 'cron' },
     });
 
+    {
+      const client = await Client.findByPk(loan.clientId);
+      await safeNotify(NotificationEventType.LOAN_DEFAULTED, {
+        recipients: buildRecipients({ client, staffUserId: loan.createdBy }),
+        context: {
+          clientName: client ? `${client.firstName} ${client.lastName}` : '',
+          referenceCode: loan.referenceCode,
+        },
+        relatedLoanId: loan.id,
+        dedupeKey: `${NotificationEventType.LOAN_DEFAULTED}:${loan.id}`,
+      });
+    }
+
     return;
   }
 
@@ -209,6 +225,31 @@ async function processLoan(loan, today, overdueAt, defaultedAt, penaltyConfig, s
       },
       actorId: AuditLogger.SYSTEM_USER_ID,
       options: { actorType: 'SYSTEM', source: 'cron' },
+    });
+  }
+
+  // Repayment-overdue reminder — fires once per day per loan while overdueCount > 0
+  // (dedupeKey scoped to today's date so the daily cron naturally re-notifies the next day).
+  if (overdueCount > 0) {
+    const client = await Client.findByPk(loan.clientId);
+    const todayKey = today.toISOString().split('T')[0];
+    const overdueAmount = Number(
+      schedules
+        .filter((s) => s.isMissed && s.status !== 'paid' && s.status !== 'written_off')
+        .reduce((sum, s) => sum + Math.max(0, Number(s.totalAmount) - Number(s.paidAmount || 0)), 0)
+        .toFixed(2)
+    );
+    await safeNotify(NotificationEventType.REPAYMENT_OVERDUE, {
+      recipients: buildRecipients({ client, staffUserId: loan.createdBy }),
+      context: {
+        clientName: client ? `${client.firstName} ${client.lastName}` : '',
+        referenceCode: loan.referenceCode,
+        currency: loan.currency,
+        overdueCount,
+        overdueAmount,
+      },
+      relatedLoanId: loan.id,
+      dedupeKey: `${NotificationEventType.REPAYMENT_OVERDUE}:${loan.id}:${todayKey}`,
     });
   }
 }

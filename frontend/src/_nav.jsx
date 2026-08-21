@@ -29,6 +29,8 @@ import {
   cilSettings,
   cilBarcode,
   cilClock,
+  cilEnvelopeLetter,
+  cilInbox,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem, CNavTitle } from '@coreui/react'
 
@@ -170,6 +172,20 @@ const _nav = [
     to: '/admin/cron-jobs',
     icon: <CIcon icon={cilClock} customClassName="nav-icon" />,
     roles: [1, 2],
+  },
+  {
+    component: CNavItem,
+    name: 'Notification Templates',
+    to: '/admin/notification-templates',
+    icon: <CIcon icon={cilEnvelopeLetter} customClassName="nav-icon" />,
+    roles: [1],
+  },
+  {
+    component: CNavItem,
+    name: 'Notification Outbox',
+    to: '/admin/notification-outbox',
+    icon: <CIcon icon={cilInbox} customClassName="nav-icon" />,
+    roles: [1],
   },
   {
     component: CNavItem,

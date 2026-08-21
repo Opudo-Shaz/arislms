@@ -38,6 +38,10 @@ const UserProfile = React.lazy(() => import('./views/profile/UserProfile'))
 const SystemConfigList = React.lazy(() => import('./views/systemConfig/SystemConfigList'))
 const CodesList = React.lazy(() => import('./views/admin/CodesList'))
 const CronJobsList = React.lazy(() => import('./views/admin/CronJobsList'))
+const NotificationTemplatesList = React.lazy(
+  () => import('./views/admin/NotificationTemplatesList'),
+)
+const NotificationOutboxList = React.lazy(() => import('./views/admin/NotificationOutboxList'))
 
 export const routes = [
   { path: '/', exact: true, name: 'Home' },
@@ -128,6 +132,18 @@ export const routes = [
 
   // Scheduled Jobs (admin)
   { path: '/admin/cron-jobs', name: 'Scheduled Jobs', element: CronJobsList },
+
+  // Notification Templates & Outbox (admin)
+  {
+    path: '/admin/notification-templates',
+    name: 'Notification Templates',
+    element: NotificationTemplatesList,
+  },
+  {
+    path: '/admin/notification-outbox',
+    name: 'Notification Outbox',
+    element: NotificationOutboxList,
+  },
 ]
 
 export default routes
