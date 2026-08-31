@@ -12,6 +12,13 @@
  *   - allows an admin to trigger a run on demand.
  *
  * This gives the frontend full visibility of cron jobs and safe manual runs.
+ *
+ * `quiet` jobs (e.g. high-frequency pollers like the notification outbox worker):
+ * a run is only persisted to `cron_job_runs` when it fails or the handler's
+ * returned summary shows real work (`summary.processed !== 0`). Idle ticks
+ * (nothing to do) are still reflected in the in-memory `lastRun` used by the
+ * admin UI, just not written to the DB — this keeps the run-history table from
+ * being swamped by e.g. 1,440 no-op rows/day for a job that polls every minute.
  */
 
 const cron = require('node-cron')
@@ -38,17 +45,21 @@ async function execute(job, { triggeredBy, triggeredById = null }) {
   const startedAt = new Date()
 
   // Persist a "running" row up front (best-effort — never block the actual work).
+  // Quiet jobs skip this: we don't know yet whether the run is a no-op, so we
+  // decide once at the end whether to write anything at all.
   let runRow = null
-  try {
-    runRow = await CronJobRun.create({
-      jobKey: job.key,
-      status: 'running',
-      triggeredBy,
-      triggeredById,
-      startedAt,
-    })
-  } catch (e) {
-    logger.error(`[CronRegistry] Failed to persist run start for "${job.key}": ${e.message}`)
+  if (!job.quiet) {
+    try {
+      runRow = await CronJobRun.create({
+        jobKey: job.key,
+        status: 'running',
+        triggeredBy,
+        triggeredById,
+        startedAt,
+      })
+    } catch (e) {
+      logger.error(`[CronRegistry] Failed to persist run start for "${job.key}": ${e.message}`)
+    }
   }
 
   try {
@@ -57,9 +68,25 @@ async function execute(job, { triggeredBy, triggeredById = null }) {
     const durationMs = finishedAt - startedAt
 
     job.lastRun = { status: 'success', startedAt, finishedAt, durationMs, summary, triggeredBy, triggeredById }
+    const isIdle = job.quiet && summary && typeof summary.processed === 'number' && summary.processed === 0
     if (runRow) {
       try {
         await runRow.update({ status: 'success', finishedAt, durationMs, summary })
+      } catch (e) {
+        logger.error(`[CronRegistry] Failed to persist run result for "${job.key}": ${e.message}`)
+      }
+    } else if (!isIdle) {
+      try {
+        await CronJobRun.create({
+          jobKey: job.key,
+          status: 'success',
+          triggeredBy,
+          triggeredById,
+          startedAt,
+          finishedAt,
+          durationMs,
+          summary,
+        })
       } catch (e) {
         logger.error(`[CronRegistry] Failed to persist run result for "${job.key}": ${e.message}`)
       }
@@ -73,6 +100,22 @@ async function execute(job, { triggeredBy, triggeredById = null }) {
     if (runRow) {
       try {
         await runRow.update({ status: 'failed', finishedAt, durationMs, error: err.message })
+      } catch (e) {
+        logger.error(`[CronRegistry] Failed to persist run error for "${job.key}": ${e.message}`)
+      }
+    } else {
+      // Always persist failures, even for quiet jobs — errors must stay visible.
+      try {
+        await CronJobRun.create({
+          jobKey: job.key,
+          status: 'failed',
+          triggeredBy,
+          triggeredById,
+          startedAt,
+          finishedAt,
+          durationMs,
+          error: err.message,
+        })
       } catch (e) {
         logger.error(`[CronRegistry] Failed to persist run error for "${job.key}": ${e.message}`)
       }
@@ -93,8 +136,11 @@ async function execute(job, { triggeredBy, triggeredById = null }) {
  * @param {string} [cfg.scheduleLabel] - human-readable schedule (e.g. 'Daily at 01:00')
  * @param {string} [cfg.timezone]
  * @param {Function} cfg.handler - async fn returning a JSON-serialisable summary
+ * @param {boolean} [cfg.quiet=false] - for high-frequency jobs: only persist a run
+ *   row when it fails or `summary.processed` is a nonzero number; idle/no-op ticks
+ *   are skipped to avoid swamping `cron_job_runs`.
  */
-function register({ key, name, description = '', schedule, scheduleLabel = '', timezone, handler }) {
+function register({ key, name, description = '', schedule, scheduleLabel = '', timezone, handler, quiet = false }) {
   if (!key || !schedule || typeof handler !== 'function') {
     throw new Error('cronRegistry.register requires { key, schedule, handler }')
   }
@@ -110,6 +156,7 @@ function register({ key, name, description = '', schedule, scheduleLabel = '', t
     scheduleLabel,
     timezone,
     handler,
+    quiet,
     task: null,
     isRunning: false,
     lastRun: null,

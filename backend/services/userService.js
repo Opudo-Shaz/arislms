@@ -28,8 +28,14 @@ const createUser = async (data, creatorId = null, userAgent = 'unknown') => {
     const existingEmail = await User.findOne({ where: { email: data.email } });
     if (existingEmail) throw new Error('Email already exists');
 
-    const existingIdNumber = await User.findOne({ where: { id_number: data.id_number } });
-    if (existingIdNumber) throw new Error('ID number already exists');
+   
+    if (data.id_number) {
+      const existingIdNumber = await User.findOne({ where: { id_number: data.id_number } });
+      if (existingIdNumber) throw new Error('ID number already exists');
+    } else {
+      data.id_number = null;
+    }
+
     if (data.password) {
       const salt = await bcrypt.genSalt(10);
       data.password = await bcrypt.hash(data.password, salt);

@@ -25,7 +25,18 @@ export const markNotificationRead = async (id) => {
   return res?.data
 }
 
+/**
+ * Delete a notification.
+ * @param {number|string} id
+ * @returns {Promise<object>}
+ */
+export const deleteNotification = async (id) => {
+  const res = await http.delete(`/notifications/${id}`)
+  return res?.data
+}
+
 export default {
   listNotifications,
   markNotificationRead,
+  deleteNotification,
 }

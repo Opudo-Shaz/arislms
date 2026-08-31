@@ -72,6 +72,13 @@ export const USER_STATUS = buildEnum({
   suspended: 'warning',
 })
 
+export const INVITATION_STATUS = buildEnum({
+  pending: 'warning',
+  accepted: 'success',
+  expired: 'secondary',
+  revoked: 'danger',
+})
+
 export const ACCOUNT_TYPE = buildEnum(
   {
     ASSET: 'primary',
@@ -382,6 +389,39 @@ export const NOTIFICATION_TYPE = buildEnum(
   },
   { info: 'Info', loan: 'Loan', payment: 'Payment', warning: 'Warning', reminder: 'Reminder' },
 )
+
+/** Notification delivery channels (see backend/enums/notificationChannel.js). */
+export const NOTIFICATION_CHANNEL = buildEnum(
+  {
+    email: 'info',
+    sms: 'primary',
+    in_app: 'secondary',
+    push: 'warning',
+  },
+  { email: 'Email', sms: 'SMS', in_app: 'In-App', push: 'Push' },
+)
+
+/** Notification outbox delivery status (see backend/enums/notificationDeliveryStatus.js). */
+export const NOTIFICATION_DELIVERY_STATUS = buildEnum({
+  queued: 'secondary',
+  sending: 'info',
+  sent: 'success',
+  failed: 'danger',
+  skipped: 'warning',
+})
+
+/** Notification event types (see backend/enums/notificationEventType.js). */
+export const NOTIFICATION_EVENT_TYPE = buildEnum(
+  {
+    payment_received: 'success',
+    repayment_overdue: 'warning',
+    loan_disbursed: 'primary',
+    loan_defaulted: 'danger',
+    loan_approved: 'primary',
+    loan_rejected: 'danger',
+  },
+)
+
 
 /** Numeric backend role ids. */
 export const ROLES = {

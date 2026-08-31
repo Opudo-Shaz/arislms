@@ -59,4 +59,25 @@ router.get('/', authenticate, notificationController.getMyNotifications);
  */
 router.put('/:id/read', authenticate, validateIdParam(), notificationController.markNotificationRead);
 
+/**
+ * @openapi
+ * /api/notifications/{id}:
+ *   delete:
+ *     summary: Delete a notification
+ *     tags:
+ *       - Notifications
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Notification deleted
+ */
+router.delete('/:id', authenticate, validateIdParam(), notificationController.deleteNotification);
+
 module.exports = router;

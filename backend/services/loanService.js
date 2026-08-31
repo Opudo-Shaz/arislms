@@ -27,6 +27,8 @@ const DownPaymentType = require('../enums/downPaymentType');
 const ContributionType = require('../enums/contributionType');
 const MemberContribution = require('../models/memberContributionModel');
 const systemConfigService = require('./systemConfigService');
+const NotificationEventType = require('../enums/notificationEventType');
+const { buildRecipients, safeNotify } = require('./notification/notificationTriggers');
 
 // Loan statuses in which money has already left the institution (disbursed).
 const DISBURSED_STATUSES = [
@@ -653,6 +655,21 @@ const loanService = {
       });
 
       logger.info(`Loan ${id} approved on ${approval.toISOString().split('T')[0]} by user ${approverId}`);
+
+      // Notify client + loan officer (best-effort — never blocks the approval itself)
+      const client = await Client.findByPk(loan.clientId);
+      await safeNotify(NotificationEventType.LOAN_APPROVED, {
+        recipients: buildRecipients({ client, staffUserId: loan.createdBy }),
+        context: {
+          clientName: client ? `${client.firstName} ${client.lastName}` : '',
+          referenceCode: loan.referenceCode,
+          currency: loan.currency,
+          principalAmount: loan.principalAmount,
+          approvalDate: approval.toISOString().split('T')[0],
+        },
+        relatedLoanId: loan.id,
+      });
+
       return loan;
 
     } catch (error) {
@@ -707,6 +724,19 @@ const loanService = {
       });
 
       logger.info(`Loan ${id} rejected by user ${rejectorId}. Previous status: ${previousStatus}`);
+
+      // Notify client + loan officer (best-effort — never blocks the rejection itself)
+      const client = await Client.findByPk(loan.clientId);
+      await safeNotify(NotificationEventType.LOAN_REJECTED, {
+        recipients: buildRecipients({ client, staffUserId: loan.createdBy }),
+        context: {
+          clientName: client ? `${client.firstName} ${client.lastName}` : '',
+          referenceCode: loan.referenceCode,
+          rejectionNote: rejectionNote ? ` ${rejectionNote}` : '',
+        },
+        relatedLoanId: loan.id,
+      });
+
       return loan;
     } catch (error) {
       logger.error(`Error in rejectLoan (${id}): ${error.message}`);
@@ -1051,7 +1081,21 @@ const loanService = {
       });
 
       logger.info(`Loan ${loanId} disbursed successfully with ${createdSchedule.length} installments`);
-      
+
+      // Notify client + loan officer (best-effort — never blocks disbursement itself)
+      const client = await Client.findByPk(loan.clientId);
+      await safeNotify(NotificationEventType.LOAN_DISBURSED, {
+        recipients: buildRecipients({ client, staffUserId: loan.createdBy }),
+        context: {
+          clientName: client ? `${client.firstName} ${client.lastName}` : '',
+          referenceCode: loan.referenceCode,
+          currency: loan.currency,
+          principalAmount: loan.principalAmount,
+          nextPaymentDate: loan.nextPaymentDate,
+        },
+        relatedLoanId: loan.id,
+      });
+
       return {
         loan,
         schedule: createdSchedule,

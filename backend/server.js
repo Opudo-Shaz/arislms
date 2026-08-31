@@ -57,6 +57,9 @@ const reportRoutes = require('./routes/reportRoutes');
 const systemConfigRoutes = require('./routes/systemConfigRoutes');
 const codeRoutes = require('./routes/codeRoutes');
 const cronRoutes = require('./routes/cronRoutes');
+const notificationTemplateRoutes = require('./routes/notificationTemplateRoutes');
+const notificationOutboxRoutes = require('./routes/notificationOutboxRoutes');
+const invitationRoutes = require('./routes/invitationRoutes');
 
 
 app.use('/api/users', userRoutes);
@@ -78,6 +81,9 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/system-configs', systemConfigRoutes);
 app.use('/api/codes', codeRoutes);
 app.use('/api/cron-jobs', cronRoutes);
+app.use('/api/notification-templates', notificationTemplateRoutes);
+app.use('/api/notification-outbox', notificationOutboxRoutes);
+app.use('/api/invitations', invitationRoutes);
 
 
 
@@ -138,6 +144,23 @@ const formatServerUrl = (addressInfo, preferredHost) => {
     // Seed loan lifecycle threshold configs and register daily cron job
     const loanStatusCronJob = require('./utils/loanStatusCronJob');
     loanStatusCronJob.register();
+
+    // Register the notification outbox worker — picks up QUEUED/retry-due rows every minute
+    const cronRegistry = require('./utils/cronRegistry');
+    const outboxWorker = require('./services/notification/outboxWorker');
+    if (!cronRegistry.has('notification-outbox-worker')) {
+      cronRegistry.register({
+        key: 'notification-outbox-worker',
+        name: 'Notification Outbox Worker',
+        description: 'Sends QUEUED/retry-due notification outbox rows via their channel adapter',
+        schedule: '* * * * *',
+        scheduleLabel: 'Every minute',
+        handler: () => outboxWorker.run(),
+        // Runs every minute — only persist a run row when it actually sent/retried
+        // something or failed, so idle ticks don't swamp cron_job_runs.
+        quiet: true,
+      });
+    }
 
     // Start server after DB is ready
     const SERVER_PORT = Number.parseInt(process.env.SERVER_PORT, 10) || 6505;

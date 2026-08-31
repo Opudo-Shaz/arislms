@@ -16,6 +16,9 @@ const LoanTransactionType = require('../enums/loanTransactionType');
 const systemConfigService = require('./systemConfigService');
 const loanService = require('./loanService');
 const { CURRENCY_EPSILON } = require('../utils/helpers');
+const Client = require('../models/clientModel');
+const NotificationEventType = require('../enums/notificationEventType');
+const { buildRecipients, safeNotify } = require('./notification/notificationTriggers');
 
 const paymentService = {
   /**
@@ -561,6 +564,21 @@ async createPayment(data, user, userAgent = 'unknown') {
       `New balance: ${newBalance}` +
       (loanUpdates.status ? `, status→${loanUpdates.status}` : '')
     );
+
+    // Notify client + loan officer (best-effort — never blocks the payment itself)
+    const client = await Client.findByPk(loan.clientId);
+    await safeNotify(NotificationEventType.PAYMENT_RECEIVED, {
+      recipients: buildRecipients({ client, staffUserId: loan.createdBy }),
+      context: {
+        clientName: client ? `${client.firstName} ${client.lastName}` : '',
+        referenceCode: loan.referenceCode,
+        currency: loan.currency,
+        amount: paymentAmount,
+        outstandingBalance: newBalance,
+      },
+      relatedLoanId: loan.id,
+      relatedPaymentId: payment.id,
+    });
 
     return { payment, overpaymentContribution };
   } catch (err) {
