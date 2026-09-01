@@ -14,7 +14,7 @@ const {
   writeOffLoan
 } = require('../controllers/loanController');
 
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
@@ -236,7 +236,7 @@ router.get('/:id', authenticate, validateIdParam(), getLoanById);
  *       500:
  *         description: Server error
  */
-router.post('/', authenticate, authorize([1,2]), createLoan);
+router.post('/', authenticate, requirePermission('loans:create'), createLoan);
 
 /**
  * @openapi
@@ -274,7 +274,7 @@ router.post('/', authenticate, authorize([1,2]), createLoan);
  *       500:
  *         description: Server error
  */
-router.post('/without-scoring', authenticate, authorize([1,2]), createLoanWithoutCreditScoring);
+router.post('/without-scoring', authenticate, requirePermission('loans:create'), createLoanWithoutCreditScoring);
 
 /**
  * @openapi
@@ -303,7 +303,7 @@ router.post('/without-scoring', authenticate, authorize([1,2]), createLoanWithou
  *       200:
  *         description: Loan updated successfully
  */
-router.put('/:id', authenticate, authorize([1,2]), validateIdParam(), updateLoan);
+router.put('/:id', authenticate, requirePermission('loans:update'), validateIdParam(), updateLoan);
 
 /**
  * @openapi
@@ -325,7 +325,7 @@ router.put('/:id', authenticate, authorize([1,2]), validateIdParam(), updateLoan
  *       200:
  *         description: Loan deleted successfully
  */
-router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), deleteLoan);
+router.delete('/:id', authenticate, requirePermission('loans:delete'), validateIdParam(), deleteLoan);
 
 /**
  * @openapi
@@ -387,7 +387,7 @@ router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), deleteL
  *       404:
  *         description: Loan not found
  */
-router.post('/:id/disburse', authenticate, authorize([1,2]), disburseLoan);
+router.post('/:id/disburse', authenticate, requirePermission('loans:disburse'), disburseLoan);
 
 /**
  * @openapi
@@ -438,8 +438,8 @@ router.post('/:id/disburse', authenticate, authorize([1,2]), disburseLoan);
  *       404:
  *         description: Loan not found
  */
-router.post('/:id/approve', authenticate, authorize([1,2]), approveLoan);
-router.post('/:id/reject', authenticate, authorize([1,2]), rejectLoan);
+router.post('/:id/approve', authenticate, requirePermission('loans:approve'), approveLoan);
+router.post('/:id/reject', authenticate, requirePermission('loans:reject'), rejectLoan);
 
 /**
  * @openapi
@@ -495,7 +495,7 @@ router.post('/:id/reject', authenticate, authorize([1,2]), rejectLoan);
  *       404:
  *         description: Loan not found
  */
-router.put('/:id/update_principal', authenticate, authorize([1, 2]), validateIdParam(), updatePrincipalAmount);
+router.put('/:id/update_principal', authenticate, requirePermission('loans:update'), validateIdParam(), updatePrincipalAmount);
 
 /**
  * @openapi
@@ -561,7 +561,7 @@ router.put('/:id/update_principal', authenticate, authorize([1, 2]), validateIdP
  *       404:
  *         description: Loan not found
  */
-router.post('/:id/write-off', authenticate, authorize([1, 2]), writeOffLoan);
+router.post('/:id/write-off', authenticate, requirePermission('loans:write_off'), writeOffLoan);
 
 
 module.exports = router;

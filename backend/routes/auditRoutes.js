@@ -1,5 +1,6 @@
 const express = require('express');
 const AuditController = require('../controllers/auditController');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -56,7 +57,7 @@ const router = express.Router();
  *                 actorId: 2
  *                 timestamp: 2026-01-16T08:20:00Z
  */
-router.get('/', AuditController.getAuditLogs);
+router.get('/', authenticate, requirePermission('audits:read'), AuditController.getAuditLogs);
 
 /**
  * @openapi
@@ -91,7 +92,7 @@ router.get('/', AuditController.getAuditLogs);
  *                 actorId: 1
  *                 timestamp: 2026-01-15T10:30:00Z
  */
-router.get('/entity/:entityType/:entityId', AuditController.getEntityAuditLogs);
+router.get('/entity/:entityType/:entityId', authenticate, requirePermission('audits:read'), AuditController.getEntityAuditLogs);
 
 /**
  * @openapi
@@ -120,6 +121,6 @@ router.get('/entity/:entityType/:entityId', AuditController.getEntityAuditLogs);
  *                 actorId: 1
  *                 timestamp: 2026-01-16T08:20:00Z
  */
-router.get('/actor/:actorId', AuditController.getActorAuditLogs);
+router.get('/actor/:actorId', authenticate, requirePermission('audits:read'), AuditController.getActorAuditLogs);
 
 module.exports = router;

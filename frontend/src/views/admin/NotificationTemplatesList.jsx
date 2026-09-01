@@ -32,8 +32,8 @@ const CHANNEL_BADGES = [
 ]
 
 const NotificationTemplatesList = () => {
-  const { role: currentRole } = useAuth()
-  const isAdmin = currentRole === 1
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('notifications:manage_templates')
 
   const { data: templates = [], isLoading, error, refetch, isFetching } = useNotificationTemplates()
   const deleteMutation = useDeleteNotificationTemplate()
@@ -115,7 +115,7 @@ const NotificationTemplatesList = () => {
     }
   }
 
-  if (!isAdmin) return <Navigate to="/unauthorized" replace />
+  if (!canManage) return <Navigate to="/unauthorized" replace />
 
   return (
     <CCard className="mb-4">

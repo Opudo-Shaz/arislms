@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const RoleController = require('../controllers/roleController');
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
 
 /**
@@ -30,7 +30,7 @@ const { validateIdParam } = require('../middleware/validateIdParam');
  *               name: Manager
  *               description: Manages operations
  */
-router.post('/', authenticate, authorize([1,2]), RoleController.createRole);
+router.post('/', authenticate, requirePermission('roles:create'), RoleController.createRole);
 
 /**
  * @openapi
@@ -109,7 +109,7 @@ router.get('/:id', authenticate, validateIdParam(), RoleController.getRoleById);
  *       200:
  *         description: Role updated successfully
  */
-router.put('/:id', authenticate, authorize([1,2]), validateIdParam(), RoleController.updateRole);
+router.put('/:id', authenticate, requirePermission('roles:update'), validateIdParam(), RoleController.updateRole);
 
 /**
  * @openapi
@@ -137,7 +137,7 @@ router.put('/:id', authenticate, authorize([1,2]), validateIdParam(), RoleContro
  *       200:
  *         description: Permission added successfully
  */
-router.post('/:id/permissions', authenticate, authorize([1,2]), RoleController.addPermission);
+router.post('/:id/permissions', authenticate, requirePermission('roles:update'), RoleController.addPermission);
 
 /**
  * @openapi
@@ -165,7 +165,7 @@ router.post('/:id/permissions', authenticate, authorize([1,2]), RoleController.a
  *       200:
  *         description: Permission removed successfully
  */
-router.delete('/:id/permissions', authenticate, authorize([1,2]), validateIdParam(), RoleController.removePermission);
+router.delete('/:id/permissions', authenticate, requirePermission('roles:update'), validateIdParam(), RoleController.removePermission);
 
 /**
  * @openapi
@@ -187,6 +187,6 @@ router.delete('/:id/permissions', authenticate, authorize([1,2]), validateIdPara
  *       200:
  *         description: Role deleted successfully
  */
-router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), RoleController.deleteRole);
+router.delete('/:id', authenticate, requirePermission('roles:delete'), validateIdParam(), RoleController.deleteRole);
 
 module.exports = router;

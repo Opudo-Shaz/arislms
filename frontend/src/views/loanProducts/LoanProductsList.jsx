@@ -23,14 +23,15 @@ import ConfirmModal from '../../components/ConfirmModal'
 import LoanProductForm from './LoanProductForm'
 import { useLoanProducts, useDeleteLoanProduct } from '../../hooks/useLoanProducts'
 import { useAuth } from '../../context/AuthContext'
-import { INTEREST_TYPE, ROLE_GROUPS } from '../../constants/enums'
+import { INTEREST_TYPE } from '../../constants/enums'
 import { formatCurrency, formatPercent } from '../../utils/format'
 
 const LoanProductsList = () => {
   const { data: products = [], isLoading, error, refetch, isFetching } = useLoanProducts()
   const deleteMutation = useDeleteLoanProduct()
-  const { role } = useAuth()
-  const canManage = ROLE_GROUPS.STAFF.includes(role)
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('loan_products:update')
+  const canCreate = hasPermission('loan_products:create')
 
   const [editing, setEditing] = useState(null) // product object, or {} for new
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -153,7 +154,7 @@ const LoanProductsList = () => {
             <CIcon icon={cilReload} className="me-1" />
             Refresh
           </CButton>
-          {canManage && (
+          {canCreate && (
             <CButton color="primary" size="sm" onClick={() => setEditing({})}>
               <CIcon icon={cilPlus} className="me-1" />
               New Product

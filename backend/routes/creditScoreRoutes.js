@@ -3,7 +3,7 @@ const {
   getCreditScoreByClientId
 } = require('../controllers/creditScoreController');
 
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
@@ -37,7 +37,7 @@ const router = express.Router();
  *                 riskScore: 45
  *                 riskGrade: D
  */
-router.get('/client/:clientId', authenticate, authorize([1, 2, 3]), validateIdParam('clientId'), getCreditScoreByClientId);
+router.get('/client/:clientId', authenticate, requirePermission('credit_scores:read'), validateIdParam('clientId'), getCreditScoreByClientId);
 
 
 

@@ -30,7 +30,7 @@ import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
 import { useClients } from '../../hooks/useClients'
 import { useAuth } from '../../context/AuthContext'
-import { CLIENT_STATUS, KYC_STATUS, ROLE_GROUPS } from '../../constants/enums'
+import { CLIENT_STATUS, KYC_STATUS } from '../../constants/enums'
 
 const PAGE_SIZE = 10
 
@@ -41,8 +41,8 @@ const avatarColorFor = (id) => AVATAR_COLORS[Number(id ?? 0) % AVATAR_COLORS.len
 
 const ClientsList = () => {
   const navigate = useNavigate()
-  const { role } = useAuth()
-  const canManage = ROLE_GROUPS.STAFF.includes(role)
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('clients:create')
 
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')

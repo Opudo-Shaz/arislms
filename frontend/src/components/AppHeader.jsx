@@ -46,7 +46,6 @@ import { AppBreadcrumb } from './index'
 import { AppHeaderDropdown } from './header/index'
 import AppHeaderNotifications from './header/AppHeaderNotifications'
 import { useAuth } from '../context/AuthContext'
-import { ROLE_GROUPS } from '../constants/enums'
 
 /**
  * AppHeader functional component
@@ -66,9 +65,9 @@ const AppHeader = () => {
   const dispatch = useDispatch()
   const sidebarShow = useSelector((state) => state.sidebarShow)
 
-  const { role } = useAuth()
-  const canAccessClients = ROLE_GROUPS.STAFF.includes(role)
-  const isAdmin = role === 1
+  const { hasPermission } = useAuth()
+  const canAccessClients = hasPermission('clients:read')
+  const canAccessConfig = hasPermission('system_config:read')
 
   useEffect(() => {
     const handleScroll = () => {
@@ -102,7 +101,7 @@ const AppHeader = () => {
               </CNavLink>
             </CNavItem>
           )}
-          {isAdmin && (
+          {canAccessConfig && (
             <CNavItem>
               <CNavLink to="/settings/system-config" as={NavLink}>
                 Configuration

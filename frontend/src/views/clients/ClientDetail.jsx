@@ -34,7 +34,7 @@ import { useClient, useClientAction, useDeleteClient } from '../../hooks/useClie
 import { useRefreshCreditScore } from '../../hooks/useCreditScores'
 import { useDocumentBlobUrl } from '../../hooks/useDocuments'
 import { useAuth } from '../../context/AuthContext'
-import { CLIENT_STATUS, KYC_STATUS, LOAN_STATUS, ROLE_GROUPS } from '../../constants/enums'
+import { CLIENT_STATUS, KYC_STATUS, LOAN_STATUS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
 /** Action definitions keyed by id; drives the confirmation dialog. */
@@ -113,8 +113,8 @@ const ClientDetail = () => {
   const action = useClientAction()
   const deleteMutation = useDeleteClient()
   const refreshScore = useRefreshCreditScore(id)
-  const { role } = useAuth()
-  const canManage = ROLE_GROUPS.STAFF.includes(role)
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('clients:update')
 
   // Mirror backend rule: block new loan if client has any loan in these statuses
   const BLOCKING_LOAN_STATUSES = ['active', 'under_review', 'pending']

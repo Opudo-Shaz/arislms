@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const ledgerController = require('../controllers/ledgerController');
 
 const router = express.Router();
@@ -115,7 +115,7 @@ router.get('/entries', authenticate, ledgerController.getAllEntries);
  *       400:
  *         description: Entry not balanced or account not found
  */
-router.post('/entries', authenticate, authorize([1, 2]), ledgerController.createManualEntry);
+router.post('/entries', authenticate, requirePermission('accounting:post_entry'), ledgerController.createManualEntry);
 
 /**
  * @openapi
@@ -157,7 +157,7 @@ router.post('/entries', authenticate, authorize([1, 2]), ledgerController.create
  *       400:
  *         description: Entry not found or not in POSTED status
  */
-router.post('/entries/:id/reverse', authenticate, authorize([1, 2]), ledgerController.reverseEntry);
+router.post('/entries/:id/reverse', authenticate, requirePermission('accounting:reverse_entry'), ledgerController.reverseEntry);
 
 /**
  * @openapi

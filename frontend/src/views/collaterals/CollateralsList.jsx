@@ -28,13 +28,13 @@ import CollateralStatusModal from './CollateralStatusModal'
 import { useLoanCollaterals, useUpdateCollateralStatus } from '../../hooks/useCollaterals'
 import { useLoans } from '../../hooks/useLoans'
 import { useAuth } from '../../context/AuthContext'
-import { COLLATERAL_STATUS, COLLATERAL_TYPE, ROLES } from '../../constants/enums'
+import { COLLATERAL_STATUS, COLLATERAL_TYPE } from '../../constants/enums'
 import { formatCurrency } from '../../utils/format'
 
 const CollateralsList = () => {
   const navigate = useNavigate()
-  const { role } = useAuth()
-  const isAdmin = role === ROLES.ADMIN
+  const { hasPermission } = useAuth()
+  const canManageStatus = hasPermission('collaterals:update_status')
 
   const { data: loansResult } = useLoans({ limit: 500 })
   const loans = loansResult?.loans ?? []
@@ -80,7 +80,7 @@ const CollateralsList = () => {
       label: 'Status',
       render: (r) => <StatusBadge enumDef={COLLATERAL_STATUS} value={r.status} />,
     },
-    ...(isAdmin
+    ...(canManageStatus
       ? [
           {
             key: 'actions',

@@ -28,11 +28,13 @@ import ChartOfAccountForm from './ChartOfAccountForm'
 import AccountStatementModal from './AccountStatementModal'
 import { useAccounts, useDeactivateAccount } from '../../hooks/useChartOfAccounts'
 import { useAuth } from '../../context/AuthContext'
-import { ACCOUNT_TYPE, NORMAL_BALANCE, ROLE_GROUPS } from '../../constants/enums'
+import { ACCOUNT_TYPE, NORMAL_BALANCE } from '../../constants/enums'
 
 const ChartOfAccountsList = () => {
-  const { role } = useAuth()
-  const canManage = ROLE_GROUPS.STAFF.includes(role)
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('accounting:create')
+  const canEdit = hasPermission('accounting:update')
+  const canDelete = hasPermission('accounting:delete')
 
   const { data: accounts = [], isLoading, error, refetch, isFetching } = useAccounts()
   const deactivateMutation = useDeactivateAccount()
@@ -106,34 +108,38 @@ const ChartOfAccountsList = () => {
     ),
   })
 
-  if (canManage) {
+  if (canEdit || canDelete) {
     columns.push({
       key: 'actions',
       label: '',
       className: 'text-end',
       render: (row) => (
         <div className="d-flex gap-2 justify-content-end">
-          <CButton
-            color="light"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation()
-              openEdit(row)
-            }}
-          >
-            <CIcon icon={cilPencil} />
-          </CButton>
-          <CButton
-            color="danger"
-            size="sm"
-            variant="outline"
-            onClick={(e) => {
-              e.stopPropagation()
-              setToDeactivate(row)
-            }}
-          >
-            <CIcon icon={cilTrash} />
-          </CButton>
+          {canEdit && (
+            <CButton
+              color="light"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                openEdit(row)
+              }}
+            >
+              <CIcon icon={cilPencil} />
+            </CButton>
+          )}
+          {canDelete && (
+            <CButton
+              color="danger"
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation()
+                setToDeactivate(row)
+              }}
+            >
+              <CIcon icon={cilTrash} />
+            </CButton>
+          )}
         </div>
       ),
     })
@@ -157,7 +163,7 @@ const ChartOfAccountsList = () => {
             <CIcon icon={cilReload} className="me-1" />
             Refresh
           </CButton>
-          {canManage && (
+          {canCreate && (
             <CButton color="primary" size="sm" onClick={openCreate}>
               <CIcon icon={cilPlus} className="me-1" />
               New Account
@@ -192,7 +198,7 @@ const ChartOfAccountsList = () => {
           loading={isLoading}
           error={error}
           emptyMessage="No accounts match your filters."
-          onRowClick={canManage ? openEdit : undefined}
+          onRowClick={canEdit ? openEdit : undefined}
         />
       </CCardBody>
 

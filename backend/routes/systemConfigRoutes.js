@@ -1,6 +1,6 @@
 const express = require('express')
 const controller = require('../controllers/systemConfigController')
-const { authenticate, authorize } = require('../middleware/authMiddleware')
+const { authenticate, requirePermission } = require('../middleware/authMiddleware')
 const { validateIdParam } = require('../middleware/validateIdParam')
 
 const router = express.Router()
@@ -28,7 +28,7 @@ const router = express.Router()
  *         description: Config created successfully
  */
 // GET all — admin + manager can read
-router.get('/', authenticate, authorize([1, 2]), controller.getAll)
+router.get('/', authenticate, requirePermission('system_config:read'), controller.getAll)
 
 /**
  * @openapi
@@ -44,7 +44,7 @@ router.get('/', authenticate, authorize([1, 2]), controller.getAll)
  *         description: Cache stats and entries (secret values redacted)
  */
 // GET cache inspect — debug, admin only. Must come before /:id so "cache" isn't treated as an id.
-router.get('/cache/inspect', authenticate, authorize([1]), controller.inspectCache)
+router.get('/cache/inspect', authenticate, requirePermission('system_config:read'), controller.inspectCache)
 
 /**
  * @openapi
@@ -104,13 +104,13 @@ router.get('/cache/inspect', authenticate, authorize([1]), controller.inspectCac
  *         description: Config not found
  */
 // GET one
-router.get('/:id', authenticate, authorize([1, 2]), validateIdParam(), controller.getOne)
+router.get('/:id', authenticate, requirePermission('system_config:read'), validateIdParam(), controller.getOne)
 
 // POST create — admin only
-router.post('/', authenticate, authorize([1]), controller.create)
+router.post('/', authenticate, requirePermission('system_config:create'), controller.create)
 
 // PUT update value/label/category/description — admin only
-router.put('/:id', authenticate, authorize([1]), validateIdParam(), controller.update)
+router.put('/:id', authenticate, requirePermission('system_config:update'), validateIdParam(), controller.update)
 
 /**
  * @openapi
@@ -134,10 +134,10 @@ router.put('/:id', authenticate, authorize([1]), validateIdParam(), controller.u
  *         description: Config not found
  */
 // PATCH toggle isActive — admin only (inline table toggle)
-router.patch('/:id/status', authenticate, authorize([1]), validateIdParam(), controller.toggleStatus)
+router.patch('/:id/status', authenticate, requirePermission('system_config:update'), validateIdParam(), controller.toggleStatus)
 
 // DELETE — admin only
-router.delete('/:id', authenticate, authorize([1]), validateIdParam(), controller.remove)
+router.delete('/:id', authenticate, requirePermission('system_config:delete'), validateIdParam(), controller.remove)
 
 /**
  * @openapi
@@ -161,6 +161,6 @@ router.delete('/:id', authenticate, authorize([1]), validateIdParam(), controlle
  *         description: Config not found
  */
 // GET reveal decrypted secret value — admin only, always audit-logged
-router.get('/:id/reveal', authenticate, authorize([1]), validateIdParam(), controller.reveal)
+router.get('/:id/reveal', authenticate, requirePermission('system_config:reveal_secret'), validateIdParam(), controller.reveal)
 
 module.exports = router

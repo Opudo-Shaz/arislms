@@ -13,13 +13,22 @@
 const cache = require('./appCache');
 const { getOrSet } = require('./cacheAside');
 const User = require('../models/userModel');
+const Role = require('../models/roleModel');
+
+const ADMIN_ROLE_ID = 1;
 
 const cacheKey = (id) => `auth:user:${id}`;
 
 /**
- * Returns { id, role_id, status, token_version } for the given user id, or
- * null if the user no longer exists. Cached; falls back to a DB read on
- * cache miss/expiry.
+ * Returns { id, role_id, status, token_version, permissions } for the given
+ * user id, or null if the user no longer exists. Cached; falls back to a DB
+ * read on cache miss/expiry.
+ *
+ * `permissions` is the resolved permission list attached to the user's role.
+ * Admin (role id 1) always resolves to the wildcard `['*']` so it never needs
+ * an explicit permission list maintained. Because this is cached, every role
+ * write path must call invalidateAuthUser() for the affected users (see
+ * roleService) so permission changes take effect immediately.
  * @param {number} id
  */
 async function getCachedAuthUser(id) {
@@ -27,7 +36,20 @@ async function getCachedAuthUser(id) {
     const user = await User.findByPk(id, {
       attributes: ['id', 'role_id', 'status', 'token_version'],
     });
-    return user ? user.toJSON() : null;
+    if (!user) return null;
+
+    const plain = user.toJSON();
+
+    if (plain.role_id === ADMIN_ROLE_ID) {
+      plain.permissions = ['*'];
+    } else {
+      const role = await Role.findByPk(plain.role_id, {
+        attributes: ['permissions'],
+      });
+      plain.permissions = role?.permissions || [];
+    }
+
+    return plain;
   });
 }
 

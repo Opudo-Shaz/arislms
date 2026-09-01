@@ -444,6 +444,180 @@ export const ROLE_LABELS = {
 }
 
 /**
+ * Master permission list — MUST mirror backend/constants/permissions.js exactly.
+ * Naming convention: `{resource}:{action}`. The RoleForm picker is built from
+ * PERMISSION_GROUPS and is the sole guard against invalid permission strings.
+ */
+export const PERMISSIONS = {
+  CLIENTS: {
+    READ: 'clients:read',
+    CREATE: 'clients:create',
+    UPDATE: 'clients:update',
+    DELETE: 'clients:delete',
+  },
+  LOANS: {
+    READ: 'loans:read',
+    CREATE: 'loans:create',
+    UPDATE: 'loans:update',
+    DELETE: 'loans:delete',
+    APPROVE: 'loans:approve',
+    REJECT: 'loans:reject',
+    DISBURSE: 'loans:disburse',
+    WRITE_OFF: 'loans:write_off',
+  },
+  PAYMENTS: {
+    READ: 'payments:read',
+    CREATE: 'payments:create',
+    DELETE: 'payments:delete',
+  },
+  LOAN_PRODUCTS: {
+    READ: 'loan_products:read',
+    CREATE: 'loan_products:create',
+    UPDATE: 'loan_products:update',
+    DELETE: 'loan_products:delete',
+  },
+  COLLATERALS: {
+    READ: 'collaterals:read',
+    CREATE: 'collaterals:create',
+    UPDATE: 'collaterals:update',
+    DELETE: 'collaterals:delete',
+    UPDATE_STATUS: 'collaterals:update_status',
+  },
+  CREDIT_SCORES: {
+    READ: 'credit_scores:read',
+    CREATE: 'credit_scores:create',
+  },
+  ACCOUNTING: {
+    READ: 'accounting:read',
+    CREATE: 'accounting:create',
+    UPDATE: 'accounting:update',
+    DELETE: 'accounting:delete',
+    POST_ENTRY: 'accounting:post_entry',
+    REVERSE_ENTRY: 'accounting:reverse_entry',
+  },
+  CONTRIBUTIONS: {
+    READ: 'contributions:read',
+    CREATE: 'contributions:create',
+    UPDATE: 'contributions:update',
+    DELETE: 'contributions:delete',
+  },
+  REPORTS: {
+    READ: 'reports:read',
+  },
+  USERS: {
+    READ: 'users:read',
+    CREATE: 'users:create',
+    UPDATE: 'users:update',
+    DELETE: 'users:delete',
+    RESET_PASSWORD: 'users:reset_password',
+    UPDATE_STATUS: 'users:update_status',
+  },
+  ROLES: {
+    READ: 'roles:read',
+    CREATE: 'roles:create',
+    UPDATE: 'roles:update',
+    DELETE: 'roles:delete',
+  },
+  INVITATIONS: {
+    READ: 'invitations:read',
+    CREATE: 'invitations:create',
+    UPDATE: 'invitations:update',
+    DELETE: 'invitations:delete',
+  },
+  NOTIFICATIONS: {
+    READ: 'notifications:read',
+    MANAGE_TEMPLATES: 'notifications:manage_templates',
+    MANAGE_OUTBOX: 'notifications:manage_outbox',
+  },
+  DOCUMENTS: {
+    READ: 'documents:read',
+    CREATE: 'documents:create',
+    UPDATE: 'documents:update',
+    DELETE: 'documents:delete',
+  },
+  CODES: {
+    READ: 'codes:read',
+    CREATE: 'codes:create',
+    UPDATE: 'codes:update',
+    DELETE: 'codes:delete',
+  },
+  SYSTEM_CONFIG: {
+    READ: 'system_config:read',
+    CREATE: 'system_config:create',
+    UPDATE: 'system_config:update',
+    DELETE: 'system_config:delete',
+    REVEAL_SECRET: 'system_config:reveal_secret',
+  },
+  CRON: {
+    READ: 'cron:read',
+    MANAGE: 'cron:manage',
+  },
+  AUDITS: {
+    READ: 'audits:read',
+  },
+}
+
+/** Flat array of every permission string. */
+export const ALL_PERMISSIONS = Object.values(PERMISSIONS).flatMap((group) =>
+  Object.values(group),
+)
+
+/** Human-friendly labels per action suffix, used to render the picker. */
+const ACTION_LABELS = {
+  read: 'Read',
+  create: 'Create',
+  update: 'Update',
+  delete: 'Delete',
+  approve: 'Approve',
+  reject: 'Reject',
+  disburse: 'Disburse',
+  write_off: 'Write Off',
+  update_status: 'Update Status',
+  post_entry: 'Post Entry',
+  reverse_entry: 'Reverse Entry',
+  reset_password: 'Reset Password',
+  manage_templates: 'Manage Templates',
+  manage_outbox: 'Manage Outbox',
+  manage: 'Manage',
+  reveal_secret: 'Reveal Secret',
+}
+
+/** Human-friendly labels per module key, used as picker section headers. */
+const MODULE_LABELS = {
+  CLIENTS: 'Clients',
+  LOANS: 'Loans',
+  PAYMENTS: 'Payments',
+  LOAN_PRODUCTS: 'Loan Products',
+  COLLATERALS: 'Collaterals',
+  CREDIT_SCORES: 'Credit Scores',
+  ACCOUNTING: 'Accounting',
+  CONTRIBUTIONS: 'Contributions',
+  REPORTS: 'Reports',
+  USERS: 'Users',
+  ROLES: 'Roles',
+  INVITATIONS: 'Invitations',
+  NOTIFICATIONS: 'Notifications',
+  DOCUMENTS: 'Documents',
+  CODES: 'Codes',
+  SYSTEM_CONFIG: 'System Config',
+  CRON: 'Cron Jobs',
+  AUDITS: 'Audits',
+}
+
+/**
+ * Grouped permission list for the RoleForm picker.
+ * @type {Array<{ key: string, label: string, permissions: Array<{ value: string, label: string }> }>}
+ */
+export const PERMISSION_GROUPS = Object.entries(PERMISSIONS).map(([key, group]) => ({
+  key,
+  label: MODULE_LABELS[key] || key,
+  permissions: Object.values(group).map((value) => ({
+    value,
+    label: ACTION_LABELS[value.split(':')[1]] || value.split(':')[1],
+  })),
+}))
+
+/**
  * Look up the badge color for an enum value.
  * @param {{ colors: Record<string,string> }} enumDef
  * @param {string} value

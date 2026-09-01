@@ -1,6 +1,6 @@
 const express = require('express');
 const { getUsers, getUser, createUser, updateUser, deleteUser, updateUserStatus, resetUserPassword, changeOwnPassword } = require('../controllers/userController');
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
@@ -134,7 +134,7 @@ router.get('/:id', authenticate, validateIdParam(), getUser);
  *       404:
  *         description: User not found or email mismatch
  */
-router.post('/reset-password', authenticate, authorize([1]), resetUserPassword);
+router.post('/reset-password', authenticate, requirePermission('users:reset_password'), resetUserPassword);
 
 /**
  * @openapi
@@ -162,7 +162,7 @@ router.post('/reset-password', authenticate, authorize([1]), resetUserPassword);
  */
 router.post('/change-password', authenticate, changeOwnPassword);
 
-router.post('/', authenticate, authorize([1,2]), createUser);
+router.post('/', authenticate, requirePermission('users:create'), createUser);
 
 /**
  * @openapi
@@ -228,7 +228,7 @@ router.put('/:id', authenticate, validateIdParam(), updateUser);
  *       404:
  *         description: User not found
  */
-router.patch('/:id/status', authenticate, authorize([1,2]), validateIdParam(), updateUserStatus);
+router.patch('/:id/status', authenticate, requirePermission('users:update_status'), validateIdParam(), updateUserStatus);
 
 /**
  * @openapi
@@ -250,6 +250,6 @@ router.patch('/:id/status', authenticate, authorize([1,2]), validateIdParam(), u
  *       200:
  *         description: User deleted successfully
  */
-router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), deleteUser);
+router.delete('/:id', authenticate, requirePermission('users:delete'), validateIdParam(), deleteUser);
 
 module.exports = router;

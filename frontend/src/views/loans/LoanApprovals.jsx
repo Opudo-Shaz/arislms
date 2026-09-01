@@ -24,7 +24,7 @@ import StatusBadge from '../../components/StatusBadge'
 import LoanActionModal from './LoanActionModal'
 import { useLoans, useLoanAction } from '../../hooks/useLoans'
 import { useAuth } from '../../context/AuthContext'
-import { LOAN_STATUS, ROLE_GROUPS } from '../../constants/enums'
+import { LOAN_STATUS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
 /** Loan statuses that still require an approval decision. */
@@ -38,8 +38,8 @@ const PENDING_STATUSES = [
 
 const LoanApprovals = () => {
   const navigate = useNavigate()
-  const { role } = useAuth()
-  const canManage = ROLE_GROUPS.STAFF.includes(role)
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('loans:approve')
   const { data: loansResult, isLoading, error, refetch, isFetching } = useLoans({ limit: 500 })
   const loans = loansResult?.loans ?? []
   const approveAction = useLoanAction()

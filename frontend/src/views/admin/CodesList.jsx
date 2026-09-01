@@ -32,8 +32,8 @@ import { useAuth } from '../../context/AuthContext'
 const ACTIVE_ENUM = { colors: { true: 'success', false: 'secondary' }, labels: { true: 'Active', false: 'Inactive' } }
 
 const CodesList = () => {
-  const { role: currentRole } = useAuth()
-  const isAdmin = currentRole === 1
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('codes:update')
 
   const { data: codes = [], isLoading, error, refetch, isFetching } = useCodes()
   const deleteMutation = useDeleteCode()
@@ -92,7 +92,7 @@ const CodesList = () => {
           <CIcon icon={cilList} className="me-1" />
           Values
         </CButton>
-        {isAdmin && (
+        {canManage && (
           <>
             <CButton
               color="light"
@@ -132,7 +132,7 @@ const CodesList = () => {
     }
   }
 
-  if (!isAdmin) return <Navigate to="/unauthorized" replace />
+  if (!canManage) return <Navigate to="/unauthorized" replace />
 
   return (
     <CCard className="mb-4">

@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
 const chartOfAccountController = require('../controllers/chartOfAccountController');
 
@@ -110,7 +110,7 @@ router.get('/:id', authenticate, validateIdParam(), chartOfAccountController.get
  *       409:
  *         description: Account code already exists
  */
-router.post('/', authenticate, authorize([1, 2]), chartOfAccountController.create);
+router.post('/', authenticate, requirePermission('accounting:create'), chartOfAccountController.create);
 
 /**
  * @openapi
@@ -141,7 +141,7 @@ router.post('/', authenticate, authorize([1, 2]), chartOfAccountController.creat
  *       404:
  *         description: Account not found
  */
-router.put('/:id', authenticate, authorize([1, 2]), validateIdParam(), chartOfAccountController.update);
+router.put('/:id', authenticate, requirePermission('accounting:update'), validateIdParam(), chartOfAccountController.update);
 
 /**
  * @openapi
@@ -170,6 +170,6 @@ router.put('/:id', authenticate, authorize([1, 2]), validateIdParam(), chartOfAc
  *       404:
  *         description: Account not found
  */
-router.delete('/:id', authenticate, authorize([1, 2]), validateIdParam(), chartOfAccountController.deactivate);
+router.delete('/:id', authenticate, requirePermission('accounting:delete'), validateIdParam(), chartOfAccountController.deactivate);
 
 module.exports = router;

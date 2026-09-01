@@ -1,6 +1,6 @@
 const express = require('express');
 const clientController = require('../controllers/clientController');
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
@@ -35,7 +35,7 @@ const router = express.Router();
  *               phone: "+1234567890"
  *               address: "123 Main Street"
  */
-router.post('/', authenticate, authorize([1,2]), clientController.createClient);
+router.post('/', authenticate, requirePermission('clients:create'), clientController.createClient);
 
 /**
  * @openapi
@@ -122,7 +122,7 @@ router.get('/:id', authenticate, validateIdParam(), clientController.getClient);
  *       200:
  *         description: Client updated successfully
  */
-router.put('/:id', authenticate, authorize([1,2]), validateIdParam(), clientController.updateClient);
+router.put('/:id', authenticate, requirePermission('clients:update'), validateIdParam(), clientController.updateClient);
 
 /**
  * @openapi
@@ -144,7 +144,7 @@ router.put('/:id', authenticate, authorize([1,2]), validateIdParam(), clientCont
  *       200:
  *         description: Client deleted successfully
  */
-router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), clientController.deleteClient);
+router.delete('/:id', authenticate, requirePermission('clients:delete'), validateIdParam(), clientController.deleteClient);
 
 /**
  * @openapi
@@ -184,7 +184,7 @@ router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), clientC
  *       404:
  *         description: Client not found
  */
-router.post('/:id/kyc/verify', authenticate, authorize([1,2]), clientController.verifyKyc);
+router.post('/:id/kyc/verify', authenticate, requirePermission('clients:update'), clientController.verifyKyc);
 
 /**
  * @openapi
@@ -227,7 +227,7 @@ router.post('/:id/kyc/verify', authenticate, authorize([1,2]), clientController.
  *       404:
  *         description: Client not found
  */
-router.post('/:id/kyc/request-info', authenticate, authorize([1,2]), clientController.requestKycInfo);
+router.post('/:id/kyc/request-info', authenticate, requirePermission('clients:update'), clientController.requestKycInfo);
 
 /**
  * @openapi
@@ -268,7 +268,7 @@ router.post('/:id/kyc/request-info', authenticate, authorize([1,2]), clientContr
  *       404:
  *         description: Client not found
  */
-router.post('/:id/kyc/reject', authenticate, authorize([1,2]), clientController.rejectKyc);
+router.post('/:id/kyc/reject', authenticate, requirePermission('clients:update'), clientController.rejectKyc);
 
 /**
  * @openapi
@@ -308,7 +308,7 @@ router.post('/:id/kyc/reject', authenticate, authorize([1,2]), clientController.
  *       404:
  *         description: Client not found
  */
-router.post('/:id/activate', authenticate, authorize([1,2]), clientController.activateClient);
+router.post('/:id/activate', authenticate, requirePermission('clients:update'), clientController.activateClient);
 
 /**
  * @openapi
@@ -348,7 +348,7 @@ router.post('/:id/activate', authenticate, authorize([1,2]), clientController.ac
  *       404:
  *         description: Client not found
  */
-router.post('/:id/deactivate', authenticate, authorize([1,2]), clientController.deactivateClient);
+router.post('/:id/deactivate', authenticate, requirePermission('clients:update'), clientController.deactivateClient);
 
 /**
  * @openapi
@@ -388,7 +388,7 @@ router.post('/:id/deactivate', authenticate, authorize([1,2]), clientController.
  *       404:
  *         description: Client not found
  */
-router.post('/:id/suspend', authenticate, authorize([1,2]), clientController.suspendClient);
+router.post('/:id/suspend', authenticate, requirePermission('clients:update'), clientController.suspendClient);
 
 /**
  * @openapi
@@ -428,7 +428,7 @@ router.post('/:id/suspend', authenticate, authorize([1,2]), clientController.sus
  *       404:
  *         description: Client not found
  */
-router.post('/:id/blacklist', authenticate, authorize([1,2]), clientController.blacklistClient);
+router.post('/:id/blacklist', authenticate, requirePermission('clients:update'), clientController.blacklistClient);
 
 /**
  * @openapi
@@ -464,6 +464,6 @@ router.post('/:id/blacklist', authenticate, authorize([1,2]), clientController.b
  *       404:
  *         description: Client not found
  */
-router.post('/:id/credit-score/refresh', authenticate, authorize([1,2]), clientController.refreshCreditScore);
+router.post('/:id/credit-score/refresh', authenticate, requirePermission('credit_scores:create'), clientController.refreshCreditScore);
 
 module.exports = router;
