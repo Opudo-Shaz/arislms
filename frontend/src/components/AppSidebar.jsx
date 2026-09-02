@@ -57,9 +57,9 @@ const AppSidebar = () => {
   const dispatch = useDispatch()
   const unfoldable = useSelector((state) => state.sidebarUnfoldable)
   const sidebarShow = useSelector((state) => state.sidebarShow)
-  const { role } = useAuth()
+  const { hasPermission } = useAuth()
 
-  const filteredNav = navigation.filter((item) => !item.roles || item.roles.includes(role))
+  const filteredNav = navigation.filter((item) => !item.permission || hasPermission(item.permission))
 
   return (
     <CSidebar

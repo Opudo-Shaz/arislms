@@ -81,14 +81,13 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   /**
-   * Whether the current session carries a given permission. Admin (role 1) and
-   * the wildcard `'*'` always pass.
+   * Whether the current session carries a given permission. The wildcard
+   * `'*'` (Super Admin) always passes.
    * @param {string} permission e.g. 'clients:read'
    * @returns {boolean}
    */
   const hasPermission = useCallback(
     (permission) => {
-      if (auth?.role === 1) return true
       const permissions = auth?.permissions ?? []
       return permissions.includes('*') || permissions.includes(permission)
     },

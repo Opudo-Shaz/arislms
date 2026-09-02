@@ -44,6 +44,7 @@ const createUser = async (req, res) => {
   try {
     const userId = getUserId(req);
     const userAgent = req.headers['user-agent'];
+    const actorPermissions = req.user?.permissions || [];
 
     const validation = validateSync(req.body, UserRequestDto.createSchema);
     console.log('CREATE USER PAYLOAD:', req.body);
@@ -57,7 +58,7 @@ const createUser = async (req, res) => {
       });
     }
 
-    const newUser = await userService.createUser(validation.value, userId, userAgent);
+    const newUser = await userService.createUser(validation.value, userId, userAgent, actorPermissions);
 
     const fullName = getUserFullName(newUser.first_name, newUser.middle_name, newUser.last_name);
 
@@ -67,7 +68,7 @@ const createUser = async (req, res) => {
 
   } catch (err) {
     logger.error(`Error creating user: ${err.message}`);
-    res.status(400).json({ error: err.message });
+    res.status(err.status || 400).json({ error: err.message });
   }
 };
 
@@ -107,7 +108,7 @@ const updateUser = async (req, res) => {
       });
     }
 
-    const updated = await userService.updateUser(targetId, validation.value, userId, userAgent);
+    const updated = await userService.updateUser(targetId, validation.value, userId, userAgent, req.user?.permissions || []);
 
     if (!updated) {
       logger.warn(`User with ID ${targetId} not found`);
@@ -119,7 +120,7 @@ const updateUser = async (req, res) => {
 
   } catch (err) {
     logger.error(`Error updating user ${req.params.id}: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 };
 

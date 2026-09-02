@@ -15,10 +15,11 @@ const createInvitation = async (req, res) => {
 
   const actorId = getUserId(req);
   const userAgent = req.headers['user-agent'];
+  const actorPermissions = req.user?.permissions || [];
 
   try {
     const { invitation, inviteUrl, warnings } = await invitationService.createInvitation(
-      validation.value, actorId, userAgent
+      validation.value, actorId, userAgent, actorPermissions
     );
     return res.status(201).json({
       success: true,
