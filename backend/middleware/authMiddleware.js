@@ -84,4 +84,20 @@ const requirePermission = (permission) => {
   };
 };
 
-module.exports = { authenticate, authorize, requirePermission };
+/**
+ * Restricts access to Super Admins only, i.e. users whose role carries the
+ * wildcard `'*'` permission (see backend/utils/permissionUtils.js). Stricter
+ * than requirePermission — use for actions too sensitive to gate behind an
+ * ordinary (role-configurable) permission, e.g. running seed scripts in
+ * production. Must run after `authenticate`.
+ */
+const requireSuperAdmin = (req, res, next) => {
+  const permissions = req.user?.permissions || [];
+  if (permissions.includes('*')) {
+    return next();
+  }
+  logger?.warn(`Access denied: user ${req.user?.id} is not a Super Admin`);
+  return res.status(403).json({ message: 'Access denied: Super Admin only' });
+};
+
+module.exports = { authenticate, authorize, requirePermission, requireSuperAdmin };

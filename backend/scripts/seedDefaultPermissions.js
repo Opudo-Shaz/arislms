@@ -14,10 +14,6 @@
  *   node backend/scripts/seedDefaultPermissions.js
  */
 
-const loadEnv = require('../config/env');
-loadEnv({ path: require('path').join(__dirname, '../.env') });
-
-const sequelize = require('../config/sequalize_db');
 const Role = require('../models/roleModel');
 const { ALL_PERMISSIONS } = require('../constants/permissions');
 
@@ -29,25 +25,40 @@ const defaults = {
   3: ALL_PERMISSIONS.filter((p) => p.endsWith(':read')),
 };
 
-async function seed() {
-  await sequelize.authenticate();
-  console.log('DB connected.');
-
+async function seedDefaultPermissions() {
+  const results = [];
   for (const [roleId, permissions] of Object.entries(defaults)) {
     const role = await Role.findByPk(Number(roleId));
     if (!role) {
       console.log(`  role ${roleId}: not found (skipped)`);
+      results.push({ roleId: Number(roleId), status: 'skipped' });
       continue;
     }
     await role.update({ permissions });
     console.log(`  role ${roleId} (${role.name}): set ${permissions.length} permission(s)`);
+    results.push({ roleId: Number(roleId), roleName: role.name, permissionCount: permissions.length, status: 'updated' });
   }
-
-  console.log('Done.');
-  await sequelize.close();
+  return { results };
 }
 
-seed().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+module.exports = seedDefaultPermissions;
+
+// Allow standalone execution: node backend/scripts/seedDefaultPermissions.js
+if (require.main === module) {
+  const loadEnv = require('../config/env');
+  loadEnv({ path: require('path').join(__dirname, '../.env') });
+  const sequelize = require('../config/sequalize_db');
+
+  (async () => {
+    try {
+      await sequelize.authenticate();
+      console.log('DB connected.');
+      await seedDefaultPermissions();
+      console.log('Done.');
+      await sequelize.close();
+    } catch (err) {
+      console.error(err);
+      process.exit(1);
+    }
+  })();
+}

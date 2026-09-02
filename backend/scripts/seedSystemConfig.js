@@ -14,10 +14,6 @@
  *   node backend/scripts/seedSystemConfig.js
  */
 
-const loadEnv = require('../config/env');
-loadEnv({ path: require('path').join(__dirname, '../.env') });
-
-const sequelize = require('../config/sequalize_db');
 const SystemConfig = require('../models/systemConfigModel');
 
 const defaults = [
@@ -347,23 +343,40 @@ const defaults = [
   }
 ];
 
-async function seed() {
-  await sequelize.authenticate();
-  console.log('DB connected.');
+async function seedSystemConfig() {
+  let created = 0;
+  let skipped = 0;
 
   for (const entry of defaults) {
-    const [, created] = await SystemConfig.findOrCreate({
+    const [, wasCreated] = await SystemConfig.findOrCreate({
       where: { key: entry.key },
       defaults: entry,
     });
-    console.log(`  ${entry.key}: ${created ? 'inserted' : 'already exists (skipped)'}`);
+    console.log(`  ${entry.key}: ${wasCreated ? 'inserted' : 'already exists (skipped)'}`);
+    wasCreated ? created++ : skipped++;
   }
 
-  console.log('Done.');
-  await sequelize.close();
+  return { created, skipped };
 }
 
-seed().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+module.exports = seedSystemConfig;
+
+// Allow standalone execution: node backend/scripts/seedSystemConfig.js
+if (require.main === module) {
+  const loadEnv = require('../config/env');
+  loadEnv({ path: require('path').join(__dirname, '../.env') });
+  const sequelize = require('../config/sequalize_db');
+
+  (async () => {
+    try {
+      await sequelize.authenticate();
+      console.log('DB connected.');
+      await seedSystemConfig();
+      console.log('Done.');
+      await sequelize.close();
+    } catch (err) {
+      console.error(err);
+      process.exit(1);
+    }
+  })();
+}

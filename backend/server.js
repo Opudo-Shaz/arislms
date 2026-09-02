@@ -8,6 +8,7 @@ const sequelize = require('./config/sequalize_db');
 const logger = require('./config/logger'); 
 const morgan = require('morgan'); 
 const { swaggerUi, swaggerSpec } = require("./swagger");
+const requireSwaggerAuth = require('./middleware/swaggerAuthMiddleware');
 
 const app = express();
 app.disable('x-powered-by');
@@ -25,7 +26,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // NOTE: uploads/ is intentionally NOT served via express.static.
 // Files are served through the authenticated GET /api/documents/:id/download endpoint.
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Swagger UI path is configurable (SWAGGER_UI_PATH) so it can be obscured/changed
+// per environment instead of always sitting at the guessable /api-docs, and is
+// gated behind HTTP Basic Auth (SWAGGER_UI_USER / SWAGGER_UI_PASS).
+const swaggerUiPath = `/${(process.env.SWAGGER_UI_PATH || 'api-docs').replace(/^\/+/, '')}`;
+app.use(swaggerUiPath, requireSwaggerAuth, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 
 //Integrating Morgan to pipe HTTP logs into Winston
@@ -60,6 +65,7 @@ const cronRoutes = require('./routes/cronRoutes');
 const notificationTemplateRoutes = require('./routes/notificationTemplateRoutes');
 const notificationOutboxRoutes = require('./routes/notificationOutboxRoutes');
 const invitationRoutes = require('./routes/invitationRoutes');
+const seederRoutes = require('./routes/seederRoutes');
 
 
 app.use('/api/users', userRoutes);
@@ -84,6 +90,7 @@ app.use('/api/cron-jobs', cronRoutes);
 app.use('/api/notification-templates', notificationTemplateRoutes);
 app.use('/api/notification-outbox', notificationOutboxRoutes);
 app.use('/api/invitations', invitationRoutes);
+app.use('/api/seeders', seederRoutes);
 
 
 
@@ -145,19 +152,21 @@ const formatServerUrl = (addressInfo, preferredHost) => {
     const loanStatusCronJob = require('./utils/loanStatusCronJob');
     loanStatusCronJob.register();
 
-    // Register the notification outbox worker — picks up QUEUED/retry-due rows every minute
+    // Register the notification outbox worker — picks up QUEUED/retry-due rows on a
+    // configurable schedule (default every 5 minutes; override via .env to tune it).
     const cronRegistry = require('./utils/cronRegistry');
     const outboxWorker = require('./services/notification/outboxWorker');
     if (!cronRegistry.has('notification-outbox-worker')) {
+      const outboxSchedule = process.env.NOTIFICATION_OUTBOX_CRON_SCHEDULE || '*/5 * * * *';
       cronRegistry.register({
         key: 'notification-outbox-worker',
         name: 'Notification Outbox Worker',
         description: 'Sends QUEUED/retry-due notification outbox rows via their channel adapter',
-        schedule: '* * * * *',
-        scheduleLabel: 'Every minute',
+        schedule: outboxSchedule,
+        scheduleLabel: `Cron: ${outboxSchedule}`,
         handler: () => outboxWorker.run(),
-        // Runs every minute — only persist a run row when it actually sent/retried
-        // something or failed, so idle ticks don't swamp cron_job_runs.
+        // Only persist a run row when it actually sent/retried something or failed,
+        // so idle ticks don't swamp cron_job_runs.
         quiet: true,
       });
     }

@@ -6,10 +6,6 @@
  *   node backend/scripts/seedChartOfAccounts.js
  */
 
-const loadEnv = require('../config/env');
-loadEnv({ path: require('path').join(__dirname, '../.env') });
-
-const sequelize = require('../config/sequalize_db');
 const ChartOfAccount = require('../models/chartOfAccountModel');
 const AccountType = require('../enums/accountType');
 
@@ -107,34 +103,45 @@ const defaultAccounts = [
   },
 ];
 
-async function seed() {
-  try {
-    await sequelize.authenticate();
-    console.log('Database connected.');
+async function seedChartOfAccounts() {
+  let created = 0;
+  let skipped = 0;
 
-    let created = 0;
-    let skipped = 0;
-
-    for (const account of defaultAccounts) {
-      const [, wasCreated] = await ChartOfAccount.findOrCreate({
-        where: { code: account.code },
-        defaults: account,
-      });
-      if (wasCreated) {
-        console.log(`  ✓ Created [${account.code}] ${account.name}`);
-        created++;
-      } else {
-        console.log(`  – Skipped [${account.code}] ${account.name} (already exists)`);
-        skipped++;
-      }
+  for (const account of defaultAccounts) {
+    const [, wasCreated] = await ChartOfAccount.findOrCreate({
+      where: { code: account.code },
+      defaults: account,
+    });
+    if (wasCreated) {
+      console.log(`  ✓ Created [${account.code}] ${account.name}`);
+      created++;
+    } else {
+      console.log(`  – Skipped [${account.code}] ${account.name} (already exists)`);
+      skipped++;
     }
-
-    console.log(`\nSeed complete: ${created} created, ${skipped} skipped.`);
-    process.exit(0);
-  } catch (err) {
-    console.error('Seed failed:', err.message);
-    process.exit(1);
   }
+
+  console.log(`\nSeed complete: ${created} created, ${skipped} skipped.`);
+  return { created, skipped };
 }
 
-seed();
+module.exports = seedChartOfAccounts;
+
+// Allow standalone execution: node backend/scripts/seedChartOfAccounts.js
+if (require.main === module) {
+  const loadEnv = require('../config/env');
+  loadEnv({ path: require('path').join(__dirname, '../.env') });
+  const sequelize = require('../config/sequalize_db');
+
+  (async () => {
+    try {
+      await sequelize.authenticate();
+      console.log('Database connected.');
+      await seedChartOfAccounts();
+      process.exit(0);
+    } catch (err) {
+      console.error('Seed failed:', err.message);
+      process.exit(1);
+    }
+  })();
+}
