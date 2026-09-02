@@ -19,14 +19,15 @@ import ConfirmModal from '../../components/ConfirmModal'
 import StatusBadge from '../../components/StatusBadge'
 import { useInvitations, useResendInvitation, useRevokeInvitation } from '../../hooks/useInvitations'
 import { useAuth } from '../../context/AuthContext'
-import { ROLE_GROUPS, INVITATION_STATUS } from '../../constants/enums'
+import { INVITATION_STATUS } from '../../constants/enums'
 import { formatDate } from '../../utils/format'
 
 const fullName = (i) => [i.first_name, i.middle_name, i.last_name].filter(Boolean).join(' ').trim() || '—'
 
 const InvitationsList = () => {
-  const { role: currentRole } = useAuth()
-  const canManage = ROLE_GROUPS.STAFF.includes(currentRole)
+  const { hasPermission } = useAuth()
+  const canRead = hasPermission('invitations:read')
+  const canManage = hasPermission('invitations:update')
 
   const [statusFilter, setStatusFilter] = useState('')
   const { data: invitations = [], isLoading, error, refetch, isFetching } = useInvitations(
@@ -104,7 +105,7 @@ const InvitationsList = () => {
     }
   }
 
-  if (!canManage) return <Navigate to="/unauthorized" replace />
+  if (!canRead) return <Navigate to="/unauthorized" replace />
 
   return (
     <CCard className="mb-4">

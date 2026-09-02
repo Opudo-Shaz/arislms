@@ -32,16 +32,22 @@ import UserStatusModal from './UserStatusModal'
 import { useUsers, useDeleteUser } from '../../hooks/useUsers'
 import { useRoles } from '../../hooks/useRoles'
 import { useAuth } from '../../context/AuthContext'
-import { ROLES, ROLE_GROUPS, ROLE_LABELS, USER_STATUS } from '../../constants/enums'
+import { ROLE_LABELS, USER_STATUS } from '../../constants/enums'
 import { formatDate } from '../../utils/format'
 
 const fullName = (u) =>
   [u.first_name, u.middle_name, u.last_name].filter(Boolean).join(' ').trim() || '—'
 
 const UsersList = () => {
-  const { role: currentRole } = useAuth()
-  const canManage = ROLE_GROUPS.STAFF.includes(currentRole)
-  const isAdmin = currentRole === ROLES.ADMIN
+  const { hasPermission } = useAuth()
+  const canRead = hasPermission('users:read')
+  const canCreate = hasPermission('users:create')
+  const canEdit = hasPermission('users:update')
+  const canDelete = hasPermission('users:delete')
+  const canUpdateStatus = hasPermission('users:update_status')
+  const canReset = hasPermission('users:reset_password')
+  const canInvite = hasPermission('invitations:create')
+  const canShowActions = canUpdateStatus || canReset || canEdit || canDelete
 
   const { data: users = [], isLoading, error, refetch, isFetching } = useUsers()
   const { data: roles = [] } = useRoles()
@@ -98,25 +104,27 @@ const UsersList = () => {
     { key: 'created_at', label: 'Created', render: (row) => formatDate(row.created_at) },
   ]
 
-  if (canManage) {
+  if (canShowActions) {
     columns.push({
       key: 'actions',
       label: '',
       className: 'text-end',
       render: (row) => (
         <div className="d-flex gap-2 justify-content-end">
-          <CButton
-            color="light"
-            size="sm"
-            title="Change status"
-            onClick={(e) => {
-              e.stopPropagation()
-              setToChangeStatus(row)
-            }}
-          >
-            <CIcon icon={cilShieldAlt} />
-          </CButton>
-          {isAdmin && (
+          {canUpdateStatus && (
+            <CButton
+              color="light"
+              size="sm"
+              title="Change status"
+              onClick={(e) => {
+                e.stopPropagation()
+                setToChangeStatus(row)
+              }}
+            >
+              <CIcon icon={cilShieldAlt} />
+            </CButton>
+          )}
+          {canReset && (
             <CButton
               color="light"
               size="sm"
@@ -129,29 +137,33 @@ const UsersList = () => {
               <CIcon icon={cilLockLocked} />
             </CButton>
           )}
-          <CButton
-            color="light"
-            size="sm"
-            title="Edit"
-            onClick={(e) => {
-              e.stopPropagation()
-              openEdit(row)
-            }}
-          >
-            <CIcon icon={cilPencil} />
-          </CButton>
-          <CButton
-            color="danger"
-            size="sm"
-            variant="outline"
-            title="Delete"
-            onClick={(e) => {
-              e.stopPropagation()
-              setToDelete(row)
-            }}
-          >
-            <CIcon icon={cilTrash} />
-          </CButton>
+          {canEdit && (
+            <CButton
+              color="light"
+              size="sm"
+              title="Edit"
+              onClick={(e) => {
+                e.stopPropagation()
+                openEdit(row)
+              }}
+            >
+              <CIcon icon={cilPencil} />
+            </CButton>
+          )}
+          {canDelete && (
+            <CButton
+              color="danger"
+              size="sm"
+              variant="outline"
+              title="Delete"
+              onClick={(e) => {
+                e.stopPropagation()
+                setToDelete(row)
+              }}
+            >
+              <CIcon icon={cilTrash} />
+            </CButton>
+          )}
         </div>
       ),
     })
@@ -166,7 +178,7 @@ const UsersList = () => {
     }
   }
 
-  if (!canManage) return <Navigate to="/unauthorized" replace />
+  if (!canRead) return <Navigate to="/unauthorized" replace />
 
   return (
     <CCard className="mb-4">
@@ -177,13 +189,13 @@ const UsersList = () => {
             <CIcon icon={cilReload} className="me-1" />
             Refresh
           </CButton>
-          {canManage && (
+          {canInvite && (
             <CButton color="secondary" variant="outline" size="sm" onClick={() => setShowInvite(true)}>
               <CIcon icon={cilSend} className="me-1" />
               Invite User
             </CButton>
           )}
-          {canManage && (
+          {canCreate && (
             <CButton color="primary" size="sm" onClick={openCreate}>
               <CIcon icon={cilPlus} className="me-1" />
               New User
@@ -218,7 +230,7 @@ const UsersList = () => {
           loading={isLoading}
           error={error}
           emptyMessage="No users match your filters."
-          onRowClick={canManage ? openEdit : undefined}
+          onRowClick={canEdit ? openEdit : undefined}
         />
       </CCardBody>
 

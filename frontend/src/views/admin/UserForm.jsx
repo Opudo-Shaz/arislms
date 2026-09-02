@@ -32,6 +32,7 @@ import { Eye, EyeOff } from 'lucide-react'
 
 import { useCreateUser, useUpdateUser } from '../../hooks/useUsers'
 import { useRoles } from '../../hooks/useRoles'
+import { useAuth } from '../../context/AuthContext'
 
 const emptyForm = {
   first_name: '',
@@ -62,6 +63,22 @@ const UserForm = ({ visible, user, onClose }) => {
   const saving = createMutation.isPending || updateMutation.isPending
 
   const { data: roles = [] } = useRoles()
+  const { hasPermission } = useAuth()
+  // Only a Super Admin (wildcard `'*'` permission) may create/promote/demote another Super Admin.
+  const canAssignSuperAdmin = hasPermission('*')
+
+  const targetIsCurrentSuperAdmin =
+    isEdit &&
+    roles.some(
+      (r) => Number(r.id) === Number(user?.role) && Array.isArray(r.permissions) && r.permissions.includes('*'),
+    )
+  const roleLocked = targetIsCurrentSuperAdmin && !canAssignSuperAdmin
+  const assignableRoles = roles.filter(
+    (r) =>
+      canAssignSuperAdmin ||
+      !(Array.isArray(r.permissions) && r.permissions.includes('*')) ||
+      (roleLocked && Number(r.id) === Number(user?.role)),
+  )
 
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState(null)
@@ -171,14 +188,17 @@ const UserForm = ({ visible, user, onClose }) => {
             </CCol>
             <CCol md={4}>
               <CFormLabel>Role *</CFormLabel>
-              <CFormSelect value={form.role} onChange={setField('role')} required>
+              <CFormSelect value={form.role} onChange={setField('role')} required disabled={roleLocked}>
                 <option value="">Select role…</option>
-                {roles.map((r) => (
+                {assignableRoles.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
                   </option>
                 ))}
               </CFormSelect>
+              {roleLocked && (
+                <div className="form-text">Only a Super Admin can change a Super Admin's role.</div>
+              )}
             </CCol>
             <CCol md={4}>
               <CFormLabel>{isEdit ? 'New password' : 'Password *'}</CFormLabel>

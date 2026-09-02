@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const paymentController = require('../controllers/paymentController');
 const { validateIdParam } = require('../middleware/validateIdParam');
 
@@ -117,6 +117,6 @@ router.post('/', authenticate, paymentController.create);
  *       200:
  *         description: Payment deleted successfully
  */
-router.delete('/:id', authenticate, authorize([1,2]), validateIdParam(), paymentController.delete);
+router.delete('/:id', authenticate, requirePermission('payments:delete'), validateIdParam(), paymentController.delete);
 
 module.exports = router;

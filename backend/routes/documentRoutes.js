@@ -1,7 +1,7 @@
 const express = require('express');
 const multer  = require('multer');
 const documentController = require('../controllers/documentController');
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
@@ -89,7 +89,7 @@ router.post('/', authenticate, upload.single('file'), documentController.uploadD
  *       200:
  *         description: List of documents
  */
-router.get('/', authenticate, authorize([1, 2, 3]), documentController.getDocuments);
+router.get('/', authenticate, requirePermission('documents:read'), documentController.getDocuments);
 
 /**
  * @openapi
@@ -108,7 +108,7 @@ router.get('/', authenticate, authorize([1, 2, 3]), documentController.getDocume
  *       200:
  *         description: Client documents
  */
-router.get('/client/:clientId', authenticate, authorize([1, 2, 3]), validateIdParam('clientId'), documentController.getDocumentsByClient);
+router.get('/client/:clientId', authenticate, requirePermission('documents:read'), validateIdParam('clientId'), documentController.getDocumentsByClient);
 
 /**
  * @openapi
@@ -127,7 +127,7 @@ router.get('/client/:clientId', authenticate, authorize([1, 2, 3]), validateIdPa
  *       200:
  *         description: Loan documents
  */
-router.get('/loan/:loanId', authenticate, authorize([1, 2, 3]), validateIdParam('loanId'), documentController.getDocumentsByLoan);
+router.get('/loan/:loanId', authenticate, requirePermission('documents:read'), validateIdParam('loanId'), documentController.getDocumentsByLoan);
 
 /**
  * @openapi
@@ -167,7 +167,7 @@ router.get('/user/:userId', authenticate, validateIdParam('userId'), documentCon
  *       404:
  *         description: Not found
  */
-router.get('/:id', authenticate, authorize([1, 2, 3]), validateIdParam(), documentController.getDocument);
+router.get('/:id', authenticate, requirePermission('documents:read'), validateIdParam(), documentController.getDocument);
 
 /**
  * @openapi
@@ -197,7 +197,7 @@ router.get('/:id', authenticate, authorize([1, 2, 3]), validateIdParam(), docume
  *       200:
  *         description: Updated document
  */
-router.patch('/:id', authenticate, authorize([1, 2]), validateIdParam(), documentController.updateDocument);
+router.patch('/:id', authenticate, requirePermission('documents:update'), validateIdParam(), documentController.updateDocument);
 
 /**
  * @openapi
@@ -216,7 +216,7 @@ router.patch('/:id', authenticate, authorize([1, 2]), validateIdParam(), documen
  *       200:
  *         description: Document deleted
  */
-router.delete('/:id', authenticate, authorize([1]), validateIdParam(), documentController.deleteDocument);
+router.delete('/:id', authenticate, requirePermission('documents:delete'), validateIdParam(), documentController.deleteDocument);
 
 /**
  * @openapi
@@ -239,6 +239,6 @@ router.delete('/:id', authenticate, authorize([1]), validateIdParam(), documentC
  *       404:
  *         description: Document not found
  */
-router.get('/:id/download', authenticate, authorize([1, 2, 3]), validateIdParam(), documentController.downloadDocument);
+router.get('/:id/download', authenticate, requirePermission('documents:read'), validateIdParam(), documentController.downloadDocument);
 
 module.exports = router;

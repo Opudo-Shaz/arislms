@@ -28,7 +28,7 @@ import PaymentForm from './PaymentForm'
 import PaymentDetailModal from './PaymentDetailModal'
 import { usePayments, useDeletePayment } from '../../hooks/usePayments'
 import { useAuth } from '../../context/AuthContext'
-import { PAYMENT_STATUS, PAYMENT_METHOD, ROLE_GROUPS } from '../../constants/enums'
+import { PAYMENT_STATUS, PAYMENT_METHOD } from '../../constants/enums'
 import { formatCurrency, formatDateTime } from '../../utils/format'
 
 const PAGE_SIZE = 10
@@ -42,8 +42,9 @@ const clientLabel = (row) => {
 const PaymentsList = () => {
   const navigate = useNavigate()
   const deleteMutation = useDeletePayment()
-  const { role } = useAuth()
-  const canManage = ROLE_GROUPS.STAFF.includes(role)
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('payments:create')
+  const canDelete = hasPermission('payments:delete')
 
   const [showForm, setShowForm] = useState(false)
   const [toDelete, setToDelete] = useState(null)
@@ -97,7 +98,7 @@ const PaymentsList = () => {
           <CButton color="light" size="sm" onClick={(e) => { e.stopPropagation(); setViewPayment(row) }}>
             <CIcon icon={cilMagnifyingGlass} />
           </CButton>
-          {canManage && (
+          {canDelete && (
             <CButton
               color="danger"
               size="sm"
@@ -130,7 +131,7 @@ const PaymentsList = () => {
             <CIcon icon={cilReload} className="me-1" />
             Refresh
           </CButton>
-          {canManage && (
+          {canCreate && (
             <CButton color="primary" size="sm" onClick={() => setShowForm(true)}>
               <CIcon icon={cilPlus} className="me-1" />
               Record Payment

@@ -97,6 +97,8 @@ const toForm = (c) => ({
 
 const ConfigForm = ({ visible, config, onClose }) => {
   const isEdit = Boolean(config)
+  const { hasPermission } = useAuth()
+  const canReveal = hasPermission('system_config:reveal_secret')
   const createMutation = useCreateSystemConfig()
   const updateMutation = useUpdateSystemConfig()
   const revealMutation = useRevealSystemConfig()
@@ -266,18 +268,20 @@ const ConfigForm = ({ visible, config, onClose }) => {
                       required={!isEdit}
                       autoComplete="new-password"
                     />
-                    <CInputGroupText
-                      as="button"
-                      type="button"
-                      title={showSecretValue ? 'Hide value' : (secretFetched ? 'Show value' : 'Reveal current value')}
-                      onClick={handleSecretEye}
-                      disabled={revealMutation.isPending}
-                    >
-                      {revealMutation.isPending
-                        ? <CSpinner size="sm" style={{ width: 14, height: 14 }} />
-                        : showSecretValue ? <EyeOff size={14} /> : <Eye size={14} />
-                      }
-                    </CInputGroupText>
+                    {(canReveal || !isEdit) && (
+                      <CInputGroupText
+                        as="button"
+                        type="button"
+                        title={showSecretValue ? 'Hide value' : (secretFetched ? 'Show value' : 'Reveal current value')}
+                        onClick={handleSecretEye}
+                        disabled={revealMutation.isPending}
+                      >
+                        {revealMutation.isPending
+                          ? <CSpinner size="sm" style={{ width: 14, height: 14 }} />
+                          : showSecretValue ? <EyeOff size={14} /> : <Eye size={14} />
+                        }
+                      </CInputGroupText>
+                    )}
                   </CInputGroup>
                 ) : (
                   <CFormInput
@@ -339,8 +343,9 @@ const ConfigForm = ({ visible, config, onClose }) => {
 // ── Main list component ───────────────────────────────────────────────────────
 
 const SystemConfigList = () => {
-  const { role } = useAuth()
-  const isAdmin = role === 1
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('system_config:update')
+  const canCreate = hasPermission('system_config:create')
 
   const [categoryFilter, setCategoryFilter] = useState('')
   const [search, setSearch] = useState('')
@@ -351,6 +356,7 @@ const SystemConfigList = () => {
   const [editing, setEditing] = useState(null)
   const [toDelete, setToDelete] = useState(null)
   const [revealedValues, setRevealedValues] = useState({})
+  const canReveal = hasPermission('system_config:reveal_secret')
 
   const revealMutation = useRevealSystemConfig()
 
@@ -394,7 +400,7 @@ const SystemConfigList = () => {
   const openEdit = (c) => { setEditing(c); setShowForm(true) }
 
   const handleToggle = (c) => {
-    if (!isAdmin || c.isReadOnly) return
+    if (!canManage || c.isReadOnly) return
     toggleMutation.mutate(c.id)
   }
 
@@ -455,21 +461,23 @@ const SystemConfigList = () => {
               <span className="font-monospace">
                 {revealed ? revealedValues[row.id] : '•'.repeat(12)}
               </span>
-              <CButton
-                color="secondary"
-                variant="ghost"
-                size="sm"
-                className="p-0 border-0"
-                style={{ lineHeight: 1 }}
-                title={revealed ? 'Hide value' : 'Reveal value'}
-                onClick={() => handleReveal(row)}
-                disabled={isRevealing}
-              >
-                {isRevealing
-                  ? <CSpinner size="sm" style={{ width: 14, height: 14 }} />
-                  : revealed ? <EyeOff size={14} /> : <Eye size={14} />
-                }
-              </CButton>
+              {canReveal && (
+                <CButton
+                  color="secondary"
+                  variant="ghost"
+                  size="sm"
+                  className="p-0 border-0"
+                  style={{ lineHeight: 1 }}
+                  title={revealed ? 'Hide value' : 'Reveal value'}
+                  onClick={() => handleReveal(row)}
+                  disabled={isRevealing}
+                >
+                  {isRevealing
+                    ? <CSpinner size="sm" style={{ width: 14, height: 14 }} />
+                    : revealed ? <EyeOff size={14} /> : <Eye size={14} />
+                  }
+                </CButton>
+              )}
             </span>
           )
         }
@@ -485,7 +493,7 @@ const SystemConfigList = () => {
           <CFormSwitch
             checked={row.isActive}
             onChange={() => handleToggle(row)}
-            disabled={!isAdmin || row.isReadOnly || isToggling}
+            disabled={!canManage || row.isReadOnly || isToggling}
             title={row.isReadOnly ? 'Managed by environment variable' : row.isActive ? 'Disable' : 'Enable'}
           />
         )
@@ -496,7 +504,7 @@ const SystemConfigList = () => {
       label: '',
       className: 'text-end',
       render: (row) =>
-        isAdmin && !row.isReadOnly ? (
+        canManage && !row.isReadOnly ? (
           <div className="d-flex justify-content-end gap-2">
             <CButton color="primary" variant="outline" size="sm" onClick={() => openEdit(row)}>
               <CIcon icon={cilPencil} />
@@ -542,7 +550,7 @@ const SystemConfigList = () => {
             <CIcon icon={cilReload} />
           </CButton>
 
-          {isAdmin && (
+          {canCreate && (
             <CButton color="primary" size="sm" onClick={openCreate}>
               <CIcon icon={cilPlus} className="me-1" /> New Config
             </CButton>

@@ -28,7 +28,6 @@ import {
 
 import { useClient, useCreateClient, useUpdateClient } from '../../hooks/useClients'
 import { useAuth } from '../../context/AuthContext'
-import { ROLE_GROUPS } from '../../constants/enums'
 
 const GENDERS = ['male', 'female', 'other']
 const CONTACT_METHODS = ['email', 'phone', 'sms']
@@ -125,7 +124,8 @@ const ClientForm = () => {
   const { id } = useParams()
   const isEdit = Boolean(id)
   const navigate = useNavigate()
-  const { role } = useAuth()
+  const { hasPermission } = useAuth()
+  const canSubmit = hasPermission(isEdit ? 'clients:update' : 'clients:create')
 
   const { data: client, isLoading: loadingClient } = useClient(id)
   const createMutation = useCreateClient()
@@ -139,7 +139,7 @@ const ClientForm = () => {
     if (isEdit && client) setForm(toForm(client))
   }, [isEdit, client])
 
-  if (!ROLE_GROUPS.STAFF.includes(role)) return <Navigate to="/unauthorized" replace />
+  if (!canSubmit) return <Navigate to="/unauthorized" replace />
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 

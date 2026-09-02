@@ -1,6 +1,29 @@
 const Role = require('../models/roleModel');
+const User = require('../models/userModel');
 const AuditLogger = require('../utils/auditLogger');
+const { invalidateAuthUser } = require('../utils/authUserCache');
 const logger = require('../config/logger');
+
+/**
+ * Evict the cached auth entry for every user carrying the given role so that a
+ * permission change on that role takes effect immediately rather than waiting
+ * out the auth cache TTL.
+ * @param {Number} roleId
+ */
+async function invalidateRoleUsers(roleId) {
+  try {
+    const users = await User.findAll({
+      where: { role_id: roleId },
+      attributes: ['id'],
+    });
+    users.forEach((u) => invalidateAuthUser(u.id));
+    if (users.length) {
+      logger.info(`Auth cache invalidated for ${users.length} user(s) of role ${roleId}`);
+    }
+  } catch (error) {
+    logger.error(`RoleService.invalidateRoleUsers Error: ${error.message}`);
+  }
+}
 
 const roleService = {
 
@@ -110,6 +133,9 @@ const roleService = {
         }
       });
 
+      // Permission set may have changed — refresh affected users' auth cache.
+      await invalidateRoleUsers(id);
+
       logger.info(`Role updated: id=${id} by user ${updatorId}`);
       return role;
     } catch (error) {
@@ -148,6 +174,9 @@ const roleService = {
             source: userAgent
           }
         });
+
+        // Refresh affected users' auth cache so the new permission applies now.
+        await invalidateRoleUsers(id);
 
         logger.info(`Permission ${permission} added to role ${id} by user ${updatorId}`);
       }
@@ -190,6 +219,9 @@ const roleService = {
           }
         });
 
+        // Refresh affected users' auth cache so the removal applies now.
+        await invalidateRoleUsers(id);
+
         logger.info(`Permission ${permission} removed from role ${id} by user ${updatorId}`);
       }
       return role;
@@ -213,6 +245,9 @@ const roleService = {
 
       const deletedData = role.toJSON();
       await role.destroy();
+
+      // Refresh any lingering sessions bound to the removed role.
+      await invalidateRoleUsers(id);
 
       // Log to audit table after successful deletion
       await AuditLogger.log({

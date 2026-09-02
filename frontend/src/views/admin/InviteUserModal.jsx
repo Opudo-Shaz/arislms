@@ -31,6 +31,7 @@ import {
 
 import { useCreateInvitation } from '../../hooks/useInvitations'
 import { useRoles } from '../../hooks/useRoles'
+import { useAuth } from '../../context/AuthContext'
 
 const emptyForm = {
   email: '',
@@ -44,6 +45,14 @@ const emptyForm = {
 const InviteUserModal = ({ visible, onClose }) => {
   const createMutation = useCreateInvitation()
   const { data: roles = [] } = useRoles()
+  const { hasPermission } = useAuth()
+  // Only a Super Admin (wildcard `'*'` permission) may invite another Super
+  // Admin. Determined from each role's own permissions, not a hardcoded role
+  // id, since that id can differ across environments.
+  const canAssignSuperAdmin = hasPermission('*')
+  const assignableRoles = roles.filter(
+    (r) => canAssignSuperAdmin || !(Array.isArray(r.permissions) && r.permissions.includes('*')),
+  )
 
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState(null)
@@ -162,7 +171,7 @@ const InviteUserModal = ({ visible, onClose }) => {
                 <CFormLabel>Role *</CFormLabel>
                 <CFormSelect value={form.role} onChange={setField('role')} required>
                   <option value="">Select role…</option>
-                  {roles.map((r) => (
+                  {assignableRoles.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.name}
                     </option>

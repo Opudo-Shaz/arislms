@@ -38,8 +38,8 @@ const PAGE_SIZE = 20
 const RETRYABLE_STATUSES = ['failed', 'skipped']
 
 const NotificationOutboxList = () => {
-  const { role } = useAuth()
-  const isAdmin = role === 1
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('notifications:manage_outbox')
 
   const [status, setStatus] = useState('')
   const [channel, setChannel] = useState('')
@@ -113,7 +113,7 @@ const NotificationOutboxList = () => {
       className: 'text-end',
       render: (r) => (
         <div className="d-flex justify-content-end">
-          {isAdmin && RETRYABLE_STATUSES.includes(r.status) && (
+          {canManage && RETRYABLE_STATUSES.includes(r.status) && (
             <CButton
               color="primary"
               size="sm"
@@ -133,7 +133,7 @@ const NotificationOutboxList = () => {
     },
   ]
 
-  if (!isAdmin) return <Navigate to="/unauthorized" replace />
+  if (!canManage) return <Navigate to="/unauthorized" replace />
 
   return (
     <CCard className="mb-4">

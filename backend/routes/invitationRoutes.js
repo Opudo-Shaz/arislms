@@ -7,7 +7,7 @@ const {
   verifyInvitation,
   acceptInvitation,
 } = require('../controllers/invitationController');
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
 
 const router = express.Router();
@@ -204,9 +204,9 @@ router.get('/verify', verifyInvitation);
 router.post('/accept', acceptInvitation);
 
 // Admin/manager — invite management
-router.post('/', authenticate, authorize([1, 2]), createInvitation);
-router.get('/', authenticate, authorize([1, 2]), listInvitations);
-router.post('/:id/resend', authenticate, authorize([1, 2]), validateIdParam(), resendInvitation);
-router.post('/:id/revoke', authenticate, authorize([1, 2]), validateIdParam(), revokeInvitation);
+router.post('/', authenticate, requirePermission('invitations:create'), createInvitation);
+router.get('/', authenticate, requirePermission('invitations:read'), listInvitations);
+router.post('/:id/resend', authenticate, requirePermission('invitations:update'), validateIdParam(), resendInvitation);
+router.post('/:id/revoke', authenticate, requirePermission('invitations:update'), validateIdParam(), revokeInvitation);
 
 module.exports = router;

@@ -1,6 +1,6 @@
 const express = require('express')
 const controller = require('../controllers/cronController')
-const { authenticate, authorize } = require('../middleware/authMiddleware')
+const { authenticate, requirePermission } = require('../middleware/authMiddleware')
 
 const router = express.Router()
 
@@ -17,7 +17,7 @@ const router = express.Router()
  *       200:
  *         description: List of cron jobs
  */
-router.get('/', authenticate, authorize([1, 2]), controller.list)
+router.get('/', authenticate, requirePermission('cron:read'), controller.list)
 
 /**
  * @openapi
@@ -40,7 +40,7 @@ router.get('/', authenticate, authorize([1, 2]), controller.list)
  *       404:
  *         description: Job not found
  */
-router.get('/:key/runs', authenticate, authorize([1, 2]), controller.runs)
+router.get('/:key/runs', authenticate, requirePermission('cron:read'), controller.runs)
 
 /**
  * @openapi
@@ -65,6 +65,6 @@ router.get('/:key/runs', authenticate, authorize([1, 2]), controller.runs)
  *       409:
  *         description: Job is already running
  */
-router.post('/:key/run', authenticate, authorize([1]), controller.run)
+router.post('/:key/run', authenticate, requirePermission('cron:manage'), controller.run)
 
 module.exports = router

@@ -122,8 +122,8 @@ const RunHistoryModal = ({ job, onClose }) => {
 }
 
 const CronJobsList = () => {
-  const { role } = useAuth()
-  const isAdmin = role === 1
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('cron:manage')
 
   const { data: jobs = [], isLoading, error, refetch, isFetching } = useCronJobs()
   const runMutation = useRunCronJob()
@@ -188,7 +188,7 @@ const CronJobsList = () => {
             <CIcon icon={cilHistory} className="me-1" />
             History
           </CButton>
-          {isAdmin && (
+          {canManage && (
             <CButton
               color="primary"
               size="sm"

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const CodeController = require('../controllers/codeController');
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
 
 /**
@@ -24,7 +24,7 @@ const { validateIdParam } = require('../middleware/validateIdParam');
  *       - bearerAuth: []
  */
 router.get('/', authenticate, CodeController.getAllCodes);
-router.post('/', authenticate, authorize([1]), CodeController.createCode);
+router.post('/', authenticate, requirePermission('codes:create'), CodeController.createCode);
 
 /**
  * @openapi
@@ -43,13 +43,13 @@ router.get('/key/:key', authenticate, CodeController.getCodeByKey);
 
 // Code values nested under a code
 router.get('/:codeId/values', authenticate, validateIdParam('codeId'), CodeController.listCodeValues);
-router.post('/:codeId/values', authenticate, authorize([1]), CodeController.createCodeValue);
-router.put('/values/:valueId', authenticate, authorize([1]), validateIdParam('valueId'), CodeController.updateCodeValue);
-router.delete('/values/:valueId', authenticate, authorize([1]), validateIdParam('valueId'), CodeController.deleteCodeValue);
+router.post('/:codeId/values', authenticate, requirePermission('codes:create'), CodeController.createCodeValue);
+router.put('/values/:valueId', authenticate, requirePermission('codes:update'), validateIdParam('valueId'), CodeController.updateCodeValue);
+router.delete('/values/:valueId', authenticate, requirePermission('codes:delete'), validateIdParam('valueId'), CodeController.deleteCodeValue);
 
 // Code CRUD by id
 router.get('/:id', authenticate, validateIdParam(), CodeController.getCodeById);
-router.put('/:id', authenticate, authorize([1]), validateIdParam(), CodeController.updateCode);
-router.delete('/:id', authenticate, authorize([1]), validateIdParam(), CodeController.deleteCode);
+router.put('/:id', authenticate, requirePermission('codes:update'), validateIdParam(), CodeController.updateCode);
+router.delete('/:id', authenticate, requirePermission('codes:delete'), validateIdParam(), CodeController.deleteCode);
 
 module.exports = router;

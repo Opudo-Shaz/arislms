@@ -4,7 +4,7 @@ const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
 const UserStatus = require('../enums/userStatus');
 const { invalidateAuthUser } = require('../utils/authUserCache');
-
+const { hasWildcardPermission, roleIdIsSuperAdmin } = require('../utils/permissionUtils');
 
 const buildFullName = (user) =>
   [user.first_name, user.middle_name, user.last_name]
@@ -23,7 +23,7 @@ const getUserById = async (id) => {
   return user;
 };
 
-const createUser = async (data, creatorId = null, userAgent = 'unknown') => {
+const createUser = async (data, creatorId = null, userAgent = 'unknown', actorPermissions = [], options = {}) => {
   try {
     const existingEmail = await User.findOne({ where: { email: data.email } });
     if (existingEmail) throw new Error('Email already exists');
@@ -44,6 +44,12 @@ const createUser = async (data, creatorId = null, userAgent = 'unknown') => {
     if (data.role !== undefined) {
       data.role_id = data.role;
       delete data.role;
+    }
+
+    if (!options.skipSuperAdminGuard && (await roleIdIsSuperAdmin(data.role_id)) && !hasWildcardPermission(actorPermissions)) {
+      const err = new Error('Only a Super Admin can create another Super Admin');
+      err.status = 403;
+      throw err;
     }
 
     if (creatorId) {
@@ -85,7 +91,7 @@ const createUser = async (data, creatorId = null, userAgent = 'unknown') => {
   }
 };
 
-const updateUser = async (id, data, updatorId = null, userAgent = 'unknown') => {
+const updateUser = async (id, data, updatorId = null, userAgent = 'unknown', actorPermissions = []) => {
   try {
     const user = await User.findByPk(id);
     if (!user) throw new Error('User not found');
@@ -99,6 +105,22 @@ const updateUser = async (id, data, updatorId = null, userAgent = 'unknown') => 
     if (data.role !== undefined) {
       data.role_id = data.role;
       delete data.role;
+    }
+
+    if (
+      data.role_id !== undefined &&
+      Number(data.role_id) !== Number(user.role_id) &&
+      !hasWildcardPermission(actorPermissions)
+    ) {
+      const [targetRoleIsSuperAdmin, currentRoleIsSuperAdmin] = await Promise.all([
+        roleIdIsSuperAdmin(data.role_id),
+        roleIdIsSuperAdmin(user.role_id),
+      ]);
+      if (targetRoleIsSuperAdmin || currentRoleIsSuperAdmin) {
+        const err = new Error("Only a Super Admin can change another Super Admin's role");
+        err.status = 403;
+        throw err;
+      }
     }
 
     await user.update(data);

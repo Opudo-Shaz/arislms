@@ -72,6 +72,7 @@ export const AuthProvider = ({ children }) => {
       token: result.token,
       user: result.user,
       role: resolveRole(result.token, result.user),
+      permissions: Array.isArray(result.user?.permissions) ? result.user.permissions : [],
       expiresIn: result.expiresIn,
     }
     setStoredAuth(session)
@@ -79,16 +80,32 @@ export const AuthProvider = ({ children }) => {
     return session
   }, [])
 
+  /**
+   * Whether the current session carries a given permission. The wildcard
+   * `'*'` (Super Admin) always passes.
+   * @param {string} permission e.g. 'clients:read'
+   * @returns {boolean}
+   */
+  const hasPermission = useCallback(
+    (permission) => {
+      const permissions = auth?.permissions ?? []
+      return permissions.includes('*') || permissions.includes(permission)
+    },
+    [auth],
+  )
+
   const value = useMemo(
     () => ({
       isAuthenticated: Boolean(auth?.token),
       token: auth?.token ?? null,
       user: auth?.user ?? null,
       role: auth?.role ?? null,
+      permissions: auth?.permissions ?? [],
+      hasPermission,
       login,
       logout,
     }),
-    [auth, login, logout],
+    [auth, hasPermission, login, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

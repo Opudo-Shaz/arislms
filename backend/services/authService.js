@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
+const Role = require('../models/roleModel');
 const UserStatus = require('../enums/userStatus');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
@@ -55,6 +56,13 @@ const login = async (email, password, userAgent = 'unknown') => {
 
     logger.info(`User ${user.id} (${email}) successfully logged in`);
 
+    // Resolve the role's permission list for the client, straight from the
+    // roles table — no hardcoded role id. Whichever role was seeded/assigned
+    // the wildcard `'*'` permission acts as Super Admin, so the frontend
+    // `hasPermission()` short-circuits to true for that role.
+    const role = await Role.findByPk(user.role_id, { attributes: ['permissions'] });
+    const permissions = role?.permissions || [];
+
     return {
       token,
       expiresIn: 86400, 
@@ -62,7 +70,8 @@ const login = async (email, password, userAgent = 'unknown') => {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: user.role_id,
+        permissions,
       },
     };
   } catch (error) {

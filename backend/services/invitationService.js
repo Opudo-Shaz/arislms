@@ -10,6 +10,7 @@ const systemConfigService = require('./systemConfigService');
 const userService = require('./userService');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
+const { hasWildcardPermission } = require('../utils/permissionUtils');
 
 /** Invite link TTL in hours */
 const TOKEN_EXPIRY_HOURS = 72;
@@ -72,8 +73,9 @@ async function dispatchInvite(invitation, role, rawToken) {
  * @param {object} data - validated InvitationRequestDto.createSchema payload
  * @param {number|null} inviterId
  * @param {string} [userAgent]
+ * @param {string[]} [actorPermissions] - resolved permissions of the inviting user
  */
-async function createInvitation(data, inviterId = null, userAgent = 'unknown') {
+async function createInvitation(data, inviterId = null, userAgent = 'unknown', actorPermissions = []) {
   const email = data.email.toLowerCase();
 
   const existingUser = await User.findOne({ where: { email } });
@@ -87,6 +89,12 @@ async function createInvitation(data, inviterId = null, userAgent = 'unknown') {
   if (!role) {
     const err = new Error('Invalid role');
     err.status = 400;
+    throw err;
+  }
+
+  if (hasWildcardPermission(role.permissions) && !hasWildcardPermission(actorPermissions)) {
+    const err = new Error('Only a Super Admin can invite another Super Admin');
+    err.status = 403;
     throw err;
   }
 
@@ -211,7 +219,7 @@ async function completeInvitation(rawToken, data, userAgent = 'unknown') {
     role: invitation.roleId,
     id_number: data.id_number || null,
     password: data.password,
-  }, null, userAgent);
+  }, null, userAgent, [], { skipSuperAdminGuard: true });
 
   await invitation.update({
     status: InvitationStatus.ACCEPTED,

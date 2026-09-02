@@ -41,7 +41,12 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid or expired token' });
     }
 
-    req.user = { id: user.id, role: user.role_id, status: user.status };
+    req.user = {
+      id: user.id,
+      role: user.role_id,
+      status: user.status,
+      permissions: user.permissions || [],
+    };
     next();
   } catch (err) {
     logger?.warn(`Token verification failed: ${err.message}`);
@@ -60,4 +65,23 @@ const authorize = (roles = []) => {
   };
 };
 
-module.exports = { authenticate, authorize };
+/**
+ * Permission-based authorization. Passes when the authenticated user's role
+ * carries the given permission, or the wildcard `'*'` (admin). Must run after
+ * `authenticate`, which attaches `req.user.permissions`.
+ * @param {string} permission e.g. 'clients:read'
+ */
+const requirePermission = (permission) => {
+  return (req, res, next) => {
+    const permissions = req.user?.permissions || [];
+    if (permissions.includes('*') || permissions.includes(permission)) {
+      return next();
+    }
+    logger?.warn(
+      `Access denied: user ${req.user?.id} lacks permission "${permission}"`
+    );
+    return res.status(403).json({ message: 'Access denied' });
+  };
+};
+
+module.exports = { authenticate, authorize, requirePermission };

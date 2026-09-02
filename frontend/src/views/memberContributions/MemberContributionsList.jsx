@@ -25,7 +25,7 @@ import MemberContributionForm from './MemberContributionForm'
 import MemberStatementModal from './MemberStatementModal'
 import { useContributions } from '../../hooks/useMemberContributions'
 import { useAuth } from '../../context/AuthContext'
-import { CONTRIBUTION_TYPE, ROLE_GROUPS } from '../../constants/enums'
+import { CONTRIBUTION_TYPE } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
 const PAGE_SIZE = 20
@@ -34,8 +34,8 @@ const memberName = (row) =>
   row.client ? `${row.client.firstName} ${row.client.lastName}`.trim() : `Client #${row.clientId}`
 
 const MemberContributionsList = () => {
-  const { role } = useAuth()
-  const canManage = ROLE_GROUPS.STAFF.includes(role)
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('contributions:create')
 
   const [showForm, setShowForm] = useState(false)
   const [statementClient, setStatementClient] = useState(null)

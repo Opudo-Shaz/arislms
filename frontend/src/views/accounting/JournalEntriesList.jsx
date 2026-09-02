@@ -31,7 +31,7 @@ import JournalEntryForm from './JournalEntryForm'
 import JournalEntryDetailModal from './JournalEntryDetailModal'
 import { useJournalEntries, useReverseJournalEntry } from '../../hooks/useLedger'
 import { useAuth } from '../../context/AuthContext'
-import { JOURNAL_ENTRY_STATUS, LEDGER_SOURCE_TYPE, ROLE_GROUPS } from '../../constants/enums'
+import { JOURNAL_ENTRY_STATUS, LEDGER_SOURCE_TYPE } from '../../constants/enums'
 import { formatCurrency, formatDateTime } from '../../utils/format'
 
 const PAGE_SIZE = 10
@@ -40,8 +40,9 @@ const lineTotal = (entry) =>
   (entry.lines || []).reduce((s, l) => s + Number(l.debit || 0), 0)
 
 const JournalEntriesList = () => {
-  const { role } = useAuth()
-  const canManage = ROLE_GROUPS.STAFF.includes(role)
+  const { hasPermission } = useAuth()
+  const canReverse = hasPermission('accounting:reverse_entry')
+  const canPost = hasPermission('accounting:post_entry')
 
   const [sourceType, setSourceType] = useState('')
   const [from, setFrom] = useState('')
@@ -113,7 +114,7 @@ const JournalEntriesList = () => {
           >
             <CIcon icon={cilMagnifyingGlass} />
           </CButton>
-          {canManage && row.status === 'POSTED' && (
+          {canReverse && row.status === 'POSTED' && (
             <CButton
               color="warning"
               size="sm"
@@ -149,7 +150,7 @@ const JournalEntriesList = () => {
             <CIcon icon={cilReload} className="me-1" />
             Refresh
           </CButton>
-          {canManage && (
+          {canPost && (
             <CButton color="primary" size="sm" onClick={() => setShowForm(true)}>
               <CIcon icon={cilPlus} className="me-1" />
               Post Entry

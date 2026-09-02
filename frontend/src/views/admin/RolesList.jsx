@@ -18,7 +18,7 @@ import {
   CFormInput,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPencil, cilPlus, cilReload, cilTrash } from '@coreui/icons'
+import { cilAsterisk, cilPencil, cilPlus, cilReload, cilTrash } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
@@ -26,13 +26,15 @@ import ConfirmModal from '../../components/ConfirmModal'
 import RoleForm from './RoleForm'
 import { useRoles, useDeleteRole } from '../../hooks/useRoles'
 import { useAuth } from '../../context/AuthContext'
-import { ROLE_GROUPS } from '../../constants/enums'
 
 const ACTIVE_ENUM = { colors: { true: 'success', false: 'secondary' }, labels: { true: 'Active', false: 'Inactive' } }
 
 const RolesList = () => {
-  const { role: currentRole } = useAuth()
-  const canManage = ROLE_GROUPS.STAFF.includes(currentRole)
+  const { hasPermission } = useAuth()
+  const canRead = hasPermission('roles:read')
+  const canCreate = hasPermission('roles:create')
+  const canEdit = hasPermission('roles:update')
+  const canDelete = hasPermission('roles:delete')
 
   const { data: roles = [], isLoading, error, refetch, isFetching } = useRoles()
   const deleteMutation = useDeleteRole()
@@ -69,11 +71,21 @@ const RolesList = () => {
       render: (row) =>
         Array.isArray(row.permissions) && row.permissions.length ? (
           <div className="d-flex flex-wrap gap-1">
-            {row.permissions.map((p) => (
-              <CBadge key={p} color="primary" shape="rounded-pill">
-                {p}
-              </CBadge>
-            ))}
+            {row.permissions.map((p) =>
+              p === '*' ? (
+                <span
+                  key={p}
+                  title="All permissions"
+                  className="d-inline-flex align-items-center justify-content-center text-body"
+                >
+                  <CIcon icon={cilAsterisk} size="lg" />
+                </span>
+              ) : (
+                <CBadge key={p} color="primary" shape="rounded-pill">
+                  {p}
+                </CBadge>
+              ),
+            )}
           </div>
         ) : (
           <span className="text-body-secondary">None</span>
@@ -86,36 +98,40 @@ const RolesList = () => {
     },
   ]
 
-  if (canManage) {
+  if (canEdit || canDelete) {
     columns.push({
       key: 'actions',
       label: '',
       className: 'text-end',
       render: (row) => (
         <div className="d-flex gap-2 justify-content-end">
-          <CButton
-            color="light"
-            size="sm"
-            title="Edit"
-            onClick={(e) => {
-              e.stopPropagation()
-              openEdit(row)
-            }}
-          >
-            <CIcon icon={cilPencil} />
-          </CButton>
-          <CButton
-            color="danger"
-            size="sm"
-            variant="outline"
-            title="Delete"
-            onClick={(e) => {
-              e.stopPropagation()
-              setToDelete(row)
-            }}
-          >
-            <CIcon icon={cilTrash} />
-          </CButton>
+          {canEdit && (
+            <CButton
+              color="light"
+              size="sm"
+              title="Edit"
+              onClick={(e) => {
+                e.stopPropagation()
+                openEdit(row)
+              }}
+            >
+              <CIcon icon={cilPencil} />
+            </CButton>
+          )}
+          {canDelete && (
+            <CButton
+              color="danger"
+              size="sm"
+              variant="outline"
+              title="Delete"
+              onClick={(e) => {
+                e.stopPropagation()
+                setToDelete(row)
+              }}
+            >
+              <CIcon icon={cilTrash} />
+            </CButton>
+          )}
         </div>
       ),
     })
@@ -130,7 +146,7 @@ const RolesList = () => {
     }
   }
 
-  if (!canManage) return <Navigate to="/unauthorized" replace />
+  if (!canRead) return <Navigate to="/unauthorized" replace />
 
   return (
     <CCard className="mb-4">
@@ -141,7 +157,7 @@ const RolesList = () => {
             <CIcon icon={cilReload} className="me-1" />
             Refresh
           </CButton>
-          {canManage && (
+          {canCreate && (
             <CButton color="primary" size="sm" onClick={openCreate}>
               <CIcon icon={cilPlus} className="me-1" />
               New Role
@@ -164,7 +180,7 @@ const RolesList = () => {
           loading={isLoading}
           error={error}
           emptyMessage="No roles match your search."
-          onRowClick={canManage ? openEdit : undefined}
+          onRowClick={canEdit ? openEdit : undefined}
         />
       </CCardBody>
 

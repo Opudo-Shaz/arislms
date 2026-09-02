@@ -65,8 +65,6 @@ import {
   LOAN_TRANSACTION_TYPE,
   TRANSACTION_DIRECTION,
   LOAN_DELETION_REASONS,
-  ROLES,
-  ROLE_GROUPS,
 } from '../../constants/enums'
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from '../../utils/format'
 
@@ -100,9 +98,16 @@ const LoanDetail = () => {
   const writeOffMutation = useWriteOffLoan()
   const collateralStatusMutation = useUpdateCollateralStatus()
   const collateralEditMutation = useUpdateCollateralParticulars()
-  const { role } = useAuth()
-  const isAdmin = role === ROLES.ADMIN
-  const canManage = ROLE_GROUPS.STAFF.includes(role)
+  const { hasPermission } = useAuth()
+  const canRecordPayments = hasPermission('payments:create')
+  const canApproveLoans = hasPermission('loans:approve')
+  const canRejectLoans = hasPermission('loans:reject')
+  const canDisburseLoans = hasPermission('loans:disburse')
+  const canUpdateLoans = hasPermission('loans:update')
+  const canDeleteLoans = hasPermission('loans:delete')
+  const canWriteOffLoans = hasPermission('loans:write_off')
+  const canEditCollateral = hasPermission('collaterals:update')
+  const canManageCollateralStatus = hasPermission('collaterals:update_status')
 
   const [activeTab, setActiveTab] = useState(0)
   const [actionType, setActionType] = useState(null) // 'approve' | 'disburse' | 'principal' | 'reject'
@@ -176,7 +181,7 @@ const LoanDetail = () => {
   const canApprove = APPROVABLE.includes(loan.status)
   const canDisburse = loan.status === 'approved'
   const canEditPrincipal = !TERMINAL.includes(loan.status) && loan.status !== 'active'
-  const canWriteOff = isAdmin && WRITABLE_OFF.includes(loan.status)
+  const canWriteOff = canWriteOffLoans && WRITABLE_OFF.includes(loan.status)
   const downPaymentRequired = Number(loan.downPaymentRequired || 0)
   const downPaymentPaid = Number(loan.downPaymentPaid || 0)
   const downPaymentDue = Math.max(0, Number((downPaymentRequired - downPaymentPaid).toFixed(2)))
@@ -267,7 +272,7 @@ const LoanDetail = () => {
           : <span className="text-body-secondary">0</span>
       },
     },
-    ...(isAdmin
+    ...(canEditCollateral || canManageCollateralStatus
       ? [
           {
             key: 'actions',
@@ -275,24 +280,28 @@ const LoanDetail = () => {
             className: 'text-end',
             render: (r) => (
               <div className="d-flex gap-1 justify-content-end">
-                <CButton
-                  color="secondary"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setCollateralEditTarget(r)}
-                  title="Edit collateral details"
-                >
-                  <CIcon icon={cilPencil} />
-                </CButton>
-                <CButton
-                  color="warning"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setCollateralTarget(r)}
-                  title="Update status"
-                >
-                  Status
-                </CButton>
+                {canEditCollateral && (
+                  <CButton
+                    color="secondary"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCollateralEditTarget(r)}
+                    title="Edit collateral details"
+                  >
+                    <CIcon icon={cilPencil} />
+                  </CButton>
+                )}
+                {canManageCollateralStatus && (
+                  <CButton
+                    color="warning"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCollateralTarget(r)}
+                    title="Update status"
+                  >
+                    Status
+                  </CButton>
+                )}
               </div>
             ),
           },
@@ -393,7 +402,7 @@ const LoanDetail = () => {
             </div>
           </div>
           <div className="d-flex gap-2 flex-wrap">
-            {canManage && canRecordPayment && (
+            {canRecordPayments && canRecordPayment && (
               <CButton
                 color="success"
                 size="sm"
@@ -403,7 +412,7 @@ const LoanDetail = () => {
                 Record Payment
               </CButton>
             )}
-            {canManage && canApprove && (
+            {canApproveLoans && canApprove && (
               <CButton
                 color="primary"
                 size="sm"
@@ -416,7 +425,7 @@ const LoanDetail = () => {
                 Approve
               </CButton>
             )}
-            {isAdmin && canApprove && (
+            {canRejectLoans && canApprove && (
               <CButton
                 color="danger"
                 size="sm"
@@ -429,7 +438,7 @@ const LoanDetail = () => {
                 Reject
               </CButton>
             )}
-            {canManage && canDisburse && (
+            {canDisburseLoans && canDisburse && (
               <CButton
                 color="success"
                 size="sm"
@@ -442,7 +451,7 @@ const LoanDetail = () => {
                 Disburse
               </CButton>
             )}
-            {canManage && canEditPrincipal && (
+            {canUpdateLoans && canEditPrincipal && (
               <CButton
                 color="warning"
                 size="sm"
@@ -456,7 +465,7 @@ const LoanDetail = () => {
                 Principal
               </CButton>
             )}
-            {canManage && (
+            {canDeleteLoans && (
               <CButton
                 color="danger"
                 size="sm"

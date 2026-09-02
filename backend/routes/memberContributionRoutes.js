@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const memberContributionController = require('../controllers/memberContributionController');
 const { validateIdParam } = require('../middleware/validateIdParam');
 
@@ -127,6 +127,6 @@ router.get('/member/:clientId', authenticate, validateIdParam('clientId'), membe
  *       422:
  *         description: Withdrawal amount exceeds member balance
  */
-router.post('/', authenticate, authorize([1, 2]), memberContributionController.create);
+router.post('/', authenticate, requirePermission('contributions:create'), memberContributionController.create);
 
 module.exports = router;
