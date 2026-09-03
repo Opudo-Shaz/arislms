@@ -32,12 +32,29 @@ import { Eye, EyeOff } from 'lucide-react'
 
 import { useVerifyInvitation, useAcceptInvitation } from '../../../hooks/useInvitations'
 import { ApiError } from '../../../api'
-import arislmsLogo from '../../../assets/brand/arislms_logo_fit.png'
+import arislmsLogoDefault from '../../../assets/brand/arislms_logo_fit.png'
+import arislmsLogoDark from '../../../assets/brand/arislms_logo_dark.png'
 
 const AcceptInvite = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const token = searchParams.get('token') || ''
+
+  const [colorScheme, setColorScheme] = useState(
+    document.documentElement.getAttribute('data-coreui-theme') || 'light',
+  )
+
+  useEffect(() => {
+    const handleColorSchemeChange = () => {
+      setColorScheme(document.documentElement.getAttribute('data-coreui-theme') || 'light')
+    }
+
+    document.documentElement.addEventListener('ColorSchemeChange', handleColorSchemeChange)
+    return () =>
+      document.documentElement.removeEventListener('ColorSchemeChange', handleColorSchemeChange)
+  }, [])
+
+  const arislmsLogo = colorScheme === 'dark' ? arislmsLogoDefault : arislmsLogoDark
 
   const { data: invitation, isLoading, error: verifyError } = useVerifyInvitation(token)
   const acceptMutation = useAcceptInvitation()

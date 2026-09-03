@@ -98,11 +98,29 @@ async function createInvitation(data, inviterId = null, userAgent = 'unknown', a
     throw err;
   }
 
-  // Invalidate any invite already pending for this email so only one active
-  // link exists at a time.
+  // Decline to create a duplicate invitation while an active (pending,
+  // unexpired) one already exists for this email — the caller should
+  // resend or revoke the existing invite instead.
+  const activeInvitation = await UserInvitation.findOne({
+    where: {
+      email,
+      status: InvitationStatus.PENDING,
+      expiresAt: { [Op.gt]: new Date() },
+    },
+  });
+  if (activeInvitation) {
+    const err = new Error(
+      'An active invitation already exists for this email address. Resend or revoke it before creating a new one.'
+    );
+    err.status = 409;
+    throw err;
+  }
+
+  // Stale pending invites (expired but not yet swept) no longer count as
+  // active, so mark them accordingly before issuing the new one.
   await UserInvitation.update(
-    { status: InvitationStatus.REVOKED, revokedAt: new Date() },
-    { where: { email, status: InvitationStatus.PENDING } }
+    { status: InvitationStatus.EXPIRED },
+    { where: { email, status: InvitationStatus.PENDING, expiresAt: { [Op.lte]: new Date() } } }
   );
 
   const rawToken = crypto.randomBytes(32).toString('hex');
