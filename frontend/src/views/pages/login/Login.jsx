@@ -186,8 +186,8 @@ const Login = () => {
       <CContainer>
         <CRow className="justify-content-center">
           <CCol md={8}>
-            <CCardGroup>
-              <CCard className="p-4">
+            <CCardGroup className="d-flex flex-column flex-md-row">
+              <CCard className="p-4 order-last order-md-first">
                 <CCardBody>
                   {otpRequired ? (
                     <CForm onSubmit={handleVerifyOtp}>
@@ -316,7 +316,7 @@ const Login = () => {
                   )}
                 </CCardBody>
               </CCard>
-              <CCard className="text-white bg-primary py-5" style={{ width: '44%' }}>
+              <CCard className="text-white bg-primary py-5 login-brand-card order-first order-md-last">
                 <CCardBody className="text-center">
                   <div>
                     <img

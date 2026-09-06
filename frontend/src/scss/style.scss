@@ -48,6 +48,12 @@ body {
   @extend .app-view-bg;
 }
 
+.login-brand-card {
+  @include media-breakpoint-up(md) {
+    width: 44%;
+  }
+}
+
 .sidebar {
   background-color: #2b3041;
   background-image:
