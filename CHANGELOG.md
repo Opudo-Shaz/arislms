@@ -143,3 +143,4 @@ its own dated entry under `Unreleased` above.
 
 [Unreleased]: https://github.com/Opudo-Shaz/arislms/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/Opudo-Shaz/arislms/releases/tag/v1.0.0
+[1.1.0]: https://github.com/Opudo-Shaz/arislms/releases/tag/v1.1.0
