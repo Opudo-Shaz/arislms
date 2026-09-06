@@ -44,6 +44,8 @@ function resolveDestination(channel, recipient) {
  * @param {number} [opts.relatedPaymentId]
  * @param {string} [opts.dedupeKey] - When set, skips creating a duplicate outbox row per (channel, recipient)
  *                                    if one already exists with the same dedupeKey and isn't SKIPPED/FAILED-final.
+ * @param {number} [opts.priority] - Higher = sent first by outboxWorker (default 0). Use for time-sensitive
+ *                                   messages such as login OTP codes.
  * @returns {Promise<{skipped:boolean, reason?:string, rows?:Array}>}
  */
 async function notify(eventKey, {
@@ -53,6 +55,7 @@ async function notify(eventKey, {
   relatedLoanId = null,
   relatedPaymentId = null,
   dedupeKey = null,
+  priority = 0,
 } = {}) {
   try {
     if (!eventKey) throw new Error('notify() requires an eventKey');
@@ -112,6 +115,7 @@ async function notify(eventKey, {
             relatedLoanId,
             relatedPaymentId,
             dedupeKey,
+            priority,
           }));
           continue;
         }
@@ -138,6 +142,7 @@ async function notify(eventKey, {
           relatedLoanId,
           relatedPaymentId,
           dedupeKey,
+          priority,
         }));
       }
     }

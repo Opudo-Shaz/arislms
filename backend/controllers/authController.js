@@ -1,6 +1,7 @@
 const authService = require('../services/authService');
 const passwordResetService = require('../services/passwordResetService');
 const ResetPasswordRequestDto = require('../dtos/auth/ResetPasswordRequestDto');
+const LoginOtpRequestDto = require('../dtos/auth/LoginOtpRequestDto');
 const { validateSync } = require('../utils/validationMiddleware');
 const logger = require('../config/logger');
 
@@ -15,6 +16,16 @@ const loginUser = async (req, res) => {
     }
 
     const result = await authService.login(email, password, userAgent);
+
+    // OTP-gated login: password verified but a one-time code is still required.
+    if (result && result.otpRequired) {
+      logger.info(`Login for ${email} requires OTP verification`);
+      return res.json({
+        otpRequired: true,
+        otpToken: result.otpToken,
+        message: 'A verification code has been sent. Please enter it to continue.',
+      });
+    }
 
     // Successful login
     logger.info(`User ${email} logged in successfully`);
@@ -31,6 +42,33 @@ const loginUser = async (req, res) => {
 
     logger.error(`Login error: ${err.message}`);
     res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * POST /api/auth/verify-otp
+ * Completes an OTP-gated login: verifies the challenge token + code and returns
+ * the real session (same shape as a normal login).
+ */
+const verifyOtp = async (req, res) => {
+  const validation = validateSync(req.body, LoginOtpRequestDto.verifyOtpSchema);
+  if (!validation.valid) {
+    return res.status(400).json({ success: false, message: 'Validation error', errors: validation.errors });
+  }
+
+  const { otpToken, code } = validation.value;
+  const userAgent = req.headers['user-agent'] || 'unknown';
+
+  try {
+    const result = await authService.verifyLoginOtp(otpToken, code, userAgent);
+    return res.json({ message: 'Login successful', ...result });
+  } catch (err) {
+    if (err.status) {
+      logger.warn(`OTP verification failed: ${err.message}`);
+      return res.status(err.status).json({ message: err.message });
+    }
+    logger.error(`OTP verification error: ${err.message}`);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -86,4 +124,4 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { loginUser, forgotPassword, resetPassword };
+module.exports = { loginUser, verifyOtp, forgotPassword, resetPassword };

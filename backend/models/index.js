@@ -26,6 +26,7 @@ const Notification = require('./notificationModel');
 const NotificationTemplate = require('./notificationTemplateModel');
 const NotificationOutbox = require('./notificationOutboxModel');
 const UserInvitation = require('./userInvitationModel');
+const Otp = require('./otpModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
@@ -159,6 +160,10 @@ UserInvitation.belongsTo(Role, { foreignKey: 'role_id', as: 'role' });
 UserInvitation.belongsTo(User, { foreignKey: 'invited_by', as: 'inviter', constraints: false });
 UserInvitation.belongsTo(User, { foreignKey: 'created_user_id', as: 'createdUser', constraints: false });
 
+// One-time password codes belong to a user
+Otp.belongsTo(User, { foreignKey: 'user_id', as: 'user', constraints: false });
+User.hasMany(Otp, { foreignKey: 'user_id', as: 'otps' });
+
 module.exports = {
   sequelize,
   Role,
@@ -185,4 +190,5 @@ module.exports = {
   SystemConfigCodeRelation,
   CronJobRun,
   UserInvitation,
+  Otp,
 };

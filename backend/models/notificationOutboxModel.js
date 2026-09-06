@@ -25,6 +25,10 @@ const NotificationOutbox = sequelize.define('NotificationOutbox', {
   },
   attempts: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   maxAttempts: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 5, field: 'max_attempts' },
+  // Higher number = processed first by outboxWorker. Default 0 (normal). Time-sensitive
+  // messages (e.g. login OTP) are queued with a high priority so they jump ahead of the
+  // ordinary FIFO backlog.
+  priority: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   lastError: { type: DataTypes.TEXT, allowNull: true, field: 'last_error' },
   nextAttemptAt: { type: DataTypes.DATE, allowNull: true, field: 'next_attempt_at' },
 
@@ -38,7 +42,7 @@ const NotificationOutbox = sequelize.define('NotificationOutbox', {
   createdAt: 'created_at',
   updatedAt: 'updated_at',
   indexes: [
-    { fields: ['status', 'next_attempt_at'] },
+    { fields: ['status', 'priority', 'next_attempt_at'] },
     { fields: ['dedupe_key'] },
   ],
 });

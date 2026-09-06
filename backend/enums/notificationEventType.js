@@ -6,4 +6,5 @@ module.exports = Object.freeze({
   LOAN_APPROVED: 'loan_approved',
   LOAN_REJECTED: 'loan_rejected',
   REGISTRATION_INVITE: 'registration_invite',
+  OTP_VERIFICATION: 'otp_verification',
 });

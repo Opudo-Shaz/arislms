@@ -340,6 +340,47 @@ const defaults = [
     isBoolean: false,
     isActive: true,
     isReadOnly: false,
+  },
+  // ── Authentication / OTP ────────────────────────────────────────────────
+  {
+    key: 'auth.otp.require_on_login',
+    label: 'Require OTP on Login',
+    value: null,
+    category: 'auth',
+    description: 'When enabled, users must enter a one-time code (sent via the notification channels) after their password to complete login.',
+    isBoolean: true,
+    isActive: false,
+    isReadOnly: false,
+  },
+  {
+    key: 'auth.otp.length',
+    label: 'OTP Code Length',
+    value: '6',
+    category: 'auth',
+    description: 'Number of digits in a generated one-time code (4–10).',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
+    key: 'auth.otp.ttl_minutes',
+    label: 'OTP Validity (minutes)',
+    value: '10',
+    category: 'auth',
+    description: 'How long a one-time code (and its verification session) remains valid, in minutes.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
+    key: 'auth.otp.max_attempts',
+    label: 'OTP Max Attempts',
+    value: '5',
+    category: 'auth',
+    description: 'Maximum incorrect verification attempts allowed per code before it is locked and a new one must be requested.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
   }
 ];
 

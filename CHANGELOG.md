@@ -7,13 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Features merged after v1.0 will be documented here as they land, then rolled
+Features merged after v1.1 will be documented here as they land, then rolled
 into the next dated release section below when that version ships.
 
 ### Added
 ### Changed
 ### Fixed
 ### Security
+
+## [1.1.0] - 2026-09-06
+
+Second release of Aris LMS, focused on access control, onboarding, and a
+scalable notification layer built on top of the v1.0 baseline.
+
+### Added
+
+**Roles, Permissions & Access Control**
+- Permission-based access control replacing role-name checks, with a
+  configurable permission catalog for fine-grained authorization.
+- Refactored roles and permissions for scalable, extensible access management.
+- Configurable OTP on login: an admin toggle requires users to enter a
+  one-time code (delivered via notification channels) after their password,
+  with configurable code length and validity window.
+
+**User Onboarding & Invitations**
+- Invite-only registration: admins issue time-limited invitation links with
+  email notifications, and invitees self-register through them.
+- Invitation lifecycle handling to prevent duplicate invites and manage
+  expired invitations.
+
+**Notifications**
+- Scalable notification module with reusable notification templates and an
+  outbox for managed, auditable delivery.
+
+**Administration & Platform**
+- Seeder API endpoint for super admin bootstrapping.
+- Hardened Swagger/OpenAPI documentation security.
+
+### Changed
+- Updated login page to use the dark logo and refreshed the app logo.
+- Updated email header background color to match brand color.
 
 ## [1.0.0] - 2026-08-21
 

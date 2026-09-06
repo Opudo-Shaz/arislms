@@ -1,5 +1,5 @@
 const express = require('express');
-const { loginUser, forgotPassword, resetPassword } = require('../controllers/authController');
+const { loginUser, verifyOtp, forgotPassword, resetPassword } = require('../controllers/authController');
 
 const router = express.Router();
 
@@ -32,6 +32,32 @@ const router = express.Router();
  *               error: Invalid credentials
  */
 router.post('/login', loginUser);
+
+/**
+ * @openapi
+ * /api/auth/verify-otp:
+ *   post:
+ *     summary: Complete an OTP-gated login by verifying the one-time code
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             otpToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *             code: "123456"
+ *     responses:
+ *       200:
+ *         description: OTP verified, returns JWT token
+ *       400:
+ *         description: Invalid or expired code
+ *       401:
+ *         description: Invalid or expired verification session
+ *       429:
+ *         description: Too many incorrect attempts
+ */
+router.post('/verify-otp', verifyOtp);
 
 /**
  * @openapi

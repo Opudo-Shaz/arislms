@@ -3,7 +3,7 @@ const service = require('../services/systemConfigService')
 const logger = require('../config/logger')
 const { getUserId } = require('../utils/helpers')
 
-const CATEGORIES = (process.env.SYSTEM_CONFIG_CATEGORIES || 'general,storage,notifications,loans,integrations,email')
+const CATEGORIES = (process.env.SYSTEM_CONFIG_CATEGORIES || 'general,storage,notifications,loans,integrations,email,auth')
   .split(',')
   .map((c) => c.trim())
   .filter(Boolean)

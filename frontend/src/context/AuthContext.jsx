@@ -66,8 +66,8 @@ export const AuthProvider = ({ children }) => {
     return () => setUnauthorizedHandler(null)
   }, [logout])
 
-  const login = useCallback(async (email, password) => {
-    const result = await authApi.login({ email, password })
+  /** Build a session from a login/verify-otp response, persist it, and set state. */
+  const applySession = useCallback((result) => {
     const session = {
       token: result.token,
       user: result.user,
@@ -79,6 +79,26 @@ export const AuthProvider = ({ children }) => {
     setAuth(session)
     return session
   }, [])
+
+  const login = useCallback(async (email, password) => {
+    const result = await authApi.login({ email, password })
+    // OTP-gated login: password accepted but a one-time code is still required.
+    // Don't establish a session yet — the caller drives the OTP step.
+    if (result?.otpRequired) {
+      return { otpRequired: true, otpToken: result.otpToken }
+    }
+    return applySession(result)
+  }, [applySession])
+
+  /**
+   * Complete an OTP-gated login by verifying the challenge token + code.
+   * On success establishes the session, same as a direct login.
+   * @param {{ otpToken: string, code: string }} payload
+   */
+  const verifyOtp = useCallback(async ({ otpToken, code }) => {
+    const result = await authApi.verifyOtp({ otpToken, code })
+    return applySession(result)
+  }, [applySession])
 
   /**
    * Whether the current session carries a given permission. The wildcard
@@ -103,9 +123,10 @@ export const AuthProvider = ({ children }) => {
       permissions: auth?.permissions ?? [],
       hasPermission,
       login,
+      verifyOtp,
       logout,
     }),
-    [auth, hasPermission, login, logout],
+    [auth, hasPermission, login, verifyOtp, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -104,7 +104,7 @@ async function run({ batchSize = 50 } = {}) {
         },
       ],
     },
-    order: [['created_at', 'ASC']],
+    order: [['priority', 'DESC'], ['created_at', 'ASC']],
     limit: batchSize,
   });
 

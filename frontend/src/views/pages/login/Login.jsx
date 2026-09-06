@@ -25,7 +25,7 @@ import { ApiError } from '../../../api'
 import { forgotPassword } from '../../../api/authApi'
 
 const Login = () => {
-  const { login, isAuthenticated } = useAuth()
+  const { login, verifyOtp, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -56,6 +56,11 @@ const Login = () => {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  // OTP step state — populated when the backend requires a one-time code.
+  const [otpToken, setOtpToken] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const otpRequired = Boolean(otpToken)
 
   const handleForgotPassword = async () => {
     const { isConfirmed } = await Swal.fire({
@@ -104,7 +109,13 @@ const Login = () => {
     setError('')
     setSubmitting(true)
     try {
-      await login(email.trim(), password)
+      const result = await login(email.trim(), password)
+      // Backend requires a one-time code — switch to the OTP step instead of redirecting.
+      if (result?.otpRequired) {
+        setOtpToken(result.otpToken)
+        setOtpCode('')
+        return
+      }
       // Clear any stale session data before redirecting
       sessionStorage.clear()
       // Redirect to the target location, clearing the login page from history
@@ -123,6 +134,53 @@ const Login = () => {
     }
   }
 
+  const handleVerifyOtp = async (event) => {
+    event.preventDefault()
+    setError('')
+    setSubmitting(true)
+    try {
+      await verifyOtp({ otpToken, code: otpCode.trim() })
+      sessionStorage.clear()
+      navigate(from, { replace: true, state: undefined })
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        // Challenge token expired/invalid — send the user back to the password step.
+        setError('Your verification session has expired. Please sign in again.')
+        setOtpToken('')
+        setOtpCode('')
+      } else if (err instanceof ApiError && err.status === 0) {
+        setError('Cannot reach the server. Please try again.')
+      } else {
+        setError(err.message || 'Verification failed. Please try again.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    setError('')
+    setSubmitting(true)
+    try {
+      const result = await login(email.trim(), password)
+      if (result?.otpRequired) {
+        setOtpToken(result.otpToken)
+        setOtpCode('')
+      }
+    } catch (err) {
+      setError(err.message || 'Could not resend the code. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleBackToLogin = () => {
+    setError('')
+    setOtpToken('')
+    setOtpCode('')
+    setPassword('')
+  }
+
   return (
     <div className="login-page-bg min-vh-100 d-flex flex-row align-items-center">
       <CContainer>
@@ -131,66 +189,131 @@ const Login = () => {
             <CCardGroup>
               <CCard className="p-4">
                 <CCardBody>
-                  <CForm onSubmit={handleSubmit}>
-                    <h1>Login</h1>
-                    <p className="text-body-secondary">Sign In to your account</p>
-                    {error ? (
-                      <CAlert color="danger" className="py-2" dismissible onClose={() => setError('')}>
-                        {error}
-                      </CAlert>
-                    ) : null}
-                    <CInputGroup className="mb-3">
-                      <CInputGroupText>
-                        <CIcon icon={cilUser} />
-                      </CInputGroupText>
-                      <CFormInput
-                        type="email"
-                        placeholder="Email"
-                        autoComplete="username"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                      />
-                    </CInputGroup>
-                    <CInputGroup className="mb-4">
-                      <CInputGroupText>
-                        <CIcon icon={cilLockLocked} />
-                      </CInputGroupText>
-                      <CFormInput
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Password"
-                        autoComplete="current-password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
-                      <CInputGroupText
-                        role="button"
-                        title={showPassword ? 'Hide password' : 'Show password'}
-                        onClick={() => setShowPassword((v) => !v)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
-                      </CInputGroupText>
-                    </CInputGroup>
-                    <CRow>
-                      <CCol xs={6}>
-                        <CButton
-                          color="primary"
-                          type="submit"
-                          className="px-4"
-                          disabled={submitting}
+                  {otpRequired ? (
+                    <CForm onSubmit={handleVerifyOtp}>
+                      <h1>Verify code</h1>
+                      <p className="text-body-secondary">
+                        Enter the verification code we just sent you to finish signing in.
+                      </p>
+                      {error ? (
+                        <CAlert color="danger" className="py-2" dismissible onClose={() => setError('')}>
+                          {error}
+                        </CAlert>
+                      ) : null}
+                      <CInputGroup className="mb-4">
+                        <CInputGroupText>
+                          <CIcon icon={cilLockLocked} />
+                        </CInputGroupText>
+                        <CFormInput
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          placeholder="Verification code"
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                          autoFocus
+                          required
+                        />
+                      </CInputGroup>
+                      <CRow className="align-items-center">
+                        <CCol xs={6}>
+                          <CButton
+                            color="primary"
+                            type="submit"
+                            className="px-4"
+                            disabled={submitting || !otpCode}
+                          >
+                            {submitting ? <CSpinner size="sm" /> : 'Verify'}
+                          </CButton>
+                        </CCol>
+                        <CCol xs={6} className="text-right">
+                          <CButton
+                            color="link"
+                            className="px-0"
+                            type="button"
+                            onClick={handleResendOtp}
+                            disabled={submitting}
+                          >
+                            Resend code
+                          </CButton>
+                        </CCol>
+                      </CRow>
+                      <CRow className="mt-2">
+                        <CCol xs={12}>
+                          <CButton
+                            color="link"
+                            className="px-0"
+                            type="button"
+                            onClick={handleBackToLogin}
+                            disabled={submitting}
+                          >
+                            Back to login
+                          </CButton>
+                        </CCol>
+                      </CRow>
+                    </CForm>
+                  ) : (
+                    <CForm onSubmit={handleSubmit}>
+                      <h1>Login</h1>
+                      <p className="text-body-secondary">Sign In to your account</p>
+                      {error ? (
+                        <CAlert color="danger" className="py-2" dismissible onClose={() => setError('')}>
+                          {error}
+                        </CAlert>
+                      ) : null}
+                      <CInputGroup className="mb-3">
+                        <CInputGroupText>
+                          <CIcon icon={cilUser} />
+                        </CInputGroupText>
+                        <CFormInput
+                          type="email"
+                          placeholder="Email"
+                          autoComplete="username"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          required
+                        />
+                      </CInputGroup>
+                      <CInputGroup className="mb-4">
+                        <CInputGroupText>
+                          <CIcon icon={cilLockLocked} />
+                        </CInputGroupText>
+                        <CFormInput
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Password"
+                          autoComplete="current-password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                        />
+                        <CInputGroupText
+                          role="button"
+                          title={showPassword ? 'Hide password' : 'Show password'}
+                          onClick={() => setShowPassword((v) => !v)}
+                          style={{ cursor: 'pointer' }}
                         >
-                          {submitting ? <CSpinner size="sm" /> : 'Login'}
-                        </CButton>
-                      </CCol>
-                      <CCol xs={6} className="text-right">
-                        <CButton color="link" className="px-0" type="button" onClick={handleForgotPassword}>
-                          Forgot password?
-                        </CButton>
-                      </CCol>
-                    </CRow>
-                  </CForm>
+                          {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+                        </CInputGroupText>
+                      </CInputGroup>
+                      <CRow>
+                        <CCol xs={6}>
+                          <CButton
+                            color="primary"
+                            type="submit"
+                            className="px-4"
+                            disabled={submitting}
+                          >
+                            {submitting ? <CSpinner size="sm" /> : 'Login'}
+                          </CButton>
+                        </CCol>
+                        <CCol xs={6} className="text-right">
+                          <CButton color="link" className="px-0" type="button" onClick={handleForgotPassword}>
+                            Forgot password?
+                          </CButton>
+                        </CCol>
+                      </CRow>
+                    </CForm>
+                  )}
                 </CCardBody>
               </CCard>
               <CCard className="text-white bg-primary py-5" style={{ width: '44%' }}>

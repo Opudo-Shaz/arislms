@@ -89,6 +89,21 @@ const defaults = [
     inAppTitle: 'Registration Invite',
     inAppBody: '{{name}} was invited to join as a {{roleName}}.',
   },
+  {
+    eventKey: NotificationEventType.OTP_VERIFICATION,
+    description: 'Sent with a one-time verification code (e.g. login two-factor).',
+    // In-app/push disabled by default so verification codes are not persisted
+    // in the recipient's notification inbox — delivered out-of-band (email/SMS).
+    inAppEnabled: false,
+    pushEnabled: false,
+    emailSubject: 'Your {{appName}} verification code',
+    emailBody: '<p>Hi {{name}},</p><p>Your verification code is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px">{{code}}</p><p>This code expires in {{ttlMinutes}} minutes. If you did not try to sign in, please ignore this message.</p>',
+    smsBody: '{{appName}} verification code: {{code}}. Expires in {{ttlMinutes}} minutes.',
+    pushTitle: 'Verification code',
+    pushBody: 'Your {{appName}} verification code is {{code}}.',
+    inAppTitle: 'Verification Code',
+    inAppBody: 'Your verification code is {{code}}. It expires in {{ttlMinutes}} minutes.',
+  },
 ];
 
 async function seedNotificationTemplates() {
