@@ -122,6 +122,18 @@ const defaults = [
   },
   // ── Loans ──────────────────────────────────────────────────────────────
   {
+    key: 'loans.max_loan_amount',
+    label: 'Maximum Loan Amount (Global Cap)',
+    value: null,
+    category: 'loans',
+    description:
+      'Absolute ceiling (in the loan currency) on the credit limit any single client can be ' +
+      'granted. The computed credit limit is capped at this value. Leave blank for no global cap.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
     key: 'payment.min_overpayment_surplus',
     label: 'Minimum Overpayment Surplus',
     value: '1',

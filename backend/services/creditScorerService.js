@@ -1,4 +1,4 @@
-// services/creditScorer.js
+// services/creditScorerService.js
 
 function clamp(value, min = 0, max = 5) {
   return Math.max(min, Math.min(max, value));
@@ -22,7 +22,8 @@ function calculateCreditScore(client = {}, loans = [], options = {}) {
     kyc: 0,
     age: 0,
     tenure: 0,
-    blendedPreviousScore: 0
+    blendedPreviousScore: 0,
+    previousWeight: 0
   };
 
   let score = breakdown.base;
@@ -96,16 +97,23 @@ function calculateCreditScore(client = {}, loans = [], options = {}) {
 
   score += breakdown.tenure;
 
-  // 7. Blend previous stored risk score
+  // 7. Blend previous stored risk score.
+  //    The weight given to the client's established score grows with their loan
+  //    tenure (successful completions), so a longer, cleaner track record smooths
+  //    the new score more heavily toward their proven history. Capped at 0.5 so the
+  //    fresh assessment always retains at least half the weight.
   const previousScore = Number(client.riskScore);
+  const loanTenure = Math.max(0, Number(options.loanTenure) || 0);
 
   if (
     !Number.isNaN(previousScore) &&
     previousScore >= 0 &&
     previousScore <= 5
   ) {
+    const previousWeight = clamp(0.3 + loanTenure * 0.02, 0.3, 0.5);
     breakdown.blendedPreviousScore = previousScore;
-    score = score * 0.7 + previousScore * 0.3;
+    breakdown.previousWeight = previousWeight;
+    score = score * (1 - previousWeight) + previousScore * previousWeight;
   }
 
   score = clamp(Math.round(score), 0, 5);

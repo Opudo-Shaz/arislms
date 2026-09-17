@@ -15,6 +15,7 @@ const { emitLoanTransaction } = require('../utils/loanTransactionEmitter');
 const LoanTransactionType = require('../enums/loanTransactionType');
 const systemConfigService = require('./systemConfigService');
 const loanService = require('./loanService');
+const clientService = require('./clientService');
 const { CURRENCY_EPSILON } = require('../utils/helpers');
 const Client = require('../models/clientModel');
 const NotificationEventType = require('../enums/notificationEventType');
@@ -481,6 +482,11 @@ async createPayment(data, user, userAgent = 'unknown') {
       }
     }
 
+    // Whether this payment fully settles the loan, and whether it was ever
+    // touched by a write-off (a write-off disqualifies the tenure reward).
+    const loanClosed = loanUpdates.status === LoanStatus.CLOSED;
+    const loanHadWriteOff = Number(loan.writtenOffAmount || 0) > 0;
+
     await loan.update(loanUpdates, { transaction: t });
 
     // De-escalate OVERDUE → ACTIVE immediately if all overdue installments are cleared
@@ -579,6 +585,17 @@ async createPayment(data, user, userAgent = 'unknown') {
       relatedLoanId: loan.id,
       relatedPaymentId: payment.id,
     });
+
+    // Reward loan tenure when the client cleanly repays the loan in full.
+    // A loan touched by any write-off never counts. Best-effort — never blocks payment.
+    if (loanClosed && !loanHadWriteOff) {
+      await clientService.incrementLoanTenure(loan.clientId, {
+        actorId: creatorId,
+        userAgent,
+        loanId: loan.id,
+        reason: 'loan_fully_repaid',
+      });
+    }
 
     return { payment, overpaymentContribution };
   } catch (err) {

@@ -371,6 +371,67 @@ const clientService = {
     return this._computeAndSaveCreditScore(id, actorId, userAgent);
   },
 
+  /**
+   * Adjust a client's loan-tenure counter (loyalty signal used by the credit
+   * scorer's previous-score blend weight). Reusable by any path that observes a
+   * loan lifecycle event. Never lets tenure drop below 0. Never throws — a tenure
+   * update must not break the caller's primary transaction/flow.
+   *
+   * @param {number} clientId
+   * @param {number} delta            +1 on clean completion, -1 on default
+   * @param {object} [opts]
+   * @param {number} [opts.actorId]
+   * @param {string} [opts.userAgent]
+   * @param {number} [opts.loanId]    for audit context
+   * @param {string} [opts.reason]    for audit context
+   * @returns {Promise<number|null>} the new tenure value, or null on failure
+   */
+  async adjustLoanTenure(clientId, delta, opts = {}) {
+    try {
+      const client = await Client.findByPk(clientId);
+      if (!client) {
+        logger.warn(`adjustLoanTenure: client ${clientId} not found`);
+        return null;
+      }
+
+      const current = Number(client.loanTenure) || 0;
+      const next = Math.max(0, current + delta);
+      if (next === current) return current;
+
+      await client.update({ loanTenure: next });
+
+      await AuditLogger.log({
+        entityType: 'CLIENT',
+        entityId: clientId,
+        action: 'UPDATE',
+        data: {
+          loanTenure: { from: current, to: next },
+          delta,
+          loanId: opts.loanId || null,
+          reason: opts.reason || null
+        },
+        actorId: opts.actorId || 1,
+        options: { actorType: opts.actorId ? 'USER' : 'SYSTEM', source: opts.userAgent || 'system' }
+      });
+
+      logger.info(`Client ${clientId} loan tenure ${current} -> ${next} (delta ${delta})`);
+      return next;
+    } catch (err) {
+      logger.error(`Error adjusting loan tenure for client ${clientId}: ${err.message}`);
+      return null;
+    }
+  },
+
+  // +1 on a loan the client fully repaid without any write-off
+  async incrementLoanTenure(clientId, opts = {}) {
+    return this.adjustLoanTenure(clientId, 1, opts);
+  },
+
+  // -1 (floored at 0) when a loan defaults
+  async decrementLoanTenure(clientId, opts = {}) {
+    return this.adjustLoanTenure(clientId, -1, opts);
+  },
+
   // Shared guard — throws 409 if the client has an outstanding loan
   async _assertNoActiveLoan(clientId, action) {
     const activeLoan = await Loan.findOne({

@@ -25,6 +25,7 @@ const LoanTransactionType = require('../enums/loanTransactionType');
 const ledgerService = require('../services/ledgerService');
 const penaltyService = require('../services/penaltyService');
 const loanService = require('../services/loanService');
+const clientService = require('../services/clientService');
 const { emitLoanTransaction } = require('./loanTransactionEmitter');
 const AuditLogger = require('./auditLogger');
 const logger = require('../config/logger');
@@ -197,6 +198,13 @@ async function processLoan(loan, today, overdueAt, defaultedAt, penaltyConfig, s
         dedupeKey: `${NotificationEventType.LOAN_DEFAULTED}:${loan.id}`,
       });
     }
+
+    // Penalise loan tenure once, on the transition into DEFAULTED (best-effort).
+    await clientService.decrementLoanTenure(loan.clientId, {
+      loanId: loan.id,
+      reason: 'loan_defaulted',
+      userAgent: 'cron',
+    });
 
     return;
   }

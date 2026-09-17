@@ -1,4 +1,6 @@
-// services/riskPolicy.js
+// services/riskPolicyService.js
+
+const systemConfigService = require('./systemConfigService');
 
 function getRiskGrade(score) {
   if (score >= 5) return "A";
@@ -28,14 +30,16 @@ function getMaxLoanAmount(score, baseAmount) {
 }
 
 /**
- * Determines the credit limit for a client based on their income band and risk score.
+ * Determines the credit limit for a client based on their income band and risk score,
+ * then applies the global maximum-loan-amount cap.
  *
  * CLIENT_INCOME_BANDS env format: "0-10000,10001-30000,30001-50000,50001-100000+"
  * BASE_MULIPLIER_AMOUNT env format: "5000"
  *
  * Formula: (bandIndex + 1) * BASE_MULIPLIER_AMOUNT * getMaxLoanMultiplier(riskScore)
+ * The result is then capped at the `loans.max_loan_amount` system config (if set).
  */
-function computeCreditLimit(monthlyIncome, riskScore) {
+async function computeCreditLimit(monthlyIncome, riskScore) {
   const income = Number(monthlyIncome) || 0;
   const baseMultiplier = Number(process.env.BASE_MULIPLIER_AMOUNT) || 5000;
   const bandsRaw = (process.env.CLIENT_INCOME_BANDS || '').split(',').map(b => b.trim()).filter(Boolean);
@@ -59,7 +63,15 @@ function computeCreditLimit(monthlyIncome, riskScore) {
   }
 
   const base = (bandIndex + 1) * baseMultiplier;
-  return base * getMaxLoanMultiplier(riskScore);
+  const computedLimit = base * getMaxLoanMultiplier(riskScore);
+
+  // Apply the global cap (loans.max_loan_amount). Blank/unset => no cap.
+  const maxLoanAmount = await systemConfigService.getConfigValue('loans.max_loan_amount', 'number', null);
+  if (maxLoanAmount != null && !Number.isNaN(Number(maxLoanAmount)) && Number(maxLoanAmount) > 0) {
+    return Math.min(computedLimit, Number(maxLoanAmount));
+  }
+
+  return computedLimit;
 }
 
 module.exports = {

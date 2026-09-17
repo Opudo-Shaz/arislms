@@ -226,10 +226,13 @@ const creditScoreService = {
 
     const loans = await Loan.findAll({ where: { clientId } });
     const { score: riskScore, breakdown: scoringBreakdown, dti: riskDti } =
-      calculateCreditScore(client, loans, { requestedTenure: opts.requestedTenure });
+      calculateCreditScore(client, loans, {
+        requestedTenure: opts.requestedTenure,
+        loanTenure: client.loanTenure
+      });
 
     const riskGrade = getRiskGrade(riskScore);
-    const creditLimit = computeCreditLimit(client.monthlyIncome, riskScore);
+    const creditLimit = await computeCreditLimit(client.monthlyIncome, riskScore);
 
     const creditScore = await CreditScore.create({
       clientId,
@@ -243,6 +246,10 @@ const creditScoreService = {
       evaluatedBy: actorId,
       notes: opts.notes || null
     });
+
+    // Persist the score back onto the client so subsequent recomputations can blend
+    // against this established value (see creditScorerService blending logic).
+    await client.update({ riskScore });
 
     await AuditLogger.log({
       entityType: 'CREDIT_SCORE',

@@ -25,6 +25,7 @@ const Client = sequelize.define('Client', {
   kycNotes: { type: DataTypes.TEXT, field: 'kyc_notes' },
   verifiedBy: { type: DataTypes.INTEGER, field: 'verified_by' },
   riskScore: { type: DataTypes.DECIMAL(5,2), field: 'risk_score' },
+  loanTenure: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'loan_tenure' },
   preferredContactMethod: { type: DataTypes.STRING(16), field: 'preferred_contact_method' },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true, field: 'is_active' },
   status: {
