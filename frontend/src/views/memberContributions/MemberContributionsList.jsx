@@ -12,18 +12,19 @@ import {
   CCol,
   CFormInput,
   CFormSelect,
-  CPagination,
-  CPaginationItem,
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilList, cilPlus, cilReload } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
+import CursorPager from '../../components/CursorPager'
 import StatusBadge from '../../components/StatusBadge'
 import MemberContributionForm from './MemberContributionForm'
 import MemberStatementModal from './MemberStatementModal'
 import { useContributions } from '../../hooks/useMemberContributions'
+import { useCursorPagination } from '../../hooks/useCursorPagination'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useAuth } from '../../context/AuthContext'
 import { CONTRIBUTION_TYPE } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
@@ -41,16 +42,14 @@ const MemberContributionsList = () => {
   const [statementClient, setStatementClient] = useState(null)
   const [search, setSearch] = useState('')
   const [type, setType] = useState('')
-  const [page, setPage] = useState(1)
+  const debouncedSearch = useDebouncedValue(search.trim())
 
-  const resetPageAnd = (setter) => (value) => { setter(value); setPage(1) }
-
-  const params = { page, limit: PAGE_SIZE, type: type || undefined, search: search.trim() || undefined }
+  const filters = { type: type || undefined, search: debouncedSearch || undefined }
+  const { cursorParams, goTo } = useCursorPagination(filters)
+  const params = { ...filters, ...cursorParams, limit: PAGE_SIZE }
   const { data, isLoading, error, refetch, isFetching } = useContributions(params)
 
   const records = data?.records ?? []
-  const total = data?.pagination?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const columns = [
     {
@@ -117,11 +116,11 @@ const MemberContributionsList = () => {
             <CFormInput
               placeholder="Search member name, notes…"
               value={search}
-              onChange={(e) => resetPageAnd(setSearch)(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </CCol>
           <CCol md={4}>
-            <CFormSelect value={type} onChange={(e) => resetPageAnd(setType)(e.target.value)}>
+            <CFormSelect value={type} onChange={(e) => setType(e.target.value)}>
               <option value="">All types</option>
               {CONTRIBUTION_TYPE.values.map((v) => (
                 <option key={v} value={v}>
@@ -141,21 +140,12 @@ const MemberContributionsList = () => {
           onRowClick={(row) => setStatementClient(row.clientId)}
         />
 
-        {totalPages > 1 && (
-          <div className="d-flex justify-content-between align-items-center mt-3">
-            <span className="small text-body-secondary">
-              {total} records · page {page} of {totalPages}
-            </span>
-            <CPagination className="mb-0">
-              <CPaginationItem disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </CPaginationItem>
-              <CPaginationItem disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </CPaginationItem>
-            </CPagination>
-          </div>
-        )}
+        <CursorPager
+          pagination={data?.pagination}
+          onNavigate={goTo}
+          disabled={isFetching}
+          summary={`Showing ${records.length} record${records.length === 1 ? '' : 's'}`}
+        />
       </CCardBody>
 
       <MemberContributionForm visible={showForm} onClose={() => setShowForm(false)} />

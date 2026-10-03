@@ -1,5 +1,6 @@
 const AuditLog = require('../models/auditLogModel');
 const User = require('../models/userModel');
+const { paginateKeyset } = require('../utils/keysetPagination');
 
 class AuditService {
   /**
@@ -88,34 +89,28 @@ class AuditService {
   }
 
   /**
-   * Get all audit logs with optional filtering
+   * Get audit logs (keyset paginated, newest first) with optional filtering
    * @param {Object} filters - Filter criteria
-   * @param {Object} options - Query options
-   * @returns {Promise<Object>} Audit logs and count
+   * @param {Object} options - { cursor, direction, limit }
+   * @returns {Promise<Object>} { rows, limit, hasNext, hasPrev, nextCursor, prevCursor }
    */
   static async getAuditLogs(filters = {}, options = {}) {
     try {
-      const { limit = 100, offset = 0, order = 'DESC' } = options;
+      const { cursor, direction, limit = 100 } = options;
       const where = {};
 
       if (filters.entityType) where.entity_type = filters.entityType;
       if (filters.action) where.action = filters.action.toUpperCase();
       if (filters.actorType) where.actor_type = filters.actorType.toUpperCase();
 
-      const { rows, count } = await AuditLog.findAndCountAll({
+      return await paginateKeyset(AuditLog, {
+        keys: [['occurred_at', 'timestamp'], ['audit_id', 'int']],
+        cursor,
+        direction,
+        limit,
         where,
         include: [{ model: User, as: 'actor', attributes: ['id', 'first_name', 'last_name'], required: false }],
-        limit,
-        offset,
-        order: [['occurred_at', order]],
       });
-
-      return {
-        data: rows,
-        total: count,
-        limit,
-        offset,
-      };
     } catch (error) {
       console.error('Error retrieving audit logs:', error);
       throw error;

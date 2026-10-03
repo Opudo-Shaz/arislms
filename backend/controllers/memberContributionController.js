@@ -3,22 +3,23 @@ const logger = require('../config/logger');
 const { validateSync } = require('../utils/validationMiddleware');
 const { MemberContributionRequestDto, MemberContributionResponseDto } = require('../dtos/memberContribution');
 const ContributionType = require('../enums/contributionType');
+const { parseKeysetQuery, toPaginationDto } = require('../utils/keysetPagination');
 
 const memberContributionController = {
   async getAll(req, res) {
     try {
-      const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-      const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 20));
+      const { cursor, direction, limit } = parseKeysetQuery(req.query);
       const { type, search } = req.query;
 
-      const result = await memberContributionService.getAllContributions({ page, limit, type, search });
+      const result = await memberContributionService.getAllContributions({ cursor, direction, limit, type, search });
       return res.status(200).json({
         success: true,
-        data: result.records.map(r => new MemberContributionResponseDto(r)),
-        pagination: { total: result.total, page: result.page, limit: result.limit, pages: result.pages },
+        data: result.rows.map(r => new MemberContributionResponseDto(r)),
+        pagination: toPaginationDto(result),
       });
     } catch (err) {
       logger.error(`GetAllContributions Error: ${err.message}`);
+      if (err.statusCode === 400) return res.status(400).json({ success: false, message: err.message });
       return res.status(500).json({ success: false, message: 'Error fetching contributions' });
     }
   },

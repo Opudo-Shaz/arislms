@@ -3,7 +3,9 @@ const Loan = require('../models/loanModel');
 const CreditScore = require('../models/creditScoreModel');
 const Document = require('../models/documentModel');
 const DocumentStatus = require('../enums/documentStatus');
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
+const { clientSearchVector } = require('../constants/searchVectors');
+const { paginateKeyset, buildPrefixTsQuery } = require('../utils/keysetPagination');
 const ClientStatus = require('../enums/clientStatus');
 const LoanStatus = require('../enums/loanStatus');
 const KycStatus = require('../enums/kycStatus');
@@ -79,10 +81,10 @@ const clientService = {
     }
   },
 
-  // ✅ Get all clients (paginated + filtered)
-  async getAllClients({ page = 1, limit = 20, search, status, kycStatus, queueOnly } = {}) {
+  // ✅ Get clients (keyset paginated + filtered), newest first
+  async getAllClients({ cursor, direction, limit = 20, search, status, kycStatus, queueOnly } = {}) {
     try {
-      const where = {};
+      const where = { [Op.and]: [] };
 
       if (queueOnly === 'true' || queueOnly === true) {
         where.status = { [Op.in]: ['pending', 'pending_kyc_reverification'] };
@@ -92,22 +94,15 @@ const clientService = {
 
       if (kycStatus) where.kycStatus = kycStatus;
 
-      if (search) {
-        const escaped = search.replace(/[%_\\]/g, '\\$&');
-        const { Sequelize } = require('sequelize');
-        where[Op.or] = [
-          Sequelize.literal(`CONCAT(first_name, ' ', last_name) ILIKE '${escaped}%'`),
-          { accountNumber: { [Op.iLike]: `${escaped}%` } },
-          { idDocumentNumber: { [Op.iLike]: `${escaped}%` } },
-        ];
-      }
+      const tsQuery = buildPrefixTsQuery(search);
+      if (tsQuery) where[Op.and].push(Sequelize.literal(`${clientSearchVector('Client')} @@ (${tsQuery})`));
 
-      const offset = (page - 1) * limit;
-      const { count, rows } = await Client.findAndCountAll({
-        where,
+      const result = await paginateKeyset(Client, {
+        keys: [['created_at', 'timestamp'], ['id', 'int']],
+        cursor,
+        direction,
         limit,
-        offset,
-        order: [['created_at', 'DESC']],
+        where,
         include: [{
           model: CreditScore,
           as: 'creditScores',
@@ -118,8 +113,8 @@ const clientService = {
         }],
       });
 
-      logger.info(`Retrieved clients: page=${page}, limit=${limit}, total=${count}`);
-      return { total: count, page, limit, pages: Math.ceil(count / limit), clients: rows };
+      logger.info(`Retrieved clients: direction=${direction}, limit=${limit}, returned=${result.rows.length}`);
+      return result;
     } catch (error) {
       logger.error(`Error fetching clients: ${error.message}`);
       throw error;

@@ -9,14 +9,15 @@
  */
 
 import http from './http'
+import { EMPTY_PAGINATION } from './pagination'
 
-/** @returns {Promise<{records:object[],pagination:object}>} Paginated contributions. */
+/** @returns {Promise<{records:object[],pagination:object}>} Keyset-paginated contributions. */
 export const listContributions = async (params = {}) => {
   const clean = Object.fromEntries(
     Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
   )
   const res = await http.get('/member-contributions', { params: clean })
-  return { records: res?.data ?? [], pagination: res?.pagination ?? { total: 0, page: 1, limit: 20, pages: 0 } }
+  return { records: res?.data ?? [], pagination: res?.pagination ?? EMPTY_PAGINATION }
 }
 
 /**

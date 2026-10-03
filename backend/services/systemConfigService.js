@@ -2,7 +2,9 @@ const SystemConfig = require('../models/systemConfigModel')
 const SystemConfigCodeRelation = require('../models/systemConfigCodeRelationModel')
 const Code = require('../models/codeModel')
 const CodeValue = require('../models/codeValueModel')
-const { Op } = require('sequelize')
+const { Op, Sequelize } = require('sequelize')
+const { systemConfigSearchVector } = require('../constants/searchVectors')
+const { paginateKeyset, buildPrefixTsQuery } = require('../utils/keysetPagination')
 const logger = require('../config/logger')
 const AuditLogger = require('../utils/auditLogger')
 const { encrypt, decrypt, isEncrypted } = require('../utils/configEncryption')
@@ -110,22 +112,23 @@ async function seedInfraConfigs() {
 module.exports = {
   seedInfraConfigs,
 
-  async getAll({ category, q, page = 1, limit = 20 } = {}) {
-    const where = {}
+  // Keyset paginated, alphabetical by category then label.
+  async getAll({ category, q, cursor, direction, limit = 20 } = {}) {
+    const where = { [Op.and]: [] }
     if (category) where.category = category
-    if (q) {
-      const like = { [Op.iLike]: `%${q}%` }
-      where[Op.or] = [{ key: like }, { label: like }, { value: like }, { description: like }]
-    }
-    const offset = (page - 1) * limit
-    const { count, rows } = await SystemConfig.findAndCountAll({
+    const tsQuery = buildPrefixTsQuery(q)
+    if (tsQuery) where[Op.and].push(Sequelize.literal(`${systemConfigSearchVector('SystemConfig')} @@ (${tsQuery})`))
+
+    const result = await paginateKeyset(SystemConfig, {
+      keys: [['category', 'text'], ['label', 'text'], ['id', 'int']],
+      order: 'ASC',
+      cursor,
+      direction,
+      limit,
       where,
       include: [CODE_RELATION_INCLUDE],
-      order: [['category', 'ASC'], ['label', 'ASC']],
-      limit,
-      offset,
     })
-    return { total: count, page, limit, data: rows.map(_safeDTO) }
+    return { ...result, rows: result.rows.map(_safeDTO) }
   },
 
   async getOne(id) {

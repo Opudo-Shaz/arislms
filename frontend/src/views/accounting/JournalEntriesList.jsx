@@ -17,19 +17,19 @@ import {
   CCol,
   CFormSelect,
   CFormInput,
-  CPagination,
-  CPaginationItem,
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilActionUndo, cilMagnifyingGlass, cilPlus, cilReload } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
+import CursorPager from '../../components/CursorPager'
 import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
 import JournalEntryForm from './JournalEntryForm'
 import JournalEntryDetailModal from './JournalEntryDetailModal'
 import { useJournalEntries, useReverseJournalEntry } from '../../hooks/useLedger'
+import { useCursorPagination } from '../../hooks/useCursorPagination'
 import { useAuth } from '../../context/AuthContext'
 import { JOURNAL_ENTRY_STATUS, LEDGER_SOURCE_TYPE } from '../../constants/enums'
 import { formatCurrency, formatDateTime } from '../../utils/format'
@@ -47,24 +47,17 @@ const JournalEntriesList = () => {
   const [sourceType, setSourceType] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [page, setPage] = useState(1)
-
-  const params = { sourceType, from, to, page, limit: PAGE_SIZE }
+  const filters = { sourceType, from, to }
+  const { cursorParams, goTo } = useCursorPagination(filters)
+  const params = { ...filters, ...cursorParams, limit: PAGE_SIZE }
   const { data, isLoading, error, refetch, isFetching } = useJournalEntries(params)
   const reverseMutation = useReverseJournalEntry()
 
   const entries = data?.entries ?? []
-  const total = data?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const [showForm, setShowForm] = useState(false)
   const [viewEntry, setViewEntry] = useState(null)
   const [toReverse, setToReverse] = useState(null)
-
-  const resetPageAnd = (setter) => (value) => {
-    setter(value)
-    setPage(1)
-  }
 
   const columns = [
     {
@@ -163,7 +156,7 @@ const JournalEntriesList = () => {
           <CCol md={4}>
             <CFormSelect
               value={sourceType}
-              onChange={(e) => resetPageAnd(setSourceType)(e.target.value)}
+              onChange={(e) => setSourceType(e.target.value)}
             >
               <option value="">All sources</option>
               {LEDGER_SOURCE_TYPE.values.map((v) => (
@@ -177,14 +170,14 @@ const JournalEntriesList = () => {
             <CFormInput
               type="date"
               value={from}
-              onChange={(e) => resetPageAnd(setFrom)(e.target.value)}
+              onChange={(e) => setFrom(e.target.value)}
             />
           </CCol>
           <CCol md={3}>
             <CFormInput
               type="date"
               value={to}
-              onChange={(e) => resetPageAnd(setTo)(e.target.value)}
+              onChange={(e) => setTo(e.target.value)}
             />
           </CCol>
         </CRow>
@@ -198,21 +191,12 @@ const JournalEntriesList = () => {
           onRowClick={(row) => setViewEntry(row)}
         />
 
-        {totalPages > 1 && (
-          <div className="d-flex justify-content-between align-items-center mt-3">
-            <span className="small text-body-secondary">
-              {total} entries · page {page} of {totalPages}
-            </span>
-            <CPagination className="mb-0">
-              <CPaginationItem disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </CPaginationItem>
-              <CPaginationItem disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </CPaginationItem>
-            </CPagination>
-          </div>
-        )}
+        <CursorPager
+          pagination={data?.pagination}
+          onNavigate={goTo}
+          disabled={isFetching}
+          summary={`Showing ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`}
+        />
       </CCardBody>
 
       <JournalEntryForm visible={showForm} onClose={() => setShowForm(false)} />

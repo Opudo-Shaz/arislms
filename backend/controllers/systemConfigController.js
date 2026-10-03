@@ -2,6 +2,7 @@ const Joi = require('joi')
 const service = require('../services/systemConfigService')
 const logger = require('../config/logger')
 const { getUserId } = require('../utils/helpers')
+const { parseKeysetQuery, toPaginationDto } = require('../utils/keysetPagination')
 
 const CATEGORIES = (process.env.SYSTEM_CONFIG_CATEGORIES || 'general,storage,notifications,loans,integrations,email,auth')
   .split(',')
@@ -52,16 +53,13 @@ const updateSchema = Joi.object({
 module.exports = {
   async getAll(req, res) {
     try {
-      const { category, q, page, limit } = req.query
-      const result = await service.getAll({
-        category,
-        q,
-        page: page ? parseInt(page, 10) : 1,
-        limit: limit ? Math.min(parseInt(limit, 10), 100) : 20,
-      })
-      res.json({ success: true, ...result })
+      const { cursor, direction, limit } = parseKeysetQuery(req.query, { maxLimit: 100 })
+      const { category, q } = req.query
+      const result = await service.getAll({ category, q, cursor, direction, limit })
+      res.json({ success: true, data: result.rows, pagination: toPaginationDto(result) })
     } catch (err) {
       logger.error(`SystemConfigController.getAll: ${err.message}`)
+      if (err.statusCode === 400) return res.status(400).json({ success: false, message: err.message })
       res.status(500).json({ success: false, message: 'Failed to fetch configurations' })
     }
   },

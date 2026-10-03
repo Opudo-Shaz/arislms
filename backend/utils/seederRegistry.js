@@ -43,6 +43,12 @@ const SEEDERS = {
     description: 'Inserts default NotificationTemplate rows for core lifecycle events.',
     fn: require('../scripts/seedNotificationTemplates'),
   },
+  'keyset-pagination-indexes': {
+    key: 'keyset-pagination-indexes',
+    name: 'Keyset Pagination Indexes',
+    description: 'Creates (CONCURRENTLY) the sort-key and full-text search indexes used by paginated list endpoints. Rebuilds any invalid ones.',
+    fn: require('../scripts/addKeysetPaginationIndexes'),
+  },
 };
 
 /** List all registered seeders (metadata only, no handler functions). */

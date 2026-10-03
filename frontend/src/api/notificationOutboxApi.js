@@ -10,13 +10,14 @@
  */
 
 import http from './http'
+import { EMPTY_PAGINATION } from './pagination'
 
 const BASE = '/notification-outbox'
 
 /**
- * List outbox entries (paginated, filtered).
- * @param {object} [params] { status, channel, eventKey, page, limit }
- * @returns {Promise<{ rows:object[], total:number, page:number, limit:number }>}
+ * List outbox entries (keyset paginated, filtered).
+ * @param {object} [params] { status, channel, eventKey, cursor, direction, limit }
+ * @returns {Promise<{ rows:object[], pagination:object }>}
  */
 export const listOutboxEntries = async (params = {}) => {
   const clean = Object.fromEntries(
@@ -25,9 +26,7 @@ export const listOutboxEntries = async (params = {}) => {
   const res = await http.get(BASE, { params: clean })
   return {
     rows: res?.data ?? [],
-    total: res?.total ?? 0,
-    page: res?.page ?? 1,
-    limit: res?.limit ?? 20,
+    pagination: res?.pagination ?? EMPTY_PAGINATION,
   }
 }
 

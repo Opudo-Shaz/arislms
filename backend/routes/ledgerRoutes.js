@@ -8,7 +8,7 @@ const router = express.Router();
  * @openapi
  * /api/ledger/entries:
  *   get:
- *     summary: Get all journal entries (paginated)
+ *     summary: Get all journal entries (keyset paginated, newest entry date first)
  *     tags:
  *       - Ledger
  *     security:
@@ -31,10 +31,15 @@ const router = express.Router();
  *           type: string
  *         example: "2026-04-30"
  *       - in: query
- *         name: page
+ *         name: cursor
  *         schema:
- *           type: integer
- *         example: 1
+ *           type: string
+ *         description: nextCursor/prevCursor from the previous response; omit for the first page.
+ *       - in: query
+ *         name: direction
+ *         schema:
+ *           type: string
+ *           enum: [next, prev]
  *       - in: query
  *         name: limit
  *         schema:
@@ -47,10 +52,13 @@ const router = express.Router();
  *           application/json:
  *             example:
  *               success: true
- *               total: 42
- *               page: 1
- *               limit: 20
- *               entries:
+ *               pagination:
+ *                 limit: 20
+ *                 hasNext: true
+ *                 hasPrev: false
+ *                 nextCursor: WyIyMDI2LTAzLTAxIiwiMTIiXQ
+ *                 prevCursor: null
+ *               data:
  *                 - id: 1
  *                   reference: "JE-00001"
  *                   entryDate: "2026-03-01"

@@ -3,7 +3,9 @@
  *
  * Filterable, server-side paginated table of clients. Filters (search, status,
  * KYC status, KYC queue) are sent as query params to the backend so results are
- * always accurate across pages. Rows link to the client detail page.
+ * always accurate across pages. Pagination is keyset (cursor) based: only
+ * Previous/Next, driven by the cursors the backend returns, with no total count.
+ * Rows link to the client detail page.
  *
  * @module views/clients/ClientsList
  */
@@ -19,16 +21,17 @@ import {
   CCol,
   CFormInput,
   CFormSelect,
-  CPagination,
-  CPaginationItem,
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilPlus, cilReload } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
+import CursorPager from '../../components/CursorPager'
 import StatusBadge from '../../components/StatusBadge'
 import { useClients } from '../../hooks/useClients'
+import { useCursorPagination } from '../../hooks/useCursorPagination'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useAuth } from '../../context/AuthContext'
 import { CLIENT_STATUS, KYC_STATUS } from '../../constants/enums'
 
@@ -48,13 +51,8 @@ const ClientsList = () => {
   const [status, setStatus] = useState('')
   const [kycStatus, setKycStatus] = useState('')
   const [queueOnly, setQueueOnly] = useState(false)
-  const [page, setPage] = useState(1)
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
-
-  const resetPageAnd = (setter) => (value) => {
-    setter(value)
-    setPage(1)
-  }
+  const debouncedSearch = useDebouncedValue(search.trim())
 
   const handleSortChange = (key) => {
     setSortConfig((prev) =>
@@ -64,18 +62,16 @@ const ClientsList = () => {
     )
   }
 
-  const params = {
-    page,
-    limit: PAGE_SIZE,
-    search: search.trim() || undefined,
+  const filters = {
+    search: debouncedSearch || undefined,
     status: queueOnly ? undefined : status || undefined,
     kycStatus: kycStatus || undefined,
     queueOnly: queueOnly ? 'true' : undefined,
   }
+  const { cursorParams, goTo } = useCursorPagination(filters)
+  const params = { ...filters, ...cursorParams, limit: PAGE_SIZE }
 
   const { data, isLoading, error, refetch, isFetching } = useClients(params)
-  const total = data?.pagination?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   // Sorting is applied client-side to the current page only (the backend list
   // endpoint doesn't take a sort param); this still gives the header arrows a
@@ -210,13 +206,13 @@ const ClientsList = () => {
             <CFormInput
               placeholder="Search name, email, phone…"
               value={search}
-              onChange={(e) => resetPageAnd(setSearch)(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </CCol>
           <CCol md={3}>
             <CFormSelect
               value={status}
-              onChange={(e) => resetPageAnd(setStatus)(e.target.value)}
+              onChange={(e) => setStatus(e.target.value)}
               disabled={queueOnly}
             >
               <option value="">All statuses</option>
@@ -230,7 +226,7 @@ const ClientsList = () => {
           <CCol md={3}>
             <CFormSelect
               value={kycStatus}
-              onChange={(e) => resetPageAnd(setKycStatus)(e.target.value)}
+              onChange={(e) => setKycStatus(e.target.value)}
             >
               <option value="">All KYC</option>
               {KYC_STATUS.values.map((v) => (
@@ -247,7 +243,6 @@ const ClientsList = () => {
               onClick={() => {
                 setQueueOnly((v) => !v)
                 setStatus('')
-                setPage(1)
               }}
             >
               KYC Queue
@@ -266,25 +261,12 @@ const ClientsList = () => {
           onSortChange={handleSortChange}
         />
 
-        <div className="d-flex justify-content-between align-items-center mt-3">
-          <span className="small text-body-secondary">
-            Showing {clients.length} of {total} client{total === 1 ? '' : 's'}
-            {totalPages > 1 ? ` · page ${page} of ${totalPages}` : ''}
-          </span>
-          {totalPages > 1 && (
-            <CPagination className="mb-0">
-              <CPaginationItem disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </CPaginationItem>
-              <CPaginationItem
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </CPaginationItem>
-            </CPagination>
-          )}
-        </div>
+        <CursorPager
+          pagination={data?.pagination}
+          onNavigate={goTo}
+          disabled={isFetching}
+          summary={`Showing ${clients.length} client${clients.length === 1 ? '' : 's'}`}
+        />
       </CCardBody>
     </CCard>
   )

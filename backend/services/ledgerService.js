@@ -1,4 +1,5 @@
 const { Op } = require('sequelize');
+const { paginateKeyset } = require('../utils/keysetPagination');
 const sequelize = require('../config/sequalize_db');
 const JournalEntry = require('../models/journalEntryModel');
 const JournalEntryLine = require('../models/journalEntryLineModel');
@@ -493,9 +494,9 @@ async function getIncomeSummary(fromDate, toDate) {
 }
 
 /**
- * Returns paginated journal entries, optionally filtered.
+ * Returns keyset-paginated journal entries (newest entry date first), optionally filtered.
  */
-async function getAllJournalEntries({ sourceType, fromDate, toDate, page = 1, limit = 20 } = {}) {
+async function getAllJournalEntries({ sourceType, fromDate, toDate, cursor, direction, limit = 20 } = {}) {
   const where = {};
   if (sourceType) where.sourceType = sourceType;
   if (fromDate || toDate) {
@@ -504,16 +505,14 @@ async function getAllJournalEntries({ sourceType, fromDate, toDate, page = 1, li
     if (toDate) where.entryDate[Op.lte] = new Date(toDate);
   }
 
-  const offset = (page - 1) * limit;
-  const { count, rows } = await JournalEntry.findAndCountAll({
+  return paginateKeyset(JournalEntry, {
+    keys: [['entry_date', 'date'], ['id', 'int']],
+    cursor,
+    direction,
+    limit,
     where,
     include: [{ association: 'lines', include: [{ association: 'account' }] }],
-    order: [['entry_date', 'DESC'], ['id', 'DESC']],
-    limit,
-    offset,
   });
-
-  return { total: count, page, limit, entries: rows };
 }
 
 // ─── write-off / provision templates ─────────────────────────────────────────

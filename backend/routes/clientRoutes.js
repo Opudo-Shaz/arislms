@@ -41,27 +41,60 @@ router.post('/', authenticate, requirePermission('clients:create'), clientContro
  * @openapi
  * /api/clients:
  *   get:
- *     summary: Get all clients (admin only)
+ *     summary: List clients (keyset pagination, newest first)
+ *     description: >
+ *       Keyset (seek) pagination: pass the `nextCursor`/`prevCursor` from the
+ *       previous response with `direction=next|prev`. No total count is returned.
+ *       All list endpoints (loans, payments, contributions, ledger entries,
+ *       notification outbox, audits) share this contract.
  *     tags:
  *       - Clients
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *         description: Full-text prefix search (every word must match) over name, account number, ID number, email and phone.
+ *       - in: query
+ *         name: cursor
+ *         schema: { type: string }
+ *         description: Opaque cursor from a previous response. Omit for the first page.
+ *       - in: query
+ *         name: direction
+ *         schema: { type: string, enum: [next, prev], default: next }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20, maximum: 500 }
+ *       - in: query
+ *         name: status
+ *         schema: { type: string }
+ *       - in: query
+ *         name: kycStatus
+ *         schema: { type: string }
+ *       - in: query
+ *         name: queueOnly
+ *         schema: { type: boolean }
  *     responses:
  *       200:
- *         description: List of clients
+ *         description: Page of clients
  *         content:
  *           application/json:
  *             example:
- *               - id: 1
- *                 name: John Smith
- *                 email: john@test.com
- *                 phone: "+1234567890"
- *                 address: "456 Elm Street"
- *               - id: 2
- *                 name: Alice Johnson
- *                 email: alice@test.com
- *                 phone: "+9876543210"
- *                 address: "789 Oak Avenue"
+ *               success: true
+ *               data:
+ *                 - id: 12
+ *                   firstName: Jane
+ *                   lastName: Doe
+ *                   accountNumber: CL-3F2A9B1C
+ *               pagination:
+ *                 limit: 20
+ *                 hasNext: true
+ *                 hasPrev: false
+ *                 nextCursor: eyJjIjoiMjAyNi0xMC0wMlQwODoxNTowMi4xMjM0NTZaIiwiaSI6MTJ9
+ *                 prevCursor: null
+ *       400:
+ *         description: Invalid cursor or direction
  */
 router.get('/', authenticate, clientController.getClients);
 

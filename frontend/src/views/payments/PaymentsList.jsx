@@ -14,19 +14,19 @@ import {
   CCardHeader,
   CCol,
   CFormSelect,
-  CPagination,
-  CPaginationItem,
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilMagnifyingGlass, cilPlus, cilReload, cilTrash } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
+import CursorPager from '../../components/CursorPager'
 import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
 import PaymentForm from './PaymentForm'
 import PaymentDetailModal from './PaymentDetailModal'
 import { usePayments, useDeletePayment } from '../../hooks/usePayments'
+import { useCursorPagination } from '../../hooks/useCursorPagination'
 import { useAuth } from '../../context/AuthContext'
 import { PAYMENT_STATUS, PAYMENT_METHOD } from '../../constants/enums'
 import { formatCurrency, formatDateTime } from '../../utils/format'
@@ -50,14 +50,12 @@ const PaymentsList = () => {
   const [toDelete, setToDelete] = useState(null)
   const [viewPayment, setViewPayment] = useState(null)
   const [method, setMethod] = useState('')
-  const [page, setPage] = useState(1)
-
-  const params = { page, limit: PAGE_SIZE, method: method || undefined }
+  const filters = { method: method || undefined }
+  const { cursorParams, goTo } = useCursorPagination(filters)
+  const params = { ...filters, ...cursorParams, limit: PAGE_SIZE }
   const { data, isLoading, error, refetch, isFetching } = usePayments(params)
 
   const payments = data?.payments ?? []
-  const total = data?.pagination?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const columns = [
     {
@@ -144,7 +142,7 @@ const PaymentsList = () => {
           <CCol md={5}>
             <CFormSelect
               value={method}
-              onChange={(e) => { setMethod(e.target.value); setPage(1) }}
+              onChange={(e) => setMethod(e.target.value)}
             >
               <option value="">All methods</option>
               {PAYMENT_METHOD.values.map((v) => (
@@ -165,21 +163,12 @@ const PaymentsList = () => {
           onRowClick={(row) => setViewPayment(row)}
         />
 
-        {totalPages > 1 && (
-          <div className="d-flex justify-content-between align-items-center mt-3">
-            <span className="small text-body-secondary">
-              {total} payments · page {page} of {totalPages}
-            </span>
-            <CPagination className="mb-0">
-              <CPaginationItem disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </CPaginationItem>
-              <CPaginationItem disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </CPaginationItem>
-            </CPagination>
-          </div>
-        )}
+        <CursorPager
+          pagination={data?.pagination}
+          onNavigate={goTo}
+          disabled={isFetching}
+          summary={`Showing ${payments.length} payment${payments.length === 1 ? '' : 's'}`}
+        />
       </CCardBody>
 
       <PaymentForm visible={showForm} onClose={() => setShowForm(false)} />

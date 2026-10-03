@@ -1,19 +1,19 @@
 /**
  * Ledger (Journal Entries) API.
  *
- * Wraps the backend `/ledger` endpoints. Note: the list endpoint returns a
- * paginated envelope `{ total, page, limit, entries }` (not the usual `data`
- * field), so `listEntries` returns that object directly.
+ * Wraps the backend `/ledger` endpoints. The list endpoint is keyset
+ * paginated (see ./pagination); `listEntries` returns `{ entries, pagination }`.
  *
  * @module api/ledgerApi
  */
 
 import http from './http'
+import { EMPTY_PAGINATION } from './pagination'
 
 /**
- * List journal entries (paginated).
- * @param {object} [params] { sourceType, from, to, page, limit }
- * @returns {Promise<{ total:number, page:number, limit:number, entries:object[] }>}
+ * List journal entries (keyset paginated, newest entry date first).
+ * @param {object} [params] { sourceType, from, to, cursor, direction, limit }
+ * @returns {Promise<{ entries:object[], pagination:object }>}
  */
 export const listEntries = async (params = {}) => {
   const clean = Object.fromEntries(
@@ -21,10 +21,8 @@ export const listEntries = async (params = {}) => {
   )
   const res = await http.get('/ledger/entries', { params: clean })
   return {
-    total: res?.total ?? 0,
-    page: res?.page ?? 1,
-    limit: res?.limit ?? 20,
-    entries: res?.entries ?? [],
+    entries: res?.data ?? [],
+    pagination: res?.pagination ?? EMPTY_PAGINATION,
   }
 }
 

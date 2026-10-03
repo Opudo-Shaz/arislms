@@ -13,16 +13,17 @@ import {
   CCol,
   CFormInput,
   CFormSelect,
-  CPagination,
-  CPaginationItem,
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilReload } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
+import CursorPager from '../../components/CursorPager'
 import StatusBadge from '../../components/StatusBadge'
 import { useLoans } from '../../hooks/useLoans'
+import { useCursorPagination } from '../../hooks/useCursorPagination'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { LOAN_STATUS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
@@ -36,22 +37,18 @@ const LoansList = () => {
 
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
-  const [page, setPage] = useState(1)
+  const debouncedSearch = useDebouncedValue(search.trim())
 
-  const resetPageAnd = (setter) => (value) => { setter(value); setPage(1) }
-
-  const params = {
-    page,
-    limit: PAGE_SIZE,
+  const filters = {
     status: status || undefined,
-    search: search.trim() || undefined,
+    search: debouncedSearch || undefined,
   }
+  const { cursorParams, goTo } = useCursorPagination(filters)
+  const params = { ...filters, ...cursorParams, limit: PAGE_SIZE }
 
   const { data, isLoading, error, refetch, isFetching } = useLoans(params)
 
   const loans = data?.loans ?? []
-  const total = data?.pagination?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const columns = [
     {
@@ -106,11 +103,11 @@ const LoansList = () => {
             <CFormInput
               placeholder="Search reference, client name…"
               value={search}
-              onChange={(e) => resetPageAnd(setSearch)(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </CCol>
           <CCol md={4}>
-            <CFormSelect value={status} onChange={(e) => resetPageAnd(setStatus)(e.target.value)}>
+            <CFormSelect value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">All statuses</option>
               {LOAN_STATUS.values.map((v) => (
                 <option key={v} value={v}>
@@ -130,21 +127,12 @@ const LoansList = () => {
           onRowClick={(row) => navigate(`/loans/${row.id}`)}
         />
 
-        {totalPages > 1 && (
-          <div className="d-flex justify-content-between align-items-center mt-3">
-            <span className="small text-body-secondary">
-              {total} loans · page {page} of {totalPages}
-            </span>
-            <CPagination className="mb-0">
-              <CPaginationItem disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </CPaginationItem>
-              <CPaginationItem disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </CPaginationItem>
-            </CPagination>
-          </div>
-        )}
+        <CursorPager
+          pagination={data?.pagination}
+          onNavigate={goTo}
+          disabled={isFetching}
+          summary={`Showing ${loans.length} loan${loans.length === 1 ? '' : 's'}`}
+        />
       </CCardBody>
     </CCard>
   )

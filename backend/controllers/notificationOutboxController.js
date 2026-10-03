@@ -1,21 +1,17 @@
 const notificationOutboxService = require('../services/notificationOutboxService');
 const logger = require('../config/logger');
+const { parseKeysetQuery, toPaginationDto } = require('../utils/keysetPagination');
 
 const notificationOutboxController = {
   async getAll(req, res) {
     try {
-      const { status, channel, eventKey, page, limit } = req.query;
-      const result = await notificationOutboxService.getAll({
-        status,
-        channel,
-        eventKey,
-        page: page ? parseInt(page, 10) : 1,
-        limit: limit ? parseInt(limit, 10) : 20,
-      });
-      return res.status(200).json({ success: true, ...result });
+      const { cursor, direction, limit } = parseKeysetQuery(req.query);
+      const { status, channel, eventKey } = req.query;
+      const result = await notificationOutboxService.getAll({ status, channel, eventKey, cursor, direction, limit });
+      return res.status(200).json({ success: true, data: result.rows, pagination: toPaginationDto(result) });
     } catch (error) {
       logger.error(`Error fetching notification outbox: ${error.message}`);
-      return res.status(500).json({ success: false, message: error.message });
+      return res.status(error.statusCode === 400 ? 400 : 500).json({ success: false, message: error.message });
     }
   },
 

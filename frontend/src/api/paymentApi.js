@@ -9,14 +9,15 @@
  */
 
 import http from './http'
+import { EMPTY_PAGINATION } from './pagination'
 
-/** @returns {Promise<{payments:object[],pagination:object}>} Paginated payments (admin/manager). */
+/** @returns {Promise<{payments:object[],pagination:object}>} Keyset-paginated payments (admin/manager). */
 export const listPayments = async (params = {}) => {
   const clean = Object.fromEntries(
     Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
   )
   const res = await http.get('/payments', { params: clean })
-  return { payments: res?.data ?? [], pagination: res?.pagination ?? { total: 0, page: 1, limit: 10, pages: 0 } }
+  return { payments: res?.data ?? [], pagination: res?.pagination ?? EMPTY_PAGINATION }
 }
 
 /** @param {number|string} loanId @returns {Promise<object[]>} Payments for a loan. */

@@ -5,22 +5,23 @@ const { validateSync } = require('../utils/validationMiddleware');
 const LoanResponseDto = require('../dtos/loan/LoanResponseDto');
 const LoanRequestDto = require('../dtos/loan/LoanRequestDto');
 const missedPaymentService = require('../utils/missedPaymentService');
+const { parseKeysetQuery, toPaginationDto } = require('../utils/keysetPagination');
 
 exports.getAllLoans = async (req, res) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const { cursor, direction, limit } = parseKeysetQuery(req.query);
     const { status, search } = req.query;
 
-    const result = await loanService.getAllLoans({ page, limit, status, search });
+    const result = await loanService.getAllLoans({ cursor, direction, limit, status, search });
 
     return res.status(200).json({
       success: true,
-      data: result.loans.map(l => new LoanResponseDto(l)),
-      pagination: { total: result.total, page: result.page, limit: result.limit, pages: result.pages },
+      data: result.rows.map(l => new LoanResponseDto(l)),
+      pagination: toPaginationDto(result),
     });
   } catch (error) {
     logger.error(`GetAllLoans Error: ${error.message}`);
+    if (error.statusCode === 400) return res.status(400).json({ success: false, message: error.message });
     return res.status(500).json({ success: false, message: 'Server error fetching loans' });
   }
 };
