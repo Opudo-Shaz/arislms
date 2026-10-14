@@ -700,6 +700,20 @@ const loanService = {
         throw new TypeError('Invalid approval date');
       }
 
+      // Cash/Bank must cover this loan on top of loans already approved but not yet disbursed
+      const required = ledgerService.netDisbursementAmount(loan);
+      const funds = await ledgerService.getLendableFunds({ excludeLoanId: loan.id });
+      if (funds.available + CURRENCY_EPSILON < required) {
+        throw Object.assign(
+          new Error(
+            `Loan cannot be approved. Insufficient funds: ${required.toFixed(2)} needed for disbursement, ` +
+            `but only ${funds.available.toFixed(2)} is available (cash balance ${funds.cashBalance.toFixed(2)}, ` +
+            `${funds.committed.toFixed(2)} committed to ${funds.committedLoanCount} approved loan(s) awaiting disbursement).`
+          ),
+          { statusCode: 422 }
+        );
+      }
+
       // Update loan with approval info
       await loan.update({
         approvalDate: approval.toISOString().split('T')[0],
@@ -999,6 +1013,19 @@ const loanService = {
           new Error(
             `Loan cannot be disbursed. Down payment of ${downPaymentRequired} required, ` +
             `only ${downPaymentPaid} collected.`
+          ),
+          { statusCode: 422 }
+        );
+      }
+
+      // Cash may have moved since approval — make sure the money is actually there
+      const required = ledgerService.netDisbursementAmount(loan);
+      const { balance: cashBalance } = await ledgerService.getAvailableFunds();
+      if (Number(cashBalance) + CURRENCY_EPSILON < required) {
+        throw Object.assign(
+          new Error(
+            `Loan cannot be disbursed. Insufficient funds: ${required.toFixed(2)} needed, ` +
+            `but the cash/bank balance is ${Number(cashBalance).toFixed(2)}.`
           ),
           { statusCode: 422 }
         );

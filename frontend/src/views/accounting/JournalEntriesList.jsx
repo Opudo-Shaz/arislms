@@ -28,6 +28,7 @@ import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
 import JournalEntryForm from './JournalEntryForm'
 import JournalEntryDetailModal from './JournalEntryDetailModal'
+import AvailableFundsSummary from './AvailableFundsSummary'
 import { useJournalEntries, useReverseJournalEntry } from '../../hooks/useLedger'
 import { useCursorPagination } from '../../hooks/useCursorPagination'
 import { useAuth } from '../../context/AuthContext'
@@ -135,95 +136,98 @@ const JournalEntriesList = () => {
   }
 
   return (
-    <CCard className="mb-4">
-      <CCardHeader className="d-flex justify-content-between align-items-center">
-        <strong>Journal Entries</strong>
-        <div className="d-flex gap-2">
-          <CButton color="light" size="sm" onClick={() => refetch()} disabled={isFetching}>
-            <CIcon icon={cilReload} className="me-1" />
-            Refresh
-          </CButton>
-          {canPost && (
-            <CButton color="primary" size="sm" onClick={() => setShowForm(true)}>
-              <CIcon icon={cilPlus} className="me-1" />
-              Post Entry
+    <>
+      <AvailableFundsSummary />
+      <CCard className="mb-4">
+        <CCardHeader className="d-flex justify-content-between align-items-center">
+          <strong>Journal Entries</strong>
+          <div className="d-flex gap-2">
+            <CButton color="light" size="sm" onClick={() => refetch()} disabled={isFetching}>
+              <CIcon icon={cilReload} className="me-1" />
+              Refresh
             </CButton>
-          )}
-        </div>
-      </CCardHeader>
-      <CCardBody>
-        <CRow className="g-2 mb-3">
-          <CCol md={4}>
-            <CFormSelect
-              value={sourceType}
-              onChange={(e) => setSourceType(e.target.value)}
-            >
-              <option value="">All sources</option>
-              {LEDGER_SOURCE_TYPE.values.map((v) => (
-                <option key={v} value={v}>
-                  {LEDGER_SOURCE_TYPE.labels[v]}
-                </option>
-              ))}
-            </CFormSelect>
-          </CCol>
-          <CCol md={3}>
-            <CFormInput
-              type="date"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-            />
-          </CCol>
-          <CCol md={3}>
-            <CFormInput
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-            />
-          </CCol>
-        </CRow>
+            {canPost && (
+              <CButton color="primary" size="sm" onClick={() => setShowForm(true)}>
+                <CIcon icon={cilPlus} className="me-1" />
+                Post Entry
+              </CButton>
+            )}
+          </div>
+        </CCardHeader>
+        <CCardBody>
+          <CRow className="g-2 mb-3">
+            <CCol md={4}>
+              <CFormSelect
+                value={sourceType}
+                onChange={(e) => setSourceType(e.target.value)}
+              >
+                <option value="">All sources</option>
+                {LEDGER_SOURCE_TYPE.values.map((v) => (
+                  <option key={v} value={v}>
+                    {LEDGER_SOURCE_TYPE.labels[v]}
+                  </option>
+                ))}
+              </CFormSelect>
+            </CCol>
+            <CCol md={3}>
+              <CFormInput
+                type="date"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+              />
+            </CCol>
+            <CCol md={3}>
+              <CFormInput
+                type="date"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+              />
+            </CCol>
+          </CRow>
 
-        <DataTable
-          columns={columns}
-          rows={entries}
-          loading={isLoading}
-          error={error}
-          emptyMessage="No journal entries match your filters."
-          onRowClick={(row) => setViewEntry(row)}
+          <DataTable
+            columns={columns}
+            rows={entries}
+            loading={isLoading}
+            error={error}
+            emptyMessage="No journal entries match your filters."
+            onRowClick={(row) => setViewEntry(row)}
+          />
+
+          <CursorPager
+            pagination={data?.pagination}
+            onNavigate={goTo}
+            disabled={isFetching}
+            summary={`Showing ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`}
+          />
+        </CCardBody>
+
+        <JournalEntryForm visible={showForm} onClose={() => setShowForm(false)} />
+
+        <JournalEntryDetailModal
+          visible={Boolean(viewEntry)}
+          entry={viewEntry}
+          onClose={() => setViewEntry(null)}
         />
 
-        <CursorPager
-          pagination={data?.pagination}
-          onNavigate={goTo}
-          disabled={isFetching}
-          summary={`Showing ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`}
+        <ConfirmModal
+          visible={Boolean(toReverse)}
+          title="Reverse Journal Entry"
+          body={
+            toReverse
+              ? `Posting a reversing entry for ${toReverse.reference}. This creates an offsetting entry and marks the original as reversed.`
+              : ''
+          }
+          confirmText="Reverse"
+          confirmColor="warning"
+          withNotes
+          notesLabel="Reason / description"
+          loading={reverseMutation.isPending}
+          onConfirm={runReverse}
+          onClose={() => setToReverse(null)}
         />
-      </CCardBody>
-
-      <JournalEntryForm visible={showForm} onClose={() => setShowForm(false)} />
-
-      <JournalEntryDetailModal
-        visible={Boolean(viewEntry)}
-        entry={viewEntry}
-        onClose={() => setViewEntry(null)}
-      />
-
-      <ConfirmModal
-        visible={Boolean(toReverse)}
-        title="Reverse Journal Entry"
-        body={
-          toReverse
-            ? `Posting a reversing entry for ${toReverse.reference}. This creates an offsetting entry and marks the original as reversed.`
-            : ''
-        }
-        confirmText="Reverse"
-        confirmColor="warning"
-        withNotes
-        notesLabel="Reason / description"
-        loading={reverseMutation.isPending}
-        onConfirm={runReverse}
-        onClose={() => setToReverse(null)}
-      />
-    </CCard>
+      </CCard>
+    </>
   )
 }
 

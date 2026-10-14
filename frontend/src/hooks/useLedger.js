@@ -2,7 +2,7 @@
  * TanStack Query hooks for the Ledger (Journal Entries) module.
  *
  * Posting or reversing an entry changes account balances, so those mutations
- * also invalidate the trial balance.
+ * also invalidate the trial balance and available funds.
  *
  * @module hooks/useLedger
  */
@@ -14,6 +14,7 @@ export const ledgerKeys = {
   all: ['ledger'],
   entries: (params) => [...ledgerKeys.all, 'entries', params],
   trialBalance: (asOf) => [...ledgerKeys.all, 'trialBalance', asOf ?? 'now'],
+  availableFunds: () => [...ledgerKeys.all, 'availableFunds'],
 }
 
 /** List journal entries (paginated, filtered). */
@@ -29,6 +30,13 @@ export const useTrialBalance = (asOf) =>
   useQuery({
     queryKey: ledgerKeys.trialBalance(asOf),
     queryFn: () => ledgerApi.getTrialBalance(asOf),
+  })
+
+/** Raw cash balance plus what's left after approved-but-undisbursed loans. */
+export const useAvailableFunds = () =>
+  useQuery({
+    queryKey: ledgerKeys.availableFunds(),
+    queryFn: () => ledgerApi.getAvailableFunds(),
   })
 
 /** Post a manual journal entry. */

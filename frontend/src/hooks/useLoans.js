@@ -9,6 +9,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import loanApi from '../api/loanApi'
+import { ledgerKeys } from './useLedger'
 
 export const loanKeys = {
   all: ['loans'],
@@ -98,6 +99,8 @@ export const useLoanAction = () => {
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: loanKeys.lists() })
       qc.invalidateQueries({ queryKey: loanKeys.detail(id) })
+      // Approving commits funds and disbursing moves cash — refresh the ledger views
+      qc.invalidateQueries({ queryKey: ledgerKeys.all })
     },
   })
 }
