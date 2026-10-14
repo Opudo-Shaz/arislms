@@ -35,6 +35,11 @@ const Client = sequelize.define('Client', {
   },
 
   notes: { type: DataTypes.TEXT },
+
+  // Client self-service portal session state (see middleware/authMiddleware.authenticateClient).
+  tokenVersion: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'token_version' },
+  portalEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'portal_enabled' },
+  lastLoginAt: { type: DataTypes.DATE, field: 'last_login_at' },
 }, {
   tableName: 'clients',
   underscored: true,
@@ -42,5 +47,13 @@ const Client = sequelize.define('Client', {
   createdAt: 'created_at',
   updatedAt: 'updated_at'
 });
+
+// Portal sessions re-check status/isActive/portalEnabled/tokenVersion through
+// utils/clientAuthCache on every request; evict on any write so staff actions
+// (suspend, deactivate, KYC changes, portal toggle) take effect immediately.
+// Required lazily to avoid a model <-> cache require cycle.
+const evictAuthCache = (client) => require('../utils/clientAuthCache').invalidateAuthClient(client.id);
+Client.addHook('afterSave', evictAuthCache);
+Client.addHook('afterDestroy', evictAuthCache);
 
 module.exports = Client;

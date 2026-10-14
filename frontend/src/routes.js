@@ -22,6 +22,7 @@ const LoanDetail = React.lazy(() => import('./views/loans/LoanDetail'))
 const LoanApplicationForm = React.lazy(() => import('./views/loans/LoanApplicationForm'))
 const LoanApprovals = React.lazy(() => import('./views/loans/LoanApprovals'))
 const PaymentsList = React.lazy(() => import('./views/payments/PaymentsList'))
+const PaymentReports = React.lazy(() => import('./views/payments/PaymentReports'))
 const CollateralsList = React.lazy(() => import('./views/collaterals/CollateralsList'))
 const ChartOfAccountsList = React.lazy(() => import('./views/accounting/ChartOfAccountsList'))
 const JournalEntriesList = React.lazy(() => import('./views/accounting/JournalEntriesList'))
@@ -69,6 +70,7 @@ export const routes = [
 
   // Payments & Collaterals (Phase 3)
   { path: '/payments', name: 'Payments', element: PaymentsList },
+  { path: '/payments/reported', name: 'Client-reported Payments', element: PaymentReports },
   { path: '/collaterals', name: 'Collaterals', element: CollateralsList },
 
   // Member Contributions (Phase 4)

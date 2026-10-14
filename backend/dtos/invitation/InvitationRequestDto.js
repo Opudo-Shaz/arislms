@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const { pattern: pwPattern, message: pwMessage, minLength: pwMinLength } = require('../../utils/passwordPolicy');
+const { phoneSchema } = require('../../utils/phone');
 
 /**
  * Request DTOs for the invite-only registration flow.
@@ -42,10 +43,7 @@ class InvitationRequestDto {
         'string.max': 'Last name cannot exceed 100 characters'
       }),
 
-    phone: Joi.string().pattern(/^\d{7,}$/).allow(null, '')
-      .messages({
-        'string.pattern.base': 'Phone must contain at least 7 digits'
-      }),
+    phone: phoneSchema(),
   })
     .or('first_name', 'last_name')
     .messages({ 'object.missing': 'Provide at least a first or last name' });
@@ -83,10 +81,7 @@ class InvitationRequestDto {
         'any.required': 'Last name is required'
       }),
 
-    phone: Joi.string().pattern(/^\d{7,}$/).allow(null, '')
-      .messages({
-        'string.pattern.base': 'Phone must contain at least 7 digits'
-      }),
+    phone: phoneSchema(),
 
     id_number: Joi.string().trim().min(4).max(50).allow(null, '')
       .messages({

@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const j2s = require('joi-to-swagger');
+const { phoneSchema } = require('../../utils/phone');
 const { pattern: pwPattern, message: pwMessage, minLength: pwMinLength } = require('../../utils/passwordPolicy');
 const UserStatus = require('../../enums/userStatus');
 
@@ -49,11 +50,7 @@ class UserRequestDto {
         'any.required': 'Email is required'
       }),
 
-    phone: Joi.string().pattern(/^\d{7,}$/).allow(null, '')
-      .example('1234567')
-      .messages({
-        'string.pattern.base': 'Phone must contain at least 7 digits'
-      }),
+    phone: phoneSchema().example('+254712345678'),
 
     role: Joi.number().integer().required()
       .example(1)
@@ -110,11 +107,7 @@ class UserRequestDto {
         'string.email': 'Email must be a valid email address'
       }),
 
-    phone: Joi.string().pattern(/^\d{7,}$/).allow(null, '').optional()
-      .example('9876543')
-      .messages({
-        'string.pattern.base': 'Phone must contain at least 7 digits'
-      }),
+    phone: phoneSchema().optional().example('+254712345678'),
 
     role: Joi.number().integer().optional()
       .example(2)
@@ -157,10 +150,7 @@ class UserRequestDto {
         'string.min': 'Last name must be at least 2 characters',
         'string.max': 'Last name cannot exceed 100 characters'
       }),
-    phone: Joi.string().pattern(/^\d{7,}$/).allow(null, '').optional()
-      .messages({
-        'string.pattern.base': 'Phone must contain at least 7 digits'
-      }),
+    phone: phoneSchema().optional(),
   });
 
   // Joi validation schema for self-service password change (any authenticated user).

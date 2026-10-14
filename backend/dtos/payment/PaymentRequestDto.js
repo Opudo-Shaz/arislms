@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const { phoneSchema } = require('../../utils/phone');
 
 class PaymentRequestDto {
   constructor(data) {
@@ -56,10 +57,7 @@ class PaymentRequestDto {
         'string.max': 'Payer name cannot exceed 128 characters'
       }),
 
-    payerPhone: Joi.string().pattern(/^\+?\d{7,32}$/).allow(null, '')
-      .messages({
-        'string.pattern.base': 'Payer phone must be a valid phone number'
-      }),
+    payerPhone: phoneSchema({ label: 'Payer phone' }),
 
     transactionDate: Joi.date().iso().required()
       .messages({

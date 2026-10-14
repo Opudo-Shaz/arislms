@@ -92,7 +92,15 @@ export const writeOffLoan = async (id, payload) => {
   return res?.data
 }
 
+/** Latest co-signer consent request for a loan (or null). */
+export const getCoSignerConsent = async (id) => (await http.get(`/loans/${id}/co-signer-consent`))?.data ?? null
+
+/** Send the co-signer a fresh consent link. Resolves to `{ sentTo }`. */
+export const resendCoSignerConsent = async (id) => (await http.post(`/loans/${id}/co-signer-consent/resend`))?.data
+
 export default {
+  getCoSignerConsent,
+  resendCoSignerConsent,
   listLoans,
   listMyLoans,
   getLoan,

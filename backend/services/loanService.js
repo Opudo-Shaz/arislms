@@ -31,6 +31,8 @@ const MemberContribution = require('../models/memberContributionModel');
 const systemConfigService = require('./systemConfigService');
 const NotificationEventType = require('../enums/notificationEventType');
 const { buildRecipients, safeNotify } = require('./notification/notificationTriggers');
+const coSignerConsentService = require('./coSignerConsentService');
+const CoSignerConsentStatus = require('../enums/coSignerConsentStatus');
 
 // Loan statuses in which money has already left the institution (disbursed).
 const DISBURSED_STATUSES = [
@@ -231,6 +233,9 @@ const loanService = {
    * @param {boolean} [options.linkCreditScore=false] - Link the latest credit score to the loan
    * @param {boolean} [options.skipClientValidation=false] - Skip open-loan + eligibility checks (caller already ran them)
    * @param {Object}  [options.auditExtra=null] - Extra data merged into the CREATE audit entry
+   * @param {Object}  [options.portalClient=null] - Internal only: `{ id }` of the client self-submitting
+   *   via the portal. Replaces the staff role check (the client is authenticated by
+   *   authenticateClient and may only apply for themselves); sets source='portal'.
    * @returns {Promise<Object>} Created loan with associations reloaded
    */
   async processLoanCreation(data, createdByUser, userAgent, options = {}) {
@@ -240,12 +245,19 @@ const loanService = {
       linkCreditScore = false,
       skipClientValidation = false,
       auditExtra = null,
+      portalClient = null,
     } = options;
 
     const creatorId = createdByUser?.id || null;
-    const role = Number(createdByUser?.role_id ?? createdByUser?.role);
-    if (!isAdmin(role)) {
-      throw new Error('User not authorized to create loans');
+    if (portalClient) {
+      if (Number(portalClient.id) !== Number(data.clientId)) {
+        throw new Error('Clients may only apply for loans for themselves');
+      }
+    } else {
+      const role = Number(createdByUser?.role_id ?? createdByUser?.role);
+      if (!isAdmin(role)) {
+        throw new Error('User not authorized to create loans');
+      }
     }
 
     if (!data.clientId) throw new Error('clientId is required');
@@ -279,6 +291,9 @@ const loanService = {
       await fetchAndValidateClient(data.clientId);
     }
     validateCoSigner(data, product);
+    if (data.coSignerId) {
+      await coSignerConsentService.validateCoSigner(data.coSignerId, data.clientId);
+    }
 
     // Calculate derived values
     const endDate = calculateEndDate(data.startDate, termMonths);
@@ -323,7 +338,8 @@ const loanService = {
       status: loanStatus,
 
       referenceCode: `LN-${uuidv4().split('-')[0].toUpperCase()}`,
-      createdBy: creatorId
+      createdBy: creatorId,
+      source: portalClient ? 'portal' : 'staff'
     };
 
     const transaction = await sequelize.transaction();
@@ -379,9 +395,9 @@ const loanService = {
       entityId: newLoan.id,
       action: 'CREATE',
       data: auditExtra ? { loanPayload, ...auditExtra } : loanPayload,
-      actorId: creatorId,
+      actorId: portalClient ? portalClient.id : creatorId,
       options: {
-        actorType: 'USER',
+        actorType: portalClient ? 'CLIENT' : 'USER',
         source: userAgent || 'unknown'
       }
     });
@@ -389,6 +405,20 @@ const loanService = {
     logger.info(
       `Loan created: id=${newLoan.id} reference=${newLoan.referenceCode} status=${loanStatus} by user ${creatorId}`
     );
+
+    // Every co-signed loan needs the co-signer's consent before approval.
+    // A delivery failure must not undo the application — staff can resend.
+    if (newLoan.coSignerId) {
+      try {
+        await coSignerConsentService.requestConsent(newLoan, {
+          requestedBy: portalClient ? 'portal' : `user:${creatorId}`,
+          userAgent,
+        });
+        newLoan.coSignerConsentStatus = CoSignerConsentStatus.PENDING;
+      } catch (consentError) {
+        logger.error(`Co-signer consent request failed for loan ${newLoan.id}: ${consentError.message}`);
+      }
+    }
 
     return newLoan;
   },
@@ -415,13 +445,33 @@ const loanService = {
    * @returns {Promise<Object>} Created loan with risk assessment data
    */
   async createLoan(data, createdByUser, userAgent = 'unknown') {
+    const role = Number(createdByUser?.role_id ?? createdByUser?.role);
+    if (!isAdmin(role)) {
+      throw new Error('User not authorized to create loans');
+    }
+    logger.info(`loanService.createLoan (with credit scoring) called by user ${createdByUser?.id || null}`);
+    const { loan } = await this.createScoredLoan(data, createdByUser, userAgent);
+    return loan;
+  },
+
+  /**
+   * Credit-scored loan creation shared by the staff flow (createLoan) and the
+   * client self-service portal (portalLoanService). Callers are responsible
+   * for authorization: staff go through createLoan's role check; the portal
+   * passes `options.portalClient` (see processLoanCreation).
+   *
+   * @param {Object} data - Loan application data
+   * @param {Object|null} createdByUser - Staff user creating the loan (null for portal)
+   * @param {string} userAgent
+   * @param {Object} [options]
+   * @param {Object} [options.portalClient] - `{ id }` when the client self-submits
+   * @returns {Promise<{loan: Object, riskScore: number, riskGrade: string, riskDti: number,
+   *   creditLimit: number, riskDecision: string}>}
+   */
+  async createScoredLoan(data, createdByUser, userAgent = 'unknown', { portalClient = null } = {}) {
     try {
       const creatorId = createdByUser?.id || null;
-      const role = Number(createdByUser?.role_id ?? createdByUser?.role);
-      if (!isAdmin(role)) {
-        throw new Error('User not authorized to create loans');
-      }
-      logger.info(`loanService.createLoan (with credit scoring) called by user ${creatorId}`);
+      const actorLabel = portalClient ? `portal client ${portalClient.id}` : `user ${creatorId}`;
 
       if (!data.clientId) throw new Error('clientId is required');
       if (!data.loanProductId) throw new Error('loanProductId is required');
@@ -437,7 +487,10 @@ const loanService = {
         data.clientId,
         creatorId,
         userAgent,
-        { requestedTenure: data.termMonths || 12 }
+        {
+          requestedTenure: data.termMonths || 12,
+          ...(portalClient ? { auditActor: { id: portalClient.id, type: 'CLIENT' } } : {}),
+        }
       );
 
       const riskDecision = getDecisionFromScore(riskScore);
@@ -464,6 +517,7 @@ const loanService = {
         useProvidedTermMonths: true,
         linkCreditScore: true,
         skipClientValidation: true,
+        portalClient,
         auditExtra: {
           scoringResult: { riskScore, riskGrade, riskDti, creditLimit, policyDecision: riskDecision }
         },
@@ -471,10 +525,10 @@ const loanService = {
 
       logger.info(
         `Loan created with credit scoring: id=${newLoan.id} reference=${newLoan.referenceCode} ` +
-        `riskScore=${riskScore} riskGrade=${riskGrade} decision=${riskDecision} by user ${creatorId}`
+        `riskScore=${riskScore} riskGrade=${riskGrade} decision=${riskDecision} by ${actorLabel}`
       );
 
-      return newLoan;
+      return { loan: newLoan, riskScore, riskGrade, riskDti, creditLimit, riskDecision };
 
     } catch (error) {
       logger.error(`Error in createLoan (with credit scoring): ${error.message}`);
@@ -496,6 +550,15 @@ const loanService = {
       if (!loan) throw new Error('Loan not found');
 
       const oldStatus = loan.status;
+      const oldCoSignerId = loan.coSignerId;
+      const coSignerChanged = data.coSignerId !== undefined
+        && String(data.coSignerId ?? '') !== String(oldCoSignerId ?? '');
+      if (coSignerChanged && data.coSignerId) {
+        await coSignerConsentService.validateCoSigner(data.coSignerId, loan.clientId);
+      }
+      if (coSignerChanged && !data.coSignerId) {
+        data.coSignerConsentStatus = null;
+      }
 
       // Recalculate if key fields changed
       if (data.principalAmount || data.interestRate || data.termMonths || data.interestType || data.interestRatePeriod) {
@@ -554,6 +617,12 @@ const loanService = {
         });
       }
 
+      // A new co-signer has to consent afresh (the old request is superseded).
+      if (coSignerChanged && loan.coSignerId) {
+        await coSignerConsentService.requestConsent(loan, { requestedBy: `user:${updatorId}`, userAgent });
+        await loan.reload();
+      }
+
       logger.info(`Loan ${id} updated successfully by user ${updatorId}`);
       return loan;
     } catch (error) {
@@ -577,6 +646,18 @@ const loanService = {
       // Validate loan can be approved
       if (loan.status !== LoanStatus.PENDING && loan.status !== LoanStatus.IN_REVIEW && loan.status !== LoanStatus.UNDER_REVIEW) {
         throw new Error(`Loan cannot be approved. Current status: ${loan.status}. Loan must be pending, in_review, or under_review.`);
+      }
+
+      // A co-signed loan needs the co-signer's recorded consent. NULL = loan predates
+      // consent tracking, so it isn't blocked (staff collected consent offline).
+      if (loan.coSignerId && loan.coSignerConsentStatus !== null
+        && loan.coSignerConsentStatus !== CoSignerConsentStatus.ACCEPTED) {
+        throw Object.assign(
+          new Error(
+            `Loan cannot be approved. The co-signer has not consented yet (consent status: ${loan.coSignerConsentStatus}).`
+          ),
+          { statusCode: 409 }
+        );
       }
 
       // If the loan product requires collateral, at least one collateral document must be uploaded
@@ -617,6 +698,20 @@ const loanService = {
       const approval = new Date(approvalDate);
       if (Number.isNaN(approval.getTime())) {
         throw new TypeError('Invalid approval date');
+      }
+
+      // Cash/Bank must cover this loan on top of loans already approved but not yet disbursed
+      const required = ledgerService.netDisbursementAmount(loan);
+      const funds = await ledgerService.getLendableFunds({ excludeLoanId: loan.id });
+      if (funds.available + CURRENCY_EPSILON < required) {
+        throw Object.assign(
+          new Error(
+            `Loan cannot be approved. Insufficient funds: ${required.toFixed(2)} needed for disbursement, ` +
+            `but only ${funds.available.toFixed(2)} is available (cash balance ${funds.cashBalance.toFixed(2)}, ` +
+            `${funds.committed.toFixed(2)} committed to ${funds.committedLoanCount} approved loan(s) awaiting disbursement).`
+          ),
+          { statusCode: 422 }
+        );
       }
 
       // Update loan with approval info
@@ -918,6 +1013,19 @@ const loanService = {
           new Error(
             `Loan cannot be disbursed. Down payment of ${downPaymentRequired} required, ` +
             `only ${downPaymentPaid} collected.`
+          ),
+          { statusCode: 422 }
+        );
+      }
+
+      // Cash may have moved since approval — make sure the money is actually there
+      const required = ledgerService.netDisbursementAmount(loan);
+      const { balance: cashBalance } = await ledgerService.getAvailableFunds();
+      if (Number(cashBalance) + CURRENCY_EPSILON < required) {
+        throw Object.assign(
+          new Error(
+            `Loan cannot be disbursed. Insufficient funds: ${required.toFixed(2)} needed, ` +
+            `but the cash/bank balance is ${Number(cashBalance).toFixed(2)}.`
           ),
           { statusCode: 422 }
         );

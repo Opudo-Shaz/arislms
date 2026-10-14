@@ -11,9 +11,58 @@ Features merged after v1.1 will be documented here as they land, then rolled
 into the next dated release section below when that version ships.
 
 ### Added
+
+**Client Self-Service Portal**
+- Public home page (`/`) with loan products and separate client / staff
+  sign-in entry points.
+- Passwordless client sign-in (phone number + one-time code by SMS, or by
+  email when a valid address is on file) with its own session, layout and
+  `/api/portal` API, fully isolated from staff sessions.
+- Client navigation: Dashboard, My Loans (with schedule and payments),
+  Apply for a Loan, My Payments, Report a Payment, My Profile (self-editable
+  contact details).
+- Client loan requests run the standard credit-scoring pipeline and are
+  always queued for approval; users holding `loans:approve` are notified
+  (in-app + email), with sub-threshold scores flagged for manual review and
+  the client advised to contact support.
+- Client-reported payments (temporary until M-Pesa integration): clients
+  report manual repayments against their current loan; users holding the new
+  `payment_reports:review` permission are notified, can amend details (the
+  original submission is kept), then apply — recording a real repayment — or
+  reject with a reason sent to the client.
+- Co-signer consent: borrowers nominate a co-signer in the portal by exact
+  phone number (masked confirmation, no client browsing). Every co-signed loan
+  — portal or staff-created — sends the co-signer an SMS/email link; they
+  confirm with a one-time code and accept or decline. Loans can't be approved
+  until consent is given; on decline/expiry the borrower can nominate someone
+  else and staff can resend the link. Borrowers (SMS/email) and approvers
+  (in-app) are notified of the response. Co-signers must be active,
+  KYC-verified clients.
+- Staff "Reported Payments" review queue, "Portal" / "Manual review" badges
+  in the loan approval queue, and a per-client portal access toggle.
+- New permissions `payment_reports:read` / `payment_reports:review`.
+
 ### Changed
+- Credit score is shown as a red → amber → green gauge (0–5) with the
+  review/pre-approval thresholds marked, on client and loan detail screens
+  and the client dashboard.
+- Loans record their `source` (`staff` or `portal`).
+
 ### Fixed
+- Loan API responses now include `createdAt`/`updatedAt` (previously
+  undefined because of the `created_at` attribute mapping).
+
 ### Security
+- Staff routes reject any non-session token. Previously the short-lived
+  login OTP challenge token was accepted as a full session, so the OTP step
+  could be bypassed.
+
+**Upgrade notes:** run `node backend/scripts/addClientPortalAuth.js` and
+`node backend/scripts/addCoSignerConsentStatusToLoans.js`, then
+re-run `scripts/seedNotificationTemplates.js`. Grant the new
+`payment_reports:*` permissions to the relevant roles (or re-run
+`scripts/seedDefaultPermissions.js`, which overwrites roles 1–3 with the
+defaults).
 
 ## [1.1.0] - 2026-09-06
 

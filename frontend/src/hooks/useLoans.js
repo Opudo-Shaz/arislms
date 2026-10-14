@@ -9,6 +9,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import loanApi from '../api/loanApi'
+import { ledgerKeys } from './useLedger'
 
 export const loanKeys = {
   all: ['loans'],
@@ -98,6 +99,25 @@ export const useLoanAction = () => {
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: loanKeys.lists() })
       qc.invalidateQueries({ queryKey: loanKeys.detail(id) })
+      // Approving commits funds and disbursing moves cash — refresh the ledger views
+      qc.invalidateQueries({ queryKey: ledgerKeys.all })
     },
+  })
+}
+
+/** Latest co-signer consent request for a loan. */
+export const useCoSignerConsent = (id, enabled = true) =>
+  useQuery({
+    queryKey: [...loanKeys.detail(id), 'coSignerConsent'],
+    queryFn: () => loanApi.getCoSignerConsent(id),
+    enabled: Boolean(id) && enabled,
+  })
+
+/** Re-send the co-signer consent link. */
+export const useResendCoSignerConsent = (id) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => loanApi.resendCoSignerConsent(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: loanKeys.detail(id) }),
   })
 }

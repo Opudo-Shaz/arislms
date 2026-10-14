@@ -13,6 +13,7 @@ const {
   updatePrincipalAmount,
   writeOffLoan
 } = require('../controllers/loanController');
+const loanController = require('../controllers/loanController');
 
 const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
@@ -304,6 +305,38 @@ router.post('/without-scoring', authenticate, requirePermission('loans:create'),
  *         description: Loan updated successfully
  */
 router.put('/:id', authenticate, requirePermission('loans:update'), validateIdParam(), updateLoan);
+
+/**
+ * @openapi
+ * /api/loans/{id}/co-signer-consent:
+ *   get:
+ *     summary: Latest co-signer consent request for a loan
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Consent request (or null if none)
+ */
+router.get('/:id/co-signer-consent', authenticate, requirePermission('loans:read'), validateIdParam(), loanController.getCoSignerConsent);
+
+/**
+ * @openapi
+ * /api/loans/{id}/co-signer-consent/resend:
+ *   post:
+ *     summary: Send the co-signer a fresh consent link (supersedes the previous one)
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Consent request sent
+ *       409:
+ *         description: Loan not awaiting a decision, or consent already given
+ */
+router.post('/:id/co-signer-consent/resend', authenticate, requirePermission('loans:update'), validateIdParam(), loanController.resendCoSignerConsent);
 
 /**
  * @openapi

@@ -347,6 +347,44 @@ async function getAvailableFunds() {
 }
 
 /**
+ * Net cash that leaves 1001 when a loan is disbursed: principal minus the
+ * upfront fees netted off the proceeds (see postDisbursementEntry). Held down
+ * payments are already sitting in 1001, so they don't reduce the outflow.
+ */
+function netDisbursementAmount(loan) {
+  return Math.max(0, Number(loan.principalAmount || 0) - Number(loan.fees || 0));
+}
+
+/**
+ * Cash that can still be committed to new loans: the 1001 balance minus the
+ * net disbursement of every loan already approved but not yet disbursed.
+ *
+ * @param {object} [opts]
+ * @param {number} [opts.excludeLoanId] - Loan to leave out of the committed total
+ */
+async function getLendableFunds({ excludeLoanId } = {}) {
+  const Loan = require('../models/loanModel');
+  const LoanStatus = require('../enums/loanStatus');
+
+  const cash = await getAvailableFunds();
+
+  const where = { status: LoanStatus.APPROVED, disbursementDate: null };
+  if (excludeLoanId) where.id = { [Op.ne]: excludeLoanId };
+  const committedLoans = await Loan.findAll({ where, attributes: ['id', 'principalAmount', 'fees'] });
+
+  const committed = committedLoans.reduce((s, l) => s + netDisbursementAmount(l), 0);
+  const cashBalance = Number(Number(cash.balance).toFixed(2));
+
+  return {
+    cash,
+    cashBalance,
+    committed: Number(committed.toFixed(2)),
+    committedLoanCount: committedLoans.length,
+    available: Number((cashBalance - committed).toFixed(2)),
+  };
+}
+
+/**
  * Returns balances for every active account as of a given date.
  * sum(all debits) should equal sum(all credits) — use this to verify books.
  */
@@ -870,6 +908,8 @@ module.exports = {
   postDownPaymentToContributionEntry,
   reverseEntry,
   getAvailableFunds,
+  getLendableFunds,
+  netDisbursementAmount,
   getTrialBalance,
   getAccountStatement,
   getIncomeSummary,

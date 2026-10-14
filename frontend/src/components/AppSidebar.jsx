@@ -20,6 +20,7 @@
  */
 
 import React from 'react'
+import PropTypes from 'prop-types'
 import { useSelector, useDispatch } from 'react-redux'
 
 import {
@@ -48,18 +49,23 @@ import { useAuth } from '../context/AuthContext'
  * - sidebarShow: Controls sidebar visibility
  * - sidebarUnfoldable: Controls narrow/wide mode
  *
- * Renders navigation from _nav.js configuration file.
+ * Renders navigation from _nav.js configuration file by default; the client
+ * portal passes its own `items` (already scoped to the client, so no
+ * permission filtering applies to them).
  * Memoized to prevent unnecessary re-renders.
  *
+ * @param {object} props
+ * @param {Array} [props.items] - nav items to render instead of the staff `_nav`
+ * @param {string} [props.brandTo='/'] - where the brand logo links to
  * @returns {React.ReactElement} Sidebar with navigation
  */
-const AppSidebar = () => {
+const AppSidebar = ({ items, brandTo = '/' }) => {
   const dispatch = useDispatch()
   const unfoldable = useSelector((state) => state.sidebarUnfoldable)
   const sidebarShow = useSelector((state) => state.sidebarShow)
   const { hasPermission } = useAuth()
 
-  const filteredNav = navigation.filter((item) => !item.permission || hasPermission(item.permission))
+  const filteredNav = items ?? navigation.filter((item) => !item.permission || hasPermission(item.permission))
 
   return (
     <CSidebar
@@ -73,7 +79,7 @@ const AppSidebar = () => {
       }}
     >
       <CSidebarHeader className="border-bottom">
-        <CSidebarBrand to="/">
+        <CSidebarBrand to={brandTo}>
           <img src={arislmsLogo} alt="ARISLMS Logo" className="sidebar-brand-full" style={{ height: '56px', width: 'auto' }} />
           <CIcon customClassName="sidebar-brand-narrow" icon={sygnet} height={32} />
         </CSidebarBrand>
@@ -91,6 +97,11 @@ const AppSidebar = () => {
       </CSidebarFooter>
     </CSidebar>
   )
+}
+
+AppSidebar.propTypes = {
+  items: PropTypes.array,
+  brandTo: PropTypes.string,
 }
 
 export default React.memo(AppSidebar)

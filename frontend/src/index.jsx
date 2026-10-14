@@ -9,12 +9,15 @@ import App from './App'
 import store from './store'
 import queryClient from './lib/queryClient'
 import { AuthProvider } from './context/AuthContext'
+import { ClientAuthProvider } from './context/ClientAuthContext'
 
 createRoot(document.getElementById('root')).render(
   <Provider store={store}>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <App />
+        <ClientAuthProvider>
+          <App />
+        </ClientAuthProvider>
       </AuthProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>

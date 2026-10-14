@@ -12,6 +12,8 @@ const config = {
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3002/api',
   /** localStorage key under which the auth session is persisted. */
   authStorageKey: 'arislms.auth',
+  /** localStorage key for the client self-service portal session (kept separate from staff). */
+  portalAuthStorageKey: 'arislms.portal.auth',
 }
 
 export default config

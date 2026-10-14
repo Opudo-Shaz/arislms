@@ -1,4 +1,4 @@
-
+const { isValidPhone } = require('./phone');
 
 const formatDateWithOffset = (date, offsetMinutes = 0) => {
   const localDate = new Date(date.getTime() + offsetMinutes * 60000);
@@ -78,9 +78,9 @@ const validateClientPayload = (payload) => {
     }
   }
 
-  // Validate phone format (basic check for digits)
-  if (payload.phone && !/^\d{7,}$/.test(payload.phone.replace(/[-\s()]/g, ''))) {
-    errors.push('Phone number must contain at least 7 digits');
+  // Validate phone format via the central libphonenumber-js validator.
+  if (payload.phone && !isValidPhone(payload.phone)) {
+    errors.push('Phone number must be a valid phone number');
   }
 
   // Check for extra fields not in DTO
@@ -137,7 +137,52 @@ function isAdmin(role) {
 const CURRENCY_EPSILON = Number(process.env.CURRENCY_EPSILON) || 0.005;
 
 
+/**
+ * Digits-only phone forms that should be treated as the same Kenyan mobile
+ * number, e.g. '0712 345 678', '+254712345678' and '712345678' all yield
+ * ['254712345678', '0712345678', '712345678']. Non-Kenyan / unrecognised
+ * numbers are returned as their digits-only form. Used to match a phone typed
+ * at portal login against however staff stored it on the client record.
+ * @param {string} phone
+ * @returns {string[]} candidate digit strings (empty when no digits)
+ */
+function phoneMatchCandidates(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return [];
+  let national = null;
+  if (digits.startsWith('254') && digits.length === 12) national = digits.slice(3);
+  else if (digits.startsWith('0') && digits.length === 10) national = digits.slice(1);
+  else if (digits.length === 9) national = digits;
+  if (!national) return [digits];
+  return [`254${national}`, `0${national}`, national];
+}
+
+/** "Jane Wanjiru" → "Jane W." — enough for someone who knows the person to recognise them. */
+function maskName(firstName, lastName) {
+  const first = String(firstName || '').trim();
+  const lastInitial = String(lastName || '').trim().charAt(0);
+  return [first, lastInitial ? `${lastInitial.toUpperCase()}.` : ''].filter(Boolean).join(' ') || 'Client';
+}
+
+/** "0712345678" → "07** *** 678" (keeps the first 2 and last 3 digits). */
+function maskPhone(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (digits.length < 6) return '***';
+  return `${digits.slice(0, 2)}** *** ${digits.slice(-3)}`;
+}
+
+/** "jane.doe@mail.com" → "j***@mail.com" */
+function maskEmail(email) {
+  const [user, domain] = String(email || '').split('@');
+  if (!user || !domain) return null;
+  return `${user.charAt(0)}***@${domain}`;
+}
+
 module.exports = {
+  maskName,
+  maskPhone,
+  maskEmail,
+  phoneMatchCandidates,
   formatDateWithOffset,
   getUserId,
   getUser,

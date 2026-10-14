@@ -10,7 +10,7 @@
  */
 
 import React, { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   CAlert,
   CBadge,
@@ -43,13 +43,22 @@ import { cilBan, cilCash, cilCheckAlt, cilPencil, cilPlus, cilTrash, cilXCircle 
 
 import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
+import ScheduleTable from '../../components/loans/ScheduleTable'
+import PaymentsTable from '../../components/loans/PaymentsTable'
 import LoanActionModal from './LoanActionModal'
 import LoanDocuments from './LoanDocuments'
 import PaymentForm from '../payments/PaymentForm'
 import PaymentDetailModal from '../payments/PaymentDetailModal'
 import CollateralStatusModal from '../collaterals/CollateralStatusModal'
 import CollateralEditModal from '../collaterals/CollateralEditModal'
-import { useLoan, useLoanAction, useDeleteLoan, useWriteOffLoan } from '../../hooks/useLoans'
+import {
+  useCoSignerConsent,
+  useDeleteLoan,
+  useLoan,
+  useLoanAction,
+  useResendCoSignerConsent,
+  useWriteOffLoan,
+} from '../../hooks/useLoans'
 import { useLoanPayments } from '../../hooks/usePayments'
 import { useLoanDocuments } from '../../hooks/useDocuments'
 import { useUpdateCollateralStatus, useUpdateCollateralParticulars } from '../../hooks/useCollaterals'
@@ -57,16 +66,17 @@ import { useClient } from '../../hooks/useClients'
 import { useLoanProduct } from '../../hooks/useLoanProducts'
 import { useAuth } from '../../context/AuthContext'
 import {
+  CO_SIGNER_CONSENT_STATUS,
   LOAN_STATUS,
   COLLATERAL_STATUS,
   COLLATERAL_TYPE,
-  REPAYMENT_SCHEDULE_STATUS,
-  PAYMENT_STATUS,
   LOAN_TRANSACTION_TYPE,
   TRANSACTION_DIRECTION,
   LOAN_DELETION_REASONS,
 } from '../../constants/enums'
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from '../../utils/format'
+import CreditScoreGauge from '../../components/CreditScoreGauge'
+import toast from '../../utils/toast'
 
 /** Statuses still awaiting an approval decision. */
 const APPROVABLE = ['pending', 'pending_reverification', 'verified', 'in_review', 'under_review']
@@ -89,6 +99,8 @@ const LoanDetail = () => {
   const navigate = useNavigate()
 
   const { data: loan, isLoading, error } = useLoan(id)
+  const { data: coSignerConsent } = useCoSignerConsent(id, Boolean(loan?.coSignerId && loan?.coSignerConsentStatus))
+  const resendConsent = useResendCoSignerConsent(id)
   const { data: client } = useClient(loan?.clientId)
   const { data: loanProduct } = useLoanProduct(loan?.loanProductId)
   const { data: payments = [] } = useLoanPayments(id)
@@ -201,45 +213,6 @@ const LoanDetail = () => {
     return acc
   }, {})
 
-  const scheduleColumns = [
-    {
-      key: 'installmentNumber',
-      label: '#',
-      render: (r) =>
-        r.installmentNumber === 0
-          ? Number(r.feesAmount) > 0
-            ? 'Fee'
-            : 'Down Pmt'
-          : r.installmentNumber,
-    },
-    { key: 'dueDate', label: 'Due', render: (r) => formatDate(r.dueDate) },
-    { key: 'principalAmount', label: 'Principal', render: (r) => formatCurrency(r.principalAmount, loan.currency) },
-    { key: 'interestAmount', label: 'Interest', render: (r) => formatCurrency(r.interestAmount, loan.currency) },
-    { key: 'feesAmount', label: 'Fees', render: (r) => formatCurrency(r.feesAmount, loan.currency) },
-    {
-      key: 'penaltyAmount',
-      label: 'Penalty',
-      render: (r) =>
-        Number(r.penaltyAmount) > 0 ? (
-          <span className="text-danger fw-semibold">{formatCurrency(r.penaltyAmount, loan.currency)}</span>
-        ) : (
-          formatCurrency(0, loan.currency)
-        ),
-    },
-    {
-      key: 'totalAmount',
-      label: 'Total',
-      render: (r) =>
-        formatCurrency(Number(r.totalAmount) + Number(r.penaltyAmount || 0), loan.currency),
-    },
-    { key: 'paidAmount', label: 'Paid', render: (r) => formatCurrency(r.paidAmount, loan.currency) },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (r) => <StatusBadge enumDef={REPAYMENT_SCHEDULE_STATUS} value={r.status} />,
-    },
-  ]
-
   const collateralColumns = [
     {
       key: 'type',
@@ -307,22 +280,6 @@ const LoanDetail = () => {
           },
         ]
       : []),
-  ]
-
-  const paymentColumns = [
-    { key: 'amount', label: 'Amount', render: (r) => formatCurrency(r.amount, loan.currency) },
-    { key: 'externalRef', label: 'External Ref', render: (r) => r.externalRef || '—' },
-    { key: 'method', label: 'Method', render: (r) => r.method || '—' },
-    {
-      key: 'transactionDate',
-      label: 'Date',
-      render: (r) => formatDateTime(r.paymentDate || r.transactionDate),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (r) => <StatusBadge enumDef={PAYMENT_STATUS} value={r.status} />,
-    },
   ]
 
   const transactionColumns = [
@@ -594,20 +551,48 @@ const LoanDetail = () => {
                 )}
                 {loan.coSignerId && (
                   <Field label="Co-signer">
-                    {loan.coSigner
-                      ? `${loan.coSigner.firstName} ${loan.coSigner.lastName}`.trim()
-                      : `Client #${loan.coSignerId}`}
+                    <div className="d-flex flex-wrap align-items-center gap-2">
+                      <Link to={`/clients/${loan.coSignerId}`}>
+                        {loan.coSigner
+                          ? `${loan.coSigner.firstName} ${loan.coSigner.lastName}`.trim()
+                          : `Client #${loan.coSignerId}`}
+                      </Link>
+                      {loan.coSignerConsentStatus ? (
+                        <StatusBadge enumDef={CO_SIGNER_CONSENT_STATUS} value={loan.coSignerConsentStatus} />
+                      ) : (
+                        <span className="small text-body-secondary" title="Loan predates consent tracking">consent not tracked</span>
+                      )}
+                      {canUpdateLoans && APPROVABLE.includes(loan.status) && loan.coSignerConsentStatus
+                        && loan.coSignerConsentStatus !== 'accepted' && (
+                        <CButton
+                          color="secondary"
+                          variant="outline"
+                          size="sm"
+                          disabled={resendConsent.isPending}
+                          onClick={() =>
+                            resendConsent.mutate(undefined, {
+                              onSuccess: (res) => toast.success(`Consent link sent to ${(res?.sentTo || []).join(' / ') || 'the co-signer'}`),
+                              onError: (err) => toast.error(err?.message || 'Could not resend the consent link'),
+                            })
+                          }
+                        >
+                          {resendConsent.isPending ? <CSpinner size="sm" /> : 'Resend consent link'}
+                        </CButton>
+                      )}
+                    </div>
+                    {coSignerConsent?.status === 'declined' && coSignerConsent.declineReason ? (
+                      <div className="small text-body-secondary mt-1">Declined: {coSignerConsent.declineReason}</div>
+                    ) : null}
+                    {coSignerConsent?.status === 'pending' ? (
+                      <div className="small text-body-secondary mt-1">Link expires {formatDateTime(coSignerConsent.expiresAt)}</div>
+                    ) : null}
                   </Field>
                 )}
               </CRow>
             </CTabPane>
 
             <CTabPane visible={activeTab === 1}>
-              <DataTable
-                columns={scheduleColumns}
-                rows={schedules}
-                emptyMessage="No repayment schedule yet. It is generated on disbursement."
-              />
+              <ScheduleTable schedules={schedules} currency={loan.currency} />
             </CTabPane>
 
             <CTabPane visible={activeTab === 2}>
@@ -621,12 +606,18 @@ const LoanDetail = () => {
             <CTabPane visible={activeTab === 3}>
               {score ? (
                 <CRow>
-                  <Field label="Risk Score">{score.riskScore ?? '—'}</Field>
-                  <Field label="Risk Grade">
-                    {score.riskGrade ? <CBadge color="info">Grade {score.riskGrade}</CBadge> : '—'}
-                  </Field>
+                  <CCol xs={12} md={5} className="mb-3">
+                    <CreditScoreGauge
+                      score={score.riskScore}
+                      grade={score.riskGrade}
+                      creditLimit={score.creditLimit}
+                      currency={loan.currency}
+                      scoredAt={score.createdAt}
+                    />
+                  </CCol>
+                  <CCol xs={12} md={7}>
+                    <CRow>
                   <Field label="DTI">{score.riskDti ?? '—'}</Field>
-                  <Field label="Credit Limit">{formatCurrency(score.creditLimit, loan.currency)}</Field>
                   <Field label="Model Version">{score.scoringModelVersion || '—'}</Field>
                   <Field label="Evaluated">{formatDate(score.createdAt)}</Field>
                   {score.notes && (
@@ -635,6 +626,8 @@ const LoanDetail = () => {
                       <div>{score.notes}</div>
                     </CCol>
                   )}
+                    </CRow>
+                  </CCol>
                 </CRow>
               ) : (
                 <div className="text-body-secondary py-3">
@@ -652,10 +645,9 @@ const LoanDetail = () => {
                   </CButton>
                 )}
               </div>
-              <DataTable
-                columns={paymentColumns}
-                rows={payments}
-                emptyMessage="No payments recorded for this loan yet."
+              <PaymentsTable
+                payments={payments}
+                currency={loan.currency}
                 onRowClick={(row) => setViewPayment(row)}
               />
             </CTabPane>

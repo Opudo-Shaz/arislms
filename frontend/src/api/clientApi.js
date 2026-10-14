@@ -71,7 +71,14 @@ export const changeClientStatus = async (id, action, notes) => {
   return res?.data
 }
 
+/** Enable/disable self-service portal access (disabling revokes live portal sessions). */
+export const setPortalAccess = async (id, enabled) => {
+  const res = await http.patch(`/clients/${id}/portal-access`, { enabled })
+  return res?.data
+}
+
 export default {
+  setPortalAccess,
   listClients,
   getClient,
   createClient,

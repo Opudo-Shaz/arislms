@@ -54,6 +54,7 @@ function LoanResponseDto(loan) {
     downPaymentPaid: loan.downPaymentPaid,
     collateral: loan.collateral,
     coSignerId: loan.coSignerId ?? null,
+    coSignerConsentStatus: loan.coSignerConsentStatus ?? null,
     coSigner: loan.coSigner
       ? { id: loan.coSigner.id, firstName: loan.coSigner.firstName, lastName: loan.coSigner.lastName }
       : null,
@@ -62,6 +63,7 @@ function LoanResponseDto(loan) {
       : [],
     status: loan.status,
     referenceCode: loan.referenceCode,
+    source: loan.source ?? 'staff',
     creditScore: loan.creditScore
       ? new CreditScoreResponseDto(loan.creditScore)
       : null,
@@ -73,8 +75,8 @@ function LoanResponseDto(loan) {
       : [],
     approvedBy: loan.approvedByName ?? null,
     disbursedBy: loan.disbursedByName ?? null,
-    createdAt: loan.createdAt,
-    updatedAt: loan.updatedAt
+    createdAt: loan.createdAt ?? loan.created_at,
+    updatedAt: loan.updatedAt ?? loan.updated_at
   };
 }
 

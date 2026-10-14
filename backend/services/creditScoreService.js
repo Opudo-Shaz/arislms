@@ -218,6 +218,7 @@ const creditScoreService = {
    * @param {number}  [opts.loanId]        - link score to a loan
    * @param {number}  [opts.requestedTenure] - tenure hint for the scorer
    * @param {string}  [opts.notes]
+   * @param {{id: number, type: string}} [opts.auditActor] - Override the audit actor (e.g. a portal client)
    * @returns {Promise<{ creditScore: CreditScore, creditLimit: number }>}
    */
   async computeAndSave(clientId, actorId, userAgent = 'unknown', opts = {}) {
@@ -256,8 +257,8 @@ const creditScoreService = {
       entityId: creditScore.id,
       action: 'CREATE',
       data: { clientId, loanId: opts.loanId || null, riskScore, riskGrade, riskDti, creditLimit },
-      actorId: actorId || 1,
-      options: { actorType: 'USER', source: userAgent }
+      actorId: opts.auditActor?.id || actorId || 1,
+      options: { actorType: opts.auditActor?.type || 'USER', source: userAgent }
     });
 
     logger.info(

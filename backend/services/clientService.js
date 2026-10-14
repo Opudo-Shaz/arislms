@@ -493,6 +493,31 @@ const clientService = {
   },
 
   // ✅ Blacklist — set status=blacklisted, isActive=false
+  /**
+   * Enable/disable a client's self-service portal access. Disabling also
+   * revokes any live portal session (token_version bump).
+   */
+  async setPortalAccess(id, enabled, actorId, userAgent = 'unknown') {
+    const client = await Client.findByPk(id);
+    if (!client) throw Object.assign(new Error('Client not found'), { statusCode: 404 });
+
+    const changes = { portalEnabled: Boolean(enabled) };
+    if (!enabled) changes.tokenVersion = (client.tokenVersion || 0) + 1;
+    await client.update(changes);
+
+    await AuditLogger.log({
+      entityType: 'CLIENT',
+      entityId: id,
+      action: enabled ? 'ACTIVATE' : 'DEACTIVATE',
+      data: { portalAccess: Boolean(enabled) },
+      actorId: actorId || 1,
+      options: { actorType: 'USER', source: userAgent },
+    });
+
+    logger.info(`Client ${id} portal access ${enabled ? 'enabled' : 'disabled'} by user ${actorId}`);
+    return client;
+  },
+
   async blacklistClient(id, actorId, userAgent = 'unknown', notes = null) {
     try {
       const client = await Client.findByPk(id);

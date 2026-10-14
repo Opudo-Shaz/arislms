@@ -121,8 +121,16 @@ const ledgerController = {
 
   async getAvailableFunds(req, res) {
     try {
-      const result = await ledgerService.getAvailableFunds();
-      return res.status(200).json({ success: true, data: result });
+      const { cash, committed, committedLoanCount, available } = await ledgerService.getLendableFunds();
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...cash,
+          committed,
+          committedLoanCount,
+          availableForLending: available,
+        },
+      });
     } catch (err) {
       logger.error(`GetAvailableFunds Error: ${err.message}`);
       return res.status(500).json({ success: false, message: 'Error fetching available funds' });

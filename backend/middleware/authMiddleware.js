@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const logger = require('../config/logger'); 
 const UserStatus = require('../enums/userStatus');
 const { getCachedAuthUser } = require('../utils/authUserCache');
+const { getCachedAuthClient } = require('../utils/clientAuthCache');
+const { portalAccessDenialReason, PORTAL_ACCESS_DENIED } = require('../utils/portalAccess');
 
 const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -14,6 +16,15 @@ const authenticate = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretkey');
+
+    // Only full staff sessions are accepted here. Client-portal tokens
+    // (typ 'client' / 'client_otp') carry a *client* id that would otherwise
+    // resolve to an unrelated staff user, and the login OTP challenge token
+    // (purpose 'otp') must not work as a session before the code is verified.
+    if (decoded.typ || decoded.purpose) {
+      logger?.warn(`Unauthorized: non-session token (typ=${decoded.typ}, purpose=${decoded.purpose}) on staff route`);
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
 
     // Re-check the account on every request (via the shared app cache, not a
     // DB hit each time — see utils/authUserCache.js). A JWT stays
@@ -100,4 +111,46 @@ const requireSuperAdmin = (req, res, next) => {
   return res.status(403).json({ message: 'Access denied: Super Admin only' });
 };
 
-module.exports = { authenticate, authorize, requirePermission, requireSuperAdmin };
+/**
+ * Authenticates a client-portal session token (issued by portalAuthService,
+ * `typ: 'client'`). Staff tokens are rejected, and staff routes reject client
+ * tokens (see authenticate), so the two principals never cross over. Re-checks
+ * the client on every request so status changes / portal revocation / a
+ * token_version bump take effect immediately. Attaches `req.client`.
+ */
+const authenticateClient = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Missing or invalid token' });
+  }
+
+  try {
+    const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'secretkey');
+    if (decoded.typ !== 'client') {
+      logger?.warn('Unauthorized: non-client token on portal route');
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+
+    const client = await getCachedAuthClient(decoded.id);
+    if (!client) {
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+    // A valid session proves who they are, so say why access ended.
+    const denial = portalAccessDenialReason(client);
+    if (denial) {
+      logger?.warn(`Unauthorized: client ${decoded.id} portal access unavailable (status=${client.status})`);
+      return res.status(403).json({ message: denial, code: PORTAL_ACCESS_DENIED });
+    }
+    if ((decoded.tokenVersion || 0) !== (client.tokenVersion || 0)) {
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+
+    req.client = { id: client.id, firstName: client.firstName, lastName: client.lastName };
+    next();
+  } catch (err) {
+    logger?.warn(`Client token verification failed: ${err.message}`);
+    res.status(401).json({ message: 'Invalid or expired token' });
+  }
+};
+
+module.exports = { authenticate, authenticateClient, authorize, requirePermission, requireSuperAdmin };

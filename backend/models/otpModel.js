@@ -13,10 +13,17 @@ const Otp = sequelize.define(
       autoIncrement: true,
     },
 
+    // Exactly one of userId (staff) / clientId (portal client) is set.
     userId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       field: 'user_id',
+    },
+
+    clientId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'client_id',
     },
 
     // What this code authorises, e.g. 'login'. Scopes generation + verification.
@@ -69,6 +76,7 @@ const Otp = sequelize.define(
     freezeTableName: true,
     indexes: [
       { fields: ['user_id', 'purpose'] },
+      { fields: ['client_id', 'purpose'] },
     ],
   }
 );

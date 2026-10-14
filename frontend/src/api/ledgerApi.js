@@ -72,10 +72,23 @@ export const getAccountStatement = async (code, from, to) => {
   return res?.data ?? { account: null, rows: [] }
 }
 
+/**
+ * Get cash available for lending.
+ * @returns {Promise<{ balance:number, committed:number, committedLoanCount:number, availableForLending:number }>}
+ *   `balance` is the raw 1001 Cash / Bank balance; `committed` is the net
+ *   disbursement of approved-but-not-disbursed loans; `availableForLending`
+ *   is the difference (what loan approval is checked against).
+ */
+export const getAvailableFunds = async () => {
+  const res = await http.get('/ledger/available-funds')
+  return res?.data ?? { balance: 0, committed: 0, committedLoanCount: 0, availableForLending: 0 }
+}
+
 export default {
   listEntries,
   createEntry,
   reverseEntry,
   getTrialBalance,
   getAccountStatement,
+  getAvailableFunds,
 }

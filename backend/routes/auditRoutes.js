@@ -108,6 +108,13 @@ router.get('/entity/:entityType/:entityId', authenticate, requirePermission('aud
  *         schema:
  *           type: integer
  *         example: 1
+ *       - in: query
+ *         name: actorType
+ *         schema:
+ *           type: string
+ *           enum: [USER, CLIENT, SERVICE, SYSTEM]
+ *           default: USER
+ *         description: Actor ids are only unique per type (user 5 ≠ client 5)
  *     responses:
  *       200:
  *         description: Audit logs by the actor

@@ -1,6 +1,42 @@
 const AuditLog = require('../models/auditLogModel');
 const User = require('../models/userModel');
+const Client = require('../models/clientModel');
 const { paginateKeyset } = require('../utils/keysetPagination');
+
+// actor_id is only meaningful together with actor_type: USER ids point at
+// `users`, CLIENT ids at `clients` (portal actions), and SYSTEM/SERVICE ids
+// aren't people. The `actor` association joins users unconditionally, so
+// resolve actors per type afterwards instead of trusting the join.
+const userActorInclude = { model: User, as: 'actor', attributes: ['id', 'first_name', 'last_name'], required: false };
+
+/**
+ * Replace each row's `actor` with the right person for its actor_type
+ * (same `{ id, first_name, last_name }` shape, plus `type`), or null.
+ * @param {Array} rows - AuditLog instances loaded with userActorInclude
+ */
+async function resolveActors(rows) {
+  const clientIds = [...new Set(rows.filter((r) => r.actor_type === 'CLIENT').map((r) => r.actor_id))];
+  const clients = clientIds.length
+    ? await Client.findAll({ where: { id: clientIds }, attributes: ['id', 'firstName', 'lastName'] })
+    : [];
+  const clientMap = new Map(clients.map((c) => [String(c.id), c]));
+
+  for (const row of rows) {
+    let actor = null;
+    if (row.actor_type === 'USER') {
+      const u = row.actor;
+      actor = u ? { id: u.id, first_name: u.first_name, last_name: u.last_name, type: 'USER' } : null;
+    } else if (row.actor_type === 'CLIENT') {
+      const c = clientMap.get(String(row.actor_id));
+      actor = c ? { id: c.id, first_name: c.firstName, last_name: c.lastName, type: 'CLIENT' } : null;
+    }
+    // Both: dataValues drives toJSON (API responses); the instance property is
+    // what Sequelize set from the include and what server-side callers read.
+    row.setDataValue('actor', actor);
+    row.actor = actor;
+  }
+  return rows;
+}
 
 class AuditService {
   /**
@@ -51,12 +87,12 @@ class AuditService {
           entity_type: entityType,
           entity_id: entityId,
         },
-        include: [{ model: User, as: 'actor', attributes: ['id', 'first_name', 'last_name'], required: false }],
+        include: [userActorInclude],
         limit,
         offset,
         order: [['occurred_at', order]],
       });
-      return logs;
+      return resolveActors(logs);
     } catch (error) {
       console.error('Error retrieving audit logs:', error);
       throw error;
@@ -64,24 +100,28 @@ class AuditService {
   }
 
   /**
-   * Get audit logs for a specific actor
+   * Get audit logs for a specific actor. Actor ids are only unique within an
+   * actor type (user #5 and client #5 are different people), so the type is
+   * part of the filter.
    * @param {string} actorId - ID of the actor
    * @param {Object} options - Query options
+   * @param {string} [options.actorType='USER'] - USER | CLIENT | SERVICE | SYSTEM
    * @returns {Promise<Array>} Audit log records
    */
   static async getAuditsByActor(actorId, options = {}) {
     try {
-      const { limit = 100, offset = 0, order = 'DESC' } = options;
+      const { limit = 100, offset = 0, order = 'DESC', actorType = 'USER' } = options;
       const logs = await AuditLog.findAll({
         where: {
           actor_id: actorId,
+          actor_type: String(actorType).toUpperCase(),
         },
-        include: [{ model: User, as: 'actor', attributes: ['id', 'first_name', 'last_name'], required: false }],
+        include: [userActorInclude],
         limit,
         offset,
         order: [['occurred_at', order]],
       });
-      return logs;
+      return resolveActors(logs);
     } catch (error) {
       console.error('Error retrieving audit logs by actor:', error);
       throw error;
@@ -103,14 +143,16 @@ class AuditService {
       if (filters.action) where.action = filters.action.toUpperCase();
       if (filters.actorType) where.actor_type = filters.actorType.toUpperCase();
 
-      return await paginateKeyset(AuditLog, {
+      const result = await paginateKeyset(AuditLog, {
         keys: [['occurred_at', 'timestamp'], ['audit_id', 'int']],
         cursor,
         direction,
         limit,
         where,
-        include: [{ model: User, as: 'actor', attributes: ['id', 'first_name', 'last_name'], required: false }],
+        include: [userActorInclude],
       });
+      await resolveActors(result.rows);
+      return result;
     } catch (error) {
       console.error('Error retrieving audit logs:', error);
       throw error;
@@ -133,19 +175,22 @@ class AuditService {
 
       if (!rows.length) return {};
 
-      const actorIds = [...new Set(rows.map(r => r.actor_id).filter(Boolean))];
-      const users = await User.findAll({
-        where: { id: actorIds },
-        attributes: ['id', 'first_name', 'last_name']
-      });
-      const nameMap = Object.fromEntries(
-        users.map(u => [String(u.id), `${u.first_name} ${u.last_name}`.trim()])
-      );
+      const idsOfType = (type) => [...new Set(rows.filter(r => r.actor_type === type).map(r => r.actor_id).filter(Boolean))];
+      const userIds = idsOfType('USER');
+      const clientIds = idsOfType('CLIENT');
+      const [users, clients] = await Promise.all([
+        userIds.length ? User.findAll({ where: { id: userIds }, attributes: ['id', 'first_name', 'last_name'] }) : [],
+        clientIds.length ? Client.findAll({ where: { id: clientIds }, attributes: ['id', 'firstName', 'lastName'] }) : [],
+      ]);
+      const nameMap = {
+        ...Object.fromEntries(users.map(u => [`USER:${u.id}`, `${u.first_name} ${u.last_name}`.trim()])),
+        ...Object.fromEntries(clients.map(c => [`CLIENT:${c.id}`, `${c.firstName} ${c.lastName}`.trim()])),
+      };
 
       const result = {};
       for (const action of actions) {
         const row = rows.find(r => r.action === action);
-        result[action] = row ? (nameMap[String(row.actor_id)] ?? null) : null;
+        result[action] = row ? (nameMap[`${row.actor_type}:${row.actor_id}`] ?? null) : null;
       }
       return result;
     } catch (error) {

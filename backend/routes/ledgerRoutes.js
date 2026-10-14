@@ -325,7 +325,11 @@ router.get('/income-summary', authenticate, ledgerController.getIncomeSummary);
  * /api/ledger/available-funds:
  *   get:
  *     summary: Get cash available for lending or operations
- *     description: Returns the balance of account 1001 (Cash / Bank). This is the exact amount the group has available to disburse or spend.
+ *     description: >
+ *       Returns the raw balance of account 1001 (Cash / Bank) as `balance`, plus
+ *       `availableForLending` — that balance minus the net disbursement of loans
+ *       already approved but not yet disbursed (`committed`). Loan approval is
+ *       checked against `availableForLending`.
  *     tags:
  *       - Ledger
  *     security:
@@ -344,6 +348,9 @@ router.get('/income-summary', authenticate, ledgerController.getIncomeSummary);
  *                 totalDebit: 200000
  *                 totalCredit: 150000
  *                 balance: 50000
+ *                 committed: 30000
+ *                 committedLoanCount: 2
+ *                 availableForLending: 20000
  */
 router.get('/available-funds', authenticate, ledgerController.getAvailableFunds);
 

@@ -1,11 +1,17 @@
 import React from 'react'
+import PropTypes from 'prop-types'
 import { useLocation } from 'react-router-dom'
 
-import { routes } from '../routes'
+import { routes as staffRoutes } from '../routes'
 
 import { CBreadcrumb, CBreadcrumbItem } from '@coreui/react'
 
-const AppBreadcrumb = () => {
+/**
+ * @param {object} props
+ * @param {Array} [props.routes] - route table to resolve names from (defaults to staff routes)
+ * @param {string} [props.homeHref='/'] - target of the leading "Home" crumb
+ */
+const AppBreadcrumb = ({ routes = staffRoutes, homeHref = '/' }) => {
   const currentLocation = useLocation().pathname
 
   const getRouteName = (pathname, routes) => {
@@ -33,7 +39,7 @@ const AppBreadcrumb = () => {
 
   return (
     <CBreadcrumb className="my-0">
-      <CBreadcrumbItem href="/">Home</CBreadcrumbItem>
+      <CBreadcrumbItem href={homeHref}>Home</CBreadcrumbItem>
       {breadcrumbs.map((breadcrumb, index) => {
         return (
           <CBreadcrumbItem
@@ -46,6 +52,11 @@ const AppBreadcrumb = () => {
       })}
     </CBreadcrumb>
   )
+}
+
+AppBreadcrumb.propTypes = {
+  routes: PropTypes.array,
+  homeHref: PropTypes.string,
 }
 
 export default React.memo(AppBreadcrumb)

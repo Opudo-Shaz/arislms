@@ -1,4 +1,6 @@
 const loanService = require('../services/loanService');
+const coSignerConsentService = require('../services/coSignerConsentService');
+const Loan = require('../models/loanModel');
 const logger = require('../config/logger');
 const { getUserId, isAdmin } = require('../utils/helpers');
 const { validateSync } = require('../utils/validationMiddleware');
@@ -27,8 +29,8 @@ exports.getAllLoans = async (req, res) => {
 };
 
 exports.getMyLoans = async (req, res) => {
-  // Reserved for the future client-facing app. Not used in the management portal.
-  return res.status(501).json({ success: false, message: 'Not implemented for this portal' });
+  // Client loans are served by the self-service portal API with a client session.
+  return res.status(410).json({ success: false, message: 'Moved: use GET /api/portal/me/loans with a client session' });
 };
 
 exports.getLoanById = async (req, res) => {
@@ -507,3 +509,50 @@ exports.writeOffLoan = async (req, res) => {
   }
 };
 
+
+/** GET /api/loans/:id/co-signer-consent — latest consent request for a co-signed loan. */
+exports.getCoSignerConsent = async (req, res) => {
+  try {
+    const consent = await coSignerConsentService.getLatestForLoan(req.params.id);
+    return res.status(200).json({
+      success: true,
+      data: consent
+        ? {
+            id: consent.id,
+            status: consent.status,
+            coSignerId: consent.coSignerId,
+            expiresAt: consent.expiresAt,
+            respondedAt: consent.respondedAt,
+            declineReason: consent.declineReason,
+            requestedBy: consent.requestedBy,
+            requestedAt: consent.createdAt ?? consent.created_at,
+          }
+        : null,
+    });
+  } catch (error) {
+    logger.error(`GetCoSignerConsent Error (${req.params.id}): ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Server error fetching co-signer consent' });
+  }
+};
+
+/** POST /api/loans/:id/co-signer-consent/resend — issue a fresh consent link to the co-signer. */
+exports.resendCoSignerConsent = async (req, res) => {
+  try {
+    const loan = await Loan.findByPk(req.params.id);
+    if (!loan) return res.status(404).json({ success: false, message: 'Loan not found' });
+    if (!coSignerConsentService.AWAITING_DECISION.includes(loan.status)) {
+      return res.status(409).json({ success: false, message: `Consent can only be requested while the loan awaits a decision (status: ${loan.status}).` });
+    }
+    if (loan.coSignerConsentStatus === 'accepted') {
+      return res.status(409).json({ success: false, message: 'The co-signer has already consented.' });
+    }
+    const { sentTo } = await coSignerConsentService.requestConsent(loan, {
+      requestedBy: `user:${getUserId(req)}`,
+      userAgent: req.headers['user-agent'],
+    });
+    return res.status(200).json({ success: true, message: 'Consent request sent to the co-signer.', data: { sentTo } });
+  } catch (error) {
+    logger.error(`ResendCoSignerConsent Error (${req.params.id}): ${error.message}`);
+    return res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : 'Server error sending consent request' });
+  }
+};

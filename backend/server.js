@@ -66,6 +66,8 @@ const notificationTemplateRoutes = require('./routes/notificationTemplateRoutes'
 const notificationOutboxRoutes = require('./routes/notificationOutboxRoutes');
 const invitationRoutes = require('./routes/invitationRoutes');
 const seederRoutes = require('./routes/seederRoutes');
+const portalRoutes = require('./routes/portalRoutes');
+const paymentReportRoutes = require('./routes/paymentReportRoutes');
 
 
 app.use('/api/users', userRoutes);
@@ -91,6 +93,8 @@ app.use('/api/notification-templates', notificationTemplateRoutes);
 app.use('/api/notification-outbox', notificationOutboxRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/seeders', seederRoutes);
+app.use('/api/portal', portalRoutes);
+app.use('/api/payment-reports', paymentReportRoutes);
 
 
 

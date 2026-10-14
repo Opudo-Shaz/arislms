@@ -18,6 +18,18 @@ const AuditLogger = require('../utils/auditLogger');
  * ahead of the ordinary notification backlog.
  */
 
+/**
+ * Dev/test aid while no SMS gateway is configured: when OTP_DEBUG_LOG=true,
+ * the raw code is written to the debug log. Never honoured when
+ * NODE_ENV=production — codes would otherwise end up in logs/app.log.
+ */
+const shouldLogRawOtp = () =>
+  process.env.OTP_DEBUG_LOG === 'true' && process.env.NODE_ENV !== 'production';
+
+if (process.env.OTP_DEBUG_LOG === 'true' && process.env.NODE_ENV === 'production') {
+  logger.warn('[otpService] OTP_DEBUG_LOG is ignored because NODE_ENV=production');
+}
+
 /** Outbox priority for OTP messages — well above the default (0) used elsewhere. */
 const OTP_OUTBOX_PRIORITY = 100;
 
@@ -53,89 +65,135 @@ async function getOtpConfig() {
 }
 
 /**
- * Generate a fresh OTP for a user + purpose and dispatch it via the notification
- * outbox. Any still-valid unused codes for the same (user, purpose) are
- * invalidated first so only the newest code works.
+ * Resolve who an OTP belongs to. Staff users and portal clients live in
+ * different tables, so each OTP row is keyed on exactly one of user_id /
+ * client_id, and audit entries are attributed to the matching actor type.
+ *
+ * Audit entries are recorded against entity 'OTP' (the code row itself) —
+ * the owner is the *actor*, not the entity. Logging them under USER/CLIENT
+ * made "otp issued" read as "user/client record created/updated".
+ */
+function resolveSubject({ user, client }) {
+  if (client && client.id) {
+    return {
+      ownerWhere: { clientId: client.id },
+      label: `client id=${client.id}`,
+      name: [client.firstName, client.lastName].filter(Boolean).join(' ') || client.email,
+      // No userId: clients have no in-app inbox (notifications.user_id references users).
+      recipient: {
+        ...(client.email ? { email: client.email } : {}),
+        ...(client.phone ? { phone: client.phone } : {}),
+      },
+      audit: { actorId: client.id, actorType: 'CLIENT' },
+    };
+  }
+  if (user && user.id) {
+    return {
+      ownerWhere: { userId: user.id },
+      label: `user id=${user.id}`,
+      name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
+      recipient: {
+        ...(user.email ? { email: user.email } : {}),
+        ...(user.phone ? { phone: user.phone } : {}),
+        userId: user.id,
+      },
+      audit: { actorId: user.id, actorType: 'USER' },
+    };
+  }
+  throw new Error('OTP requires a user or a client');
+}
+
+/**
+ * Generate a fresh OTP for a user/client + purpose and dispatch it via the
+ * notification outbox. Any still-valid unused codes for the same
+ * (owner, purpose) are invalidated first so only the newest code works.
  *
  * @param {object} params
- * @param {object} params.user       - User instance/plain object (id, email, phone, first_name, last_name)
+ * @param {object} [params.user]     - User instance/plain object (id, email, phone, first_name, last_name)
+ * @param {object} [params.client]   - Client instance/plain object (id, email, phone, firstName, lastName); used instead of `user`
  * @param {string} params.purpose    - e.g. 'login'
  * @param {string[]} [params.channels] - Restrict delivery to a subset of channels (default: template-enabled)
+ * @param {object} [params.auditContext] - Extra fields stored with the audit entry so the OTP
+ *   can be traced to what it authorised (e.g. `{ loanId, consentId }`)
  * @param {string} [params.userAgent]
  * @returns {Promise<{expiresAt: Date, ttlMinutes: number}>}
  */
-async function generateAndSend({ user, purpose, channels = null, userAgent = 'unknown' }) {
-  if (!user || !user.id) throw new Error('generateAndSend requires a user');
+async function generateAndSend({ user, client, purpose, channels = null, auditContext = null, userAgent = 'unknown' }) {
   if (!purpose) throw new Error('generateAndSend requires a purpose');
+  const subject = resolveSubject({ user, client });
 
   const { length, ttlMinutes, maxAttempts } = await getOtpConfig();
 
-  // Invalidate any previous unused codes for this (user, purpose).
+  // Invalidate any previous unused codes for this (owner, purpose).
   await Otp.update(
     { usedAt: new Date() },
-    { where: { userId: user.id, purpose, usedAt: null } }
+    { where: { ...subject.ownerWhere, purpose, usedAt: null } }
   );
 
   const code = generateNumericCode(length);
   const codeHash = hashCode(code);
   const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
 
-  await Otp.create({ userId: user.id, purpose, codeHash, expiresAt, maxAttempts });
+  const otp = await Otp.create({ ...subject.ownerWhere, purpose, codeHash, expiresAt, maxAttempts });
 
-  const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+  if (shouldLogRawOtp()) {
+    const to = [subject.recipient.phone, subject.recipient.email].filter(Boolean).join(' / ') || 'no address';
+    logger.debug(
+      `[otpService] DEBUG OTP for ${subject.label} purpose=${purpose} channels=${channels ? channels.join(',') : 'default'} to=${to}: ${code} (expires in ${ttlMinutes}m)`
+    );
+  }
+
   const appName = process.env.APP_NAME || 'ARISLMS';
-
-  const recipient = {
-    ...(user.email ? { email: user.email } : {}),
-    ...(user.phone ? { phone: user.phone } : {}),
-    userId: user.id,
-  };
+  const ownerKey = Object.entries(subject.ownerWhere)[0].join('-');
 
   await safeNotify(NotificationEventType.OTP_VERIFICATION, {
-    recipients: [recipient],
-    context: { name, code, ttlMinutes, appName, purpose },
+    recipients: [subject.recipient],
+    context: { name: subject.name, code, ttlMinutes, appName, purpose },
     ...(channels ? { channels } : {}),
     priority: OTP_OUTBOX_PRIORITY,
     // Fresh dedupeKey per send so a resend always queues a new outbox row.
-    dedupeKey: `otp-${purpose}-${user.id}-${Date.now()}`,
+    dedupeKey: `otp-${purpose}-${ownerKey}-${Date.now()}`,
   });
 
   await AuditLogger.log({
-    entityType: 'USER',
-    entityId: user.id,
+    entityType: 'OTP',
+    entityId: otp.id,
     action: 'CREATE',
-    data: { event: 'otp_issued', purpose },
-    actorId: user.id,
-    options: { actorType: 'USER', source: userAgent },
+    data: { event: 'otp_issued', purpose, ...(channels ? { channels } : {}), ...(auditContext || {}) },
+    actorId: subject.audit.actorId,
+    options: { actorType: subject.audit.actorType, source: userAgent },
   });
 
-  logger.info(`[otpService] OTP issued for user id=${user.id} purpose=${purpose}`);
+  logger.info(`[otpService] OTP issued for ${subject.label} purpose=${purpose}`);
   return { expiresAt, ttlMinutes };
 }
 
 /**
- * Verify a code for a user + purpose. Consumes the code on success. Enforces the
- * per-code attempt cap.
+ * Verify a code for a user/client + purpose. Consumes the code on success.
+ * Enforces the per-code attempt cap. Pass exactly one of userId / clientId.
  *
  * @param {object} params
- * @param {number} params.userId
+ * @param {number} [params.userId]
+ * @param {number} [params.clientId]
  * @param {string} params.purpose
  * @param {string} params.code
+ * @param {object} [params.auditContext] - Extra fields stored with the audit entry (see generateAndSend)
  * @param {string} [params.userAgent]
  * @returns {Promise<boolean>} true on success
  * @throws {Error} with .status 400 (invalid/expired) or 429 (too many attempts)
  */
-async function verify({ userId, purpose, code, userAgent = 'unknown' }) {
-  if (!userId || !purpose || !code) {
+async function verify({ userId, clientId, purpose, code, auditContext = null, userAgent = 'unknown' }) {
+  const ownerWhere = clientId ? { clientId } : userId ? { userId } : null;
+  if (!ownerWhere || !purpose || !code) {
     const err = new Error('Invalid or expired verification code');
     err.status = 400;
     throw err;
   }
 
-  // Newest unused, non-expired code for this (user, purpose).
+  // Newest unused, non-expired code for this (owner, purpose).
   const record = await Otp.findOne({
     where: {
-      userId,
+      ...ownerWhere,
       purpose,
       usedAt: null,
       expiresAt: { [Op.gt]: new Date() },
@@ -172,17 +230,35 @@ async function verify({ userId, purpose, code, userAgent = 'unknown' }) {
 
   await record.update({ usedAt: new Date() });
 
+  const isClient = Boolean(clientId);
+  const ownerId = clientId || userId;
   await AuditLogger.log({
-    entityType: 'USER',
-    entityId: userId,
+    entityType: 'OTP',
+    entityId: record.id,
     action: 'UPDATE',
-    data: { event: 'otp_verified', purpose },
-    actorId: userId,
-    options: { actorType: 'USER', source: userAgent },
+    data: { event: 'otp_verified', purpose, ...(auditContext || {}) },
+    actorId: ownerId,
+    options: { actorType: isClient ? 'CLIENT' : 'USER', source: userAgent },
   });
 
-  logger.info(`[otpService] OTP verified for user id=${userId} purpose=${purpose}`);
+  logger.info(`[otpService] OTP verified for ${isClient ? 'client' : 'user'} id=${ownerId} purpose=${purpose}`);
   return true;
 }
 
-module.exports = { generateAndSend, verify, OTP_OUTBOX_PRIORITY };
+/**
+ * Seconds since the newest OTP for (owner, purpose) was issued, or null if none.
+ * Lets callers enforce a resend cooldown.
+ * @param {{userId?: number, clientId?: number, purpose: string}} params
+ */
+async function secondsSinceLastIssued({ userId, clientId, purpose }) {
+  const ownerWhere = clientId ? { clientId } : { userId };
+  const last = await Otp.findOne({
+    where: { ...ownerWhere, purpose },
+    order: [['created_at', 'DESC']],
+    attributes: ['created_at'],
+  });
+  if (!last) return null;
+  return (Date.now() - new Date(last.get('created_at')).getTime()) / 1000;
+}
+
+module.exports = { generateAndSend, verify, secondsSinceLastIssued, OTP_OUTBOX_PRIORITY };
