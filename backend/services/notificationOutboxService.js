@@ -2,23 +2,23 @@ const { Op } = require('sequelize');
 const NotificationOutbox = require('../models/notificationOutboxModel');
 const NotificationDeliveryStatus = require('../enums/notificationDeliveryStatus');
 const logger = require('../config/logger');
+const { paginateKeyset } = require('../utils/keysetPagination');
 
 const notificationOutboxService = {
-  async getAll({ status, channel, eventKey, page = 1, limit = 20 } = {}) {
+  async getAll({ status, channel, eventKey, cursor, direction, limit = 20 } = {}) {
     try {
       const where = {};
       if (status) where.status = status;
       if (channel) where.channel = channel;
       if (eventKey) where.eventKey = eventKey;
 
-      const offset = (page - 1) * limit;
-      const { count, rows } = await NotificationOutbox.findAndCountAll({
-        where,
-        order: [['created_at', 'DESC']],
+      return await paginateKeyset(NotificationOutbox, {
+        keys: [['created_at', 'timestamp'], ['id', 'int']],
+        cursor,
+        direction,
         limit,
-        offset,
+        where,
       });
-      return { total: count, page, limit, data: rows };
     } catch (error) {
       logger.error(`notificationOutboxService.getAll Error: ${error.message}`);
       throw error;

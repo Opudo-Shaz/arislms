@@ -12,14 +12,15 @@
  */
 
 import http from './http'
+import { EMPTY_PAGINATION } from './pagination'
 
-/** @returns {Promise<{loans:object[],pagination:object}>} Paginated loans (admin/manager). */
+/** @returns {Promise<{loans:object[],pagination:object}>} Keyset-paginated loans (admin/manager). */
 export const listLoans = async (params = {}) => {
   const clean = Object.fromEntries(
     Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
   )
   const res = await http.get('/loans', { params: clean })
-  return { loans: res?.data ?? [], pagination: res?.pagination ?? { total: 0, page: 1, limit: 20, pages: 0 } }
+  return { loans: res?.data ?? [], pagination: res?.pagination ?? EMPTY_PAGINATION }
 }
 
 /** @returns {Promise<{loans:object[],pagination:object}>} Paginated loans for the logged-in user. */
@@ -28,7 +29,7 @@ export const listMyLoans = async (params = {}) => {
     Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
   )
   const res = await http.get('/loans/my', { params: clean })
-  return { loans: res?.data ?? [], pagination: res?.pagination ?? { total: 0, page: 1, limit: 20, pages: 0 } }
+  return { loans: res?.data ?? [], pagination: res?.pagination ?? EMPTY_PAGINATION }
 }
 
 /** @param {number|string} id @returns {Promise<object>} */

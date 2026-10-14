@@ -9,11 +9,12 @@
  */
 
 import http from './http'
+import { EMPTY_PAGINATION } from './pagination'
 
 /**
- * List audit logs (paginated, filtered).
- * @param {object} [params] { entityType, action, actorType, limit, offset }
- * @returns {Promise<{ logs:object[], pagination:{ total:number, limit:number, offset:number } }>}
+ * List audit logs (keyset paginated, newest first, filtered).
+ * @param {object} [params] { entityType, action, actorType, cursor, direction, limit }
+ * @returns {Promise<{ logs:object[], pagination:object }>}
  */
 export const listAuditLogs = async (params = {}) => {
   const clean = Object.fromEntries(
@@ -22,7 +23,7 @@ export const listAuditLogs = async (params = {}) => {
   const res = await http.get('/audits', { params: clean })
   return {
     logs: res?.data ?? [],
-    pagination: res?.pagination ?? { total: 0, limit: 0, offset: 0 },
+    pagination: res?.pagination ?? EMPTY_PAGINATION,
   }
 }
 

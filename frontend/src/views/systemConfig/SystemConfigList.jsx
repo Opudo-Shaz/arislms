@@ -34,8 +34,6 @@ import {
   CModalFooter,
   CModalHeader,
   CModalTitle,
-  CPagination,
-  CPaginationItem,
   CRow,
   CSpinner,
   CAlert,
@@ -46,6 +44,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import Select from 'react-select'
 
 import DataTable from '../../components/DataTable'
+import CursorPager from '../../components/CursorPager'
 import ConfirmModal from '../../components/ConfirmModal'
 import { useAuth } from '../../context/AuthContext'
 import { getBadgeForValue } from '../../utils/badgePalette'
@@ -58,6 +57,7 @@ import {
   useRevealSystemConfig,
 } from '../../hooks/useSystemConfigs'
 import { useCodes, useCodeValues } from '../../hooks/useCodes'
+import { useCursorPagination } from '../../hooks/useCursorPagination'
 
 const PAGE_SIZE = 10
 
@@ -351,7 +351,6 @@ const SystemConfigList = () => {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const debounceRef = useRef(null)
-  const [page, setPage] = useState(1)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [toDelete, setToDelete] = useState(null)
@@ -374,17 +373,15 @@ const SystemConfigList = () => {
     }
   }
 
-  const queryParams = {
-    page,
-    limit: PAGE_SIZE,
-    ...(categoryFilter ? { category: categoryFilter } : {}),
-    ...(debouncedSearch ? { q: debouncedSearch } : {}),
+  const filters = {
+    category: categoryFilter || undefined,
+    q: debouncedSearch || undefined,
   }
+  const { cursorParams, goTo } = useCursorPagination(filters)
+  const queryParams = { ...filters, ...cursorParams, limit: PAGE_SIZE }
   const { data: result, isLoading, error, refetch, isFetching } = useSystemConfigs(queryParams)
 
   const configs = result?.data ?? []
-  const total = result?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const toggleMutation = useToggleSystemConfigStatus()
   const deleteMutation = useDeleteSystemConfig()
@@ -393,7 +390,7 @@ const SystemConfigList = () => {
     const val = e.target.value
     setSearch(val)
     clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => { setDebouncedSearch(val); setPage(1) }, 350)
+    debounceRef.current = setTimeout(() => setDebouncedSearch(val), 350)
   }
 
   const openCreate = () => { setEditing(null); setShowForm(true) }
@@ -532,7 +529,7 @@ const SystemConfigList = () => {
             size="sm"
             style={{ width: 'auto' }}
             value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1) }}
+            onChange={(e) => setCategoryFilter(e.target.value)}
           >
             <option value="">All categories</option>
             {CATEGORIES.map((c) => (
@@ -566,21 +563,12 @@ const SystemConfigList = () => {
             onChange={handleSearchChange}
           />
           <DataTable columns={columns} rows={configs} loading={isLoading} error={error?.message} />
-          {totalPages > 1 && (
-            <div className="d-flex justify-content-between align-items-center mt-3">
-              <span className="small text-body-secondary">
-                {total} configs · page {page} of {totalPages}
-              </span>
-              <CPagination className="mb-0">
-                <CPaginationItem disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                  Previous
-                </CPaginationItem>
-                <CPaginationItem disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                  Next
-                </CPaginationItem>
-              </CPagination>
-            </div>
-          )}
+          <CursorPager
+            pagination={result?.pagination}
+            onNavigate={goTo}
+            disabled={isFetching}
+            summary={`Showing ${configs.length} config${configs.length === 1 ? '' : 's'}`}
+          />
         </CCardBody>
       </CCard>
 

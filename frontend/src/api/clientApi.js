@@ -9,8 +9,9 @@
  */
 
 import http from './http'
+import { EMPTY_PAGINATION } from './pagination'
 
-/** @returns {Promise<{clients: object[], pagination: object}>} Paginated clients. */
+/** Keyset paginated (see ./pagination). @returns {Promise<{clients: object[], pagination: object}>} */
 export const listClients = async (params = {}) => {
   const clean = Object.fromEntries(
     Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
@@ -18,7 +19,7 @@ export const listClients = async (params = {}) => {
   const res = await http.get('/clients', { params: clean })
   return {
     clients: res?.data ?? [],
-    pagination: res?.pagination ?? { total: 0, page: 1, limit: 20, pages: 0 },
+    pagination: res?.pagination ?? EMPTY_PAGINATION,
   }
 }
 

@@ -4,7 +4,7 @@
  * Admin view for the notification delivery queue. Shows every dispatched
  * notification attempt (one row per recipient x channel) with its status,
  * attempt count, and last error, and lets admins manually retry FAILED or
- * SKIPPED entries. Backend uses page/limit pagination.
+ * SKIPPED entries. Keyset (cursor) paginated: Previous/Next only.
  *
  * @module views/admin/NotificationOutboxList
  */
@@ -19,17 +19,18 @@ import {
   CCol,
   CFormInput,
   CFormSelect,
-  CPagination,
-  CPaginationItem,
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilReload, cilSync } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
+import CursorPager from '../../components/CursorPager'
 import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
 import { useNotificationOutbox, useRetryOutboxEntry } from '../../hooks/useNotificationOutbox'
+import { useCursorPagination } from '../../hooks/useCursorPagination'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { NOTIFICATION_CHANNEL, NOTIFICATION_DELIVERY_STATUS } from '../../constants/enums'
 import { useAuth } from '../../context/AuthContext'
 import { formatDateTime } from '../../utils/format'
@@ -44,22 +45,17 @@ const NotificationOutboxList = () => {
   const [status, setStatus] = useState('')
   const [channel, setChannel] = useState('')
   const [eventKey, setEventKey] = useState('')
-  const [page, setPage] = useState(1)
   const [toRetry, setToRetry] = useState(null)
   const [retryError, setRetryError] = useState('')
 
-  const params = { status, channel, eventKey, page, limit: PAGE_SIZE }
+  const debouncedEventKey = useDebouncedValue(eventKey.trim())
+  const filters = { status, channel, eventKey: debouncedEventKey }
+  const { cursorParams, goTo } = useCursorPagination(filters)
+  const params = { ...filters, ...cursorParams, limit: PAGE_SIZE }
   const { data, isLoading, error, refetch, isFetching } = useNotificationOutbox(params)
   const retryMutation = useRetryOutboxEntry()
 
   const rows = data?.rows ?? []
-  const total = data?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-
-  const resetPageAnd = (setter) => (value) => {
-    setter(value)
-    setPage(1)
-  }
 
   const confirmRetry = async () => {
     setRetryError('')
@@ -147,7 +143,7 @@ const NotificationOutboxList = () => {
       <CCardBody>
         <CRow className="g-2 mb-3">
           <CCol md={3}>
-            <CFormSelect value={status} onChange={(e) => resetPageAnd(setStatus)(e.target.value)}>
+            <CFormSelect value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">All statuses</option>
               {NOTIFICATION_DELIVERY_STATUS.values.map((v) => (
                 <option key={v} value={v}>
@@ -157,7 +153,7 @@ const NotificationOutboxList = () => {
             </CFormSelect>
           </CCol>
           <CCol md={3}>
-            <CFormSelect value={channel} onChange={(e) => resetPageAnd(setChannel)(e.target.value)}>
+            <CFormSelect value={channel} onChange={(e) => setChannel(e.target.value)}>
               <option value="">All channels</option>
               {NOTIFICATION_CHANNEL.values.map((v) => (
                 <option key={v} value={v}>
@@ -170,7 +166,7 @@ const NotificationOutboxList = () => {
             <CFormInput
               placeholder="Filter by event key…"
               value={eventKey}
-              onChange={(e) => resetPageAnd(setEventKey)(e.target.value)}
+              onChange={(e) => setEventKey(e.target.value)}
             />
           </CCol>
         </CRow>
@@ -183,37 +179,12 @@ const NotificationOutboxList = () => {
           emptyMessage="No outbox entries match your filters."
         />
 
-        {totalPages > 1 && (
-          <CPagination align="end" className="mt-3">
-            <CPaginationItem disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              Previous
-            </CPaginationItem>
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
-              .reduce((acc, p, idx, arr) => {
-                if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…')
-                acc.push(p)
-                return acc
-              }, [])
-              .map((p, idx) =>
-                p === '…' ? (
-                  <CPaginationItem key={`ellipsis-${idx}`} disabled>
-                    …
-                  </CPaginationItem>
-                ) : (
-                  <CPaginationItem key={p} active={p === page} onClick={() => setPage(p)}>
-                    {p}
-                  </CPaginationItem>
-                ),
-              )}
-            <CPaginationItem
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Next
-            </CPaginationItem>
-          </CPagination>
-        )}
+        <CursorPager
+          pagination={data?.pagination}
+          onNavigate={goTo}
+          disabled={isFetching}
+          summary={`Showing ${rows.length} entr${rows.length === 1 ? 'y' : 'ies'}`}
+        />
       </CCardBody>
 
       <ConfirmModal

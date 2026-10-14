@@ -1,5 +1,7 @@
 const sequelize = require('../config/sequalize_db');
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
+const { contributionSearchVector, clientIdMatches } = require('../constants/searchVectors');
+const { paginateKeyset, buildPrefixTsQuery } = require('../utils/keysetPagination');
 const MemberContribution = require('../models/memberContributionModel');
 const Client = require('../models/clientModel');
 const ledgerService = require('./ledgerService');
@@ -168,26 +170,25 @@ const memberContributionService = {
     };
   },
 
-  async getAllContributions({ page = 1, limit = 20, type, search } = {}) {
-    const where = {};
+  // Keyset paginated, newest contribution date first. Search matches notes or
+  // the member (via the clients search index).
+  async getAllContributions({ cursor, direction, limit = 20, type, search } = {}) {
+    const where = { [Op.and]: [] };
     if (type) where.type = type;
-    if (search) {
-      where[Op.or] = [
-        { '$client.first_name$': { [Op.iLike]: `%${search}%` } },
-        { '$client.last_name$': { [Op.iLike]: `%${search}%` } },
-        { notes: { [Op.iLike]: `%${search}%` } },
-      ];
+    const tsQuery = buildPrefixTsQuery(search);
+    if (tsQuery) {
+      where[Op.and].push(Sequelize.literal(
+        `(${contributionSearchVector('MemberContribution')} @@ (${tsQuery}) OR ${clientIdMatches('"MemberContribution"."client_id"', tsQuery)})`
+      ));
     }
-    const offset = (page - 1) * limit;
-    const { count, rows } = await MemberContribution.findAndCountAll({
-      where,
+    return paginateKeyset(MemberContribution, {
+      keys: [['contribution_date', 'date'], ['id', 'int']],
+      cursor,
+      direction,
       limit,
-      offset,
-      order: [['contribution_date', 'DESC']],
-      distinct: true,
+      where,
       include: [{ association: 'client' }, { association: 'journalEntry' }],
     });
-    return { total: count, page, limit, pages: Math.ceil(count / limit), records: rows };
   },
 
   async getContributionsByMember(clientId) {

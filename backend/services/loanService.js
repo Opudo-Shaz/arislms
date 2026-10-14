@@ -1,7 +1,9 @@
 const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
 const sequelize = require('../config/sequalize_db');
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
+const { loanSearchVector, clientIdMatches } = require('../constants/searchVectors');
+const { paginateKeyset, buildPrefixTsQuery } = require('../utils/keysetPagination');
 const User = require('../models/userModel');
 const AuditService = require('./auditService');
 const Client = require('../models/clientModel');
@@ -148,26 +150,25 @@ function buildScheduleEntries(loan, scheduleData, disbursementDate, downPaymentP
 
 const loanService = {
 
-  // Get loans (paginated + filtered); returns all loans for management portal
-  async getAllLoans({ page = 1, limit = 20, status, search } = {}) {
+  // Get loans (keyset paginated + filtered), newest first; all loans for management portal.
+  // Search matches the loan reference or the borrower (via the clients search index).
+  async getAllLoans({ cursor, direction, limit = 20, status, search } = {}) {
     try {
-      logger.info(`loanService.getAllLoans called (page=${page}, limit=${limit})`);
-      const where = {};
+      logger.info(`loanService.getAllLoans called (direction=${direction}, limit=${limit})`);
+      const where = { [Op.and]: [] };
       if (status) where.status = status;
-      if (search) {
-        where[Op.or] = [
-          { referenceCode: { [Op.iLike]: `%${search}%` } },
-          { '$client.first_name$': { [Op.iLike]: `%${search}%` } },
-          { '$client.last_name$': { [Op.iLike]: `%${search}%` } },
-        ];
+      const tsQuery = buildPrefixTsQuery(search);
+      if (tsQuery) {
+        where[Op.and].push(Sequelize.literal(
+          `(${loanSearchVector('Loan')} @@ (${tsQuery}) OR ${clientIdMatches('"Loan"."client_id"', tsQuery)})`
+        ));
       }
-      const offset = (page - 1) * limit;
-      const { count, rows } = await Loan.findAndCountAll({
-        where,
+      const result = await paginateKeyset(Loan, {
+        keys: [['created_at', 'timestamp'], ['id', 'int']],
+        cursor,
+        direction,
         limit,
-        offset,
-        order: [['created_at', 'DESC']],
-        distinct: true,
+        where,
         include: [
           { association: 'client', required: false, attributes: ['id', 'firstName', 'lastName'] },
           { association: 'repaymentSchedules', required: false },
@@ -176,8 +177,8 @@ const loanService = {
           { association: 'transactions', required: false },
         ],
       });
-      logger.info(`Retrieved ${rows.length} loans, page=${page}, total=${count})`);
-      return { total: count, page, limit, pages: Math.ceil(count / limit), loans: rows };
+      logger.info(`Retrieved ${result.rows.length} loans`);
+      return result;
     } catch (error) {
       logger.error(`Error in getAllLoans: ${error.message}`);
       throw error;

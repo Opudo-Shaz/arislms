@@ -2,25 +2,29 @@ const ledgerService = require('../services/ledgerService');
 const logger = require('../config/logger');
 const { validateSync } = require('../utils/validationMiddleware');
 const { JournalEntryRequestDto, JournalEntryResponseDto } = require('../dtos/journalEntry');
+const { parseKeysetQuery, toPaginationDto } = require('../utils/keysetPagination');
 
 const ledgerController = {
   async getAllEntries(req, res) {
     try {
-      const { sourceType, from, to, page, limit } = req.query;
+      const { cursor, direction, limit } = parseKeysetQuery(req.query);
+      const { sourceType, from, to } = req.query;
       const result = await ledgerService.getAllJournalEntries({
         sourceType,
         fromDate: from,
         toDate: to,
-        page: page ? parseInt(page, 10) : 1,
-        limit: limit ? parseInt(limit, 10) : 20,
+        cursor,
+        direction,
+        limit,
       });
       return res.status(200).json({
         success: true,
-        ...result,
-        entries: result.entries.map(e => new JournalEntryResponseDto(e)),
+        data: result.rows.map(e => new JournalEntryResponseDto(e)),
+        pagination: toPaginationDto(result),
       });
     } catch (err) {
       logger.error(`GetAllEntries Error: ${err.message}`);
+      if (err.statusCode === 400) return res.status(400).json({ success: false, message: err.message });
       return res.status(500).json({ success: false, message: 'Error fetching journal entries' });
     }
   },

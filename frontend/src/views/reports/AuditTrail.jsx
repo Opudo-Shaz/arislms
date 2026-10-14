@@ -2,8 +2,7 @@
  * AuditTrail
  *
  * Paginated, filterable view of the system audit log. Filters by entity type,
- * action, and actor type. Backend uses offset/limit pagination and returns
- * `{ logs, pagination: { total, limit, offset } }`.
+ * action, and actor type. Keyset (cursor) paginated: Previous/Next only.
  *
  * @module views/reports/AuditTrail
  */
@@ -21,16 +20,16 @@ import {
   CModalBody,
   CModalHeader,
   CModalTitle,
-  CPagination,
-  CPaginationItem,
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilReload } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
+import CursorPager from '../../components/CursorPager'
 import StatusBadge from '../../components/StatusBadge'
 import { useAuditLogs } from '../../hooks/useAudits'
+import { useCursorPagination } from '../../hooks/useCursorPagination'
 import { ACTOR_TYPE, AUDIT_ACTION } from '../../constants/enums'
 import { formatDateTime } from '../../utils/format'
 
@@ -108,21 +107,14 @@ const AuditTrail = () => {
   const [entityType, setEntityType] = useState('')
   const [action, setAction] = useState('')
   const [actorType, setActorType] = useState('')
-  const [page, setPage] = useState(1)
   const [jsonEntry, setJsonEntry] = useState(null)
 
-  const offset = (page - 1) * PAGE_SIZE
-  const params = { entityType, action, actorType, limit: PAGE_SIZE, offset }
+  const filters = { entityType, action, actorType }
+  const { cursorParams, goTo } = useCursorPagination(filters)
+  const params = { ...filters, ...cursorParams, limit: PAGE_SIZE }
   const { data, isLoading, error, refetch, isFetching } = useAuditLogs(params)
 
   const logs = data?.logs ?? []
-  const total = data?.pagination?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-
-  const resetPageAnd = (setter) => (value) => {
-    setter(value)
-    setPage(1)
-  }
 
   const columns = useMemo(
     () => [
@@ -200,11 +192,11 @@ const AuditTrail = () => {
               <CFormInput
                 placeholder="Entity type (e.g. LOAN, CLIENT)"
                 value={entityType}
-                onChange={(e) => resetPageAnd(setEntityType)(e.target.value)}
+                onChange={(e) => setEntityType(e.target.value)}
               />
             </CCol>
             <CCol md={4}>
-              <CFormSelect value={action} onChange={(e) => resetPageAnd(setAction)(e.target.value)}>
+              <CFormSelect value={action} onChange={(e) => setAction(e.target.value)}>
                 <option value="">All actions</option>
                 {AUDIT_ACTION.values.map((v) => (
                   <option key={v} value={v}>
@@ -214,7 +206,7 @@ const AuditTrail = () => {
               </CFormSelect>
             </CCol>
             <CCol md={4}>
-              <CFormSelect value={actorType} onChange={(e) => resetPageAnd(setActorType)(e.target.value)}>
+              <CFormSelect value={actorType} onChange={(e) => setActorType(e.target.value)}>
                 <option value="">All actor types</option>
                 {ACTOR_TYPE.values.map((v) => (
                   <option key={v} value={v}>
@@ -234,21 +226,12 @@ const AuditTrail = () => {
             rowKey={(r) => r.audit_id}
           />
 
-          {totalPages > 1 && (
-            <div className="d-flex justify-content-between align-items-center mt-3">
-              <span className="small text-body-secondary">
-                {total} entries · page {page} of {totalPages}
-              </span>
-              <CPagination className="mb-0">
-                <CPaginationItem disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                  Previous
-                </CPaginationItem>
-                <CPaginationItem disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                  Next
-                </CPaginationItem>
-              </CPagination>
-            </div>
-          )}
+          <CursorPager
+            pagination={data?.pagination}
+            onNavigate={goTo}
+            disabled={isFetching}
+            summary={`Showing ${logs.length} entr${logs.length === 1 ? 'y' : 'ies'}`}
+          />
         </CCardBody>
       </CCard>
 

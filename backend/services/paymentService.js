@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
+const { paginateKeyset } = require('../utils/keysetPagination');
 const Payment = require('../models/paymentModel');
 const Loan = require('../models/loanModel');
 const LoanProduct = require('../models/loanProductModel');
@@ -148,7 +149,7 @@ const paymentService = {
     }
   },
 
-  async getAllPayments({ role, userId, page = 1, limit = 20, method } = {}) {
+  async getAllPayments({ role, userId, cursor, direction, limit = 20, method } = {}) {
   try {
     logger.info(`paymentService.getAllPayments called by user ${userId} (role: ${role})`);
 
@@ -171,18 +172,17 @@ const paymentService = {
     const where = {};
     if (method) where.paymentMethod = method;
 
-    const offset = (page - 1) * limit;
-    const { count, rows } = await Payment.findAndCountAll({
-      where,
+    const result = await paginateKeyset(Payment, {
+      keys: [['created_at', 'timestamp'], ['id', 'int']],
+      cursor,
+      direction,
       limit,
-      offset,
-      order: [['created_at', 'DESC']],
-      distinct: true,
+      where,
       include: [loanInclude, processorInclude],
     });
 
-    logger.info(`Retrieved ${rows.length} payments (page=${page}, total=${count})`);
-    return { total: count, page, limit, pages: Math.ceil(count / limit), payments: rows };
+    logger.info(`Retrieved ${result.rows.length} payments`);
+    return result;
   } catch (err) {
     logger.error(`Error in getAllPayments: ${err.message}`);
     throw err;

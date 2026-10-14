@@ -4,6 +4,7 @@ const { getUserId } = require('../utils/helpers');
 const { validateSync } = require('../utils/validationMiddleware');
 const ClientResponseDto = require('../dtos/client/ClientResponseDto');
 const ClientRequestDto = require('../dtos/client/ClientRequestDto');
+const { parseKeysetQuery, toPaginationDto } = require('../utils/keysetPagination');
 
 const clientController = {
   async createClient(req, res) {
@@ -45,24 +46,22 @@ const clientController = {
       const userId = getUserId(req);
       logger.info(`User ${userId} fetching all clients`);
 
-      const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-      const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 20));
+      const { cursor, direction, limit } = parseKeysetQuery(req.query);
       const { search, status, kycStatus, queueOnly } = req.query;
 
-      const result = await clientService.getAllClients({ page, limit, search, status, kycStatus, queueOnly });
+      const result = await clientService.getAllClients({ cursor, direction, limit, search, status, kycStatus, queueOnly });
 
       return res.status(200).json({
         success: true,
-        data: result.clients.map(c => new ClientResponseDto(c)),
-        pagination: {
-          total: result.total,
-          page: result.page,
-          limit: result.limit,
-          pages: result.pages,
-        },
+        data: result.rows.map(c => new ClientResponseDto(c)),
+        pagination: toPaginationDto(result),
       });
     } catch (error) {
       logger.error(`Get Clients Error: ${error.message}`);
+
+      if (error.statusCode === 400) {
+        return res.status(400).json({ success: false, message: error.message });
+      }
 
       return res.status(500).json({
         success: false,

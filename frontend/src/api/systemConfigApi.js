@@ -4,8 +4,13 @@ const BASE = '/system-configs'
 
 const unwrap = (res) => res.data
 
-export const listSystemConfigs = (params = {}) =>
-  http.get(BASE, { params })
+/** Keyset paginated (see ./pagination). Resolves to `{ success, data, pagination }`. */
+export const listSystemConfigs = (params = {}) => {
+  const clean = Object.fromEntries(
+    Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
+  )
+  return http.get(BASE, { params: clean })
+}
 
 export const getSystemConfig = (id) =>
   http.get(`${BASE}/${id}`).then(unwrap)
