@@ -33,6 +33,11 @@ const PERMISSIONS = Object.freeze({
     CREATE: 'payments:create',
     DELETE: 'payments:delete',
   },
+  // Client-reported manual payments from the self-service portal
+  PAYMENT_REPORTS: {
+    READ: 'payment_reports:read',
+    REVIEW: 'payment_reports:review',
+  },
   LOAN_PRODUCTS: {
     READ: 'loan_products:read',
     CREATE: 'loan_products:create',

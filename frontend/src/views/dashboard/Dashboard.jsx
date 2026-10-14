@@ -41,6 +41,7 @@ import { useAuditLogs } from '../../hooks/useAudits'
 import { AUDIT_ACTION, LOAN_STATUS } from '../../constants/enums'
 import { formatCurrency, formatDateTime } from '../../utils/format'
 import StatusBadge from '../../components/StatusBadge'
+import KpiCard from '../../components/KpiCard'
 
 // Aging bucket colours: green (current) → dark red (most overdue)
 const BUCKET_COLORS = ['#2eb85c', '#f9b115', '#f86c3b', '#e55353', '#8a1c1c']
@@ -56,30 +57,6 @@ const BADGE_TO_RGBA = {
   dark:      'rgba(79,93,115,0.8)',
   light:     'rgba(235,237,239,0.9)',
 }
-
-// ── KPI card ─────────────────────────────────────────────────────────────────────────────────
-
-const KpiCard = ({ title, value, sub, color = 'primary', icon }) => (
-  <CCard
-    className='mb-0 h-100'
-    style={{ borderLeft: `4px solid var(--cui-${color})` }}
-  >
-    <CCardBody className='py-3 px-3'>
-      <div className='d-flex justify-content-between align-items-center mb-1'>
-        <div className='text-body-secondary small fw-semibold text-uppercase'>{title}</div>
-        {icon && (
-          <CIcon
-            icon={icon}
-            style={{ color: `var(--cui-${color})`, opacity: 0.6 }}
-            size='xl'
-          />
-        )}
-      </div>
-      <div className='fs-4 fw-bold'>{value}</div>
-      {sub && <div className='text-body-secondary small mt-1'>{sub}</div>}
-    </CCardBody>
-  </CCard>
-)
 
 // ── Loading placeholder ────────────────────────────────────────────────────────────────
 

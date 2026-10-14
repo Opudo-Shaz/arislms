@@ -82,6 +82,9 @@ const Loan = sequelize.define('Loan', {
 
   collateral: { type: DataTypes.JSONB },
   coSignerId: { type: DataTypes.INTEGER, field: 'co_signer_id' },
+  // Latest co-signer consent state (see coSignerConsentService). NULL = not tracked
+  // (no co-signer, or a loan created before consent tracking existed).
+  coSignerConsentStatus: { type: DataTypes.STRING(16), field: 'co_signer_consent_status' },
 
   status: { 
     type: DataTypes.ENUM(Object.values(LoanStatus)), 
@@ -116,6 +119,8 @@ const Loan = sequelize.define('Loan', {
   },
 
   createdBy: { type: DataTypes.INTEGER, allowNull: true, field: 'created_by' },
+  // Where the application originated: 'staff' (management portal) or 'portal' (client self-service).
+  source: { type: DataTypes.STRING(16), allowNull: false, defaultValue: 'staff' },
 
   updatedAt: { type: DataTypes.DATE, allowNull: true, field: 'updated_at' },
 

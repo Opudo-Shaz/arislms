@@ -81,6 +81,13 @@ const _nav = [
     to: '/payments',
     icon: <CIcon icon={cilCreditCard} customClassName="nav-icon" />,
   },
+  {
+    component: CNavItem,
+    name: 'Reported Payments',
+    to: '/payments/reported',
+    permission: 'payment_reports:read',
+    icon: <CIcon icon={cilInbox} customClassName="nav-icon" />,
+  },
   // {
   //   component: CNavItem,
   //   name: 'Collaterals',

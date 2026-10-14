@@ -11,6 +11,7 @@
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  CBadge,
   CButton,
   CCard,
   CCardBody,
@@ -24,7 +25,7 @@ import StatusBadge from '../../components/StatusBadge'
 import LoanActionModal from './LoanActionModal'
 import { useLoans, useLoanAction } from '../../hooks/useLoans'
 import { useAuth } from '../../context/AuthContext'
-import { LOAN_STATUS } from '../../constants/enums'
+import { CO_SIGNER_CONSENT_STATUS, LOAN_STATUS, badgeColor, enumLabel } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
 /** Loan statuses that still require an approval decision. */
@@ -71,7 +72,21 @@ const LoanApprovals = () => {
       label: 'Reference',
       render: (row) => (
         <div>
-          <div className="fw-semibold">{row.referenceCode || `Loan #${row.id}`}</div>
+          <div className="fw-semibold">
+            {row.referenceCode || `Loan #${row.id}`}
+            {row.source === 'portal' ? (
+              <CBadge color="info" className="ms-2" title="Submitted by the client through the self-service portal">Portal</CBadge>
+            ) : null}
+            {row.coSignerConsentStatus && row.coSignerConsentStatus !== 'accepted' ? (
+              <CBadge
+                color={badgeColor(CO_SIGNER_CONSENT_STATUS, row.coSignerConsentStatus)}
+                className="ms-2"
+                title="Can't be approved until the co-signer consents"
+              >
+                {enumLabel(CO_SIGNER_CONSENT_STATUS, row.coSignerConsentStatus)}
+              </CBadge>
+            ) : null}
+          </div>
           <div className="small text-body-secondary">
             {clientName(row)}
           </div>
@@ -91,6 +106,9 @@ const LoanApprovals = () => {
           <span>
             {row.creditScore.riskScore ?? '—'}
             {row.creditScore.riskGrade ? ` · ${row.creditScore.riskGrade}` : ''}
+            {row.creditScore.riskScore != null && Number(row.creditScore.riskScore) < 4 ? (
+              <CBadge color="warning" className="ms-2" title="Score below the automatic pre-approval threshold (4)">Manual review</CBadge>
+            ) : null}
           </span>
         ) : (
           <span className="text-body-secondary">—</span>

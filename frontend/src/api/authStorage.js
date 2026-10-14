@@ -11,11 +11,12 @@ import config from '../config'
 
 /**
  * Read the persisted auth session.
+ * @param {string} [key] - storage key (defaults to the staff session key)
  * @returns {{ token: string, user: object, role: number|null } | null}
  */
-export const getStoredAuth = () => {
+export const getStoredAuth = (key = config.authStorageKey) => {
   try {
-    const raw = localStorage.getItem(config.authStorageKey)
+    const raw = localStorage.getItem(key)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
@@ -25,14 +26,18 @@ export const getStoredAuth = () => {
 /**
  * Persist the auth session.
  * @param {{ token: string, user: object, role: number|null }} auth
+ * @param {string} [key] - storage key (defaults to the staff session key)
  */
-export const setStoredAuth = (auth) => {
-  localStorage.setItem(config.authStorageKey, JSON.stringify(auth))
+export const setStoredAuth = (auth, key = config.authStorageKey) => {
+  localStorage.setItem(key, JSON.stringify(auth))
 }
 
-/** Remove the persisted auth session. */
-export const clearStoredAuth = () => {
-  localStorage.removeItem(config.authStorageKey)
+/**
+ * Remove the persisted auth session.
+ * @param {string} [key] - storage key (defaults to the staff session key)
+ */
+export const clearStoredAuth = (key = config.authStorageKey) => {
+  localStorage.removeItem(key)
 }
 
 /** @returns {string | null} The persisted bearer token, if any. */

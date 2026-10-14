@@ -27,6 +27,8 @@ const NotificationTemplate = require('./notificationTemplateModel');
 const NotificationOutbox = require('./notificationOutboxModel');
 const UserInvitation = require('./userInvitationModel');
 const Otp = require('./otpModel');
+const PaymentReport = require('./paymentReportModel');
+const CoSignerConsent = require('./coSignerConsentModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
@@ -161,11 +163,30 @@ UserInvitation.belongsTo(User, { foreignKey: 'invited_by', as: 'inviter', constr
 UserInvitation.belongsTo(User, { foreignKey: 'created_user_id', as: 'createdUser', constraints: false });
 
 // One-time password codes belong to a user
-Otp.belongsTo(User, { foreignKey: 'user_id', as: 'user', constraints: false });
-User.hasMany(Otp, { foreignKey: 'user_id', as: 'otps' });
+Otp.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
+User.hasMany(Otp, { foreignKey: 'userId', as: 'otps' });
+Otp.belongsTo(Client, { foreignKey: 'clientId', as: 'client', constraints: false });
+
+// Client-reported manual payments (portal) awaiting staff confirmation
+// foreignKey names the model *attribute* (camelCase), not the column: naming the
+// column here makes Sequelize define a second attribute for the same column,
+// and sync({ alter: true }) then tries to ADD it twice on an existing table.
+PaymentReport.belongsTo(Client, { foreignKey: 'clientId', as: 'client' });
+PaymentReport.belongsTo(Loan, { foreignKey: 'loanId', as: 'loan' });
+PaymentReport.belongsTo(Payment, { foreignKey: 'paymentId', as: 'payment', constraints: false });
+PaymentReport.belongsTo(User, { foreignKey: 'reviewedBy', as: 'reviewer', constraints: false });
+Client.hasMany(PaymentReport, { foreignKey: 'clientId', as: 'paymentReports' });
+
+// Co-signer consent requests
+CoSignerConsent.belongsTo(Loan, { foreignKey: 'loanId', as: 'loan' });
+CoSignerConsent.belongsTo(Client, { foreignKey: 'coSignerId', as: 'coSigner' });
+CoSignerConsent.belongsTo(Client, { foreignKey: 'borrowerId', as: 'borrower' });
+Loan.hasMany(CoSignerConsent, { foreignKey: 'loanId', as: 'coSignerConsents' });
 
 module.exports = {
   sequelize,
+  PaymentReport,
+  CoSignerConsent,
   Role,
   User,
   Loan,

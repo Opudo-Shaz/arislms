@@ -30,12 +30,13 @@ import { cilArrowRight, cilInfo, cilPencil, cilPlus, cilReload, cilSend, cilTras
 import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
 import ClientDocuments from './ClientDocuments'
-import { useClient, useClientAction, useDeleteClient } from '../../hooks/useClients'
+import { useClient, useClientAction, useDeleteClient, useSetPortalAccess } from '../../hooks/useClients'
 import { useRefreshCreditScore } from '../../hooks/useCreditScores'
 import { useDocumentBlobUrl } from '../../hooks/useDocuments'
 import { useAuth } from '../../context/AuthContext'
 import { CLIENT_STATUS, KYC_STATUS, LOAN_STATUS } from '../../constants/enums'
-import { formatCurrency, formatDate } from '../../utils/format'
+import { formatCurrency, formatDate, formatDateTime } from '../../utils/format'
+import CreditScoreGauge from '../../components/CreditScoreGauge'
 
 /** Action definitions keyed by id; drives the confirmation dialog. */
 const ACTIONS = {
@@ -111,6 +112,7 @@ const ClientDetail = () => {
   const { data: client, isLoading, error } = useClient(id, { withLoans: true })
   const clientLoans = client?.loans ?? []
   const action = useClientAction()
+  const portalAccess = useSetPortalAccess()
   const deleteMutation = useDeleteClient()
   const refreshScore = useRefreshCreditScore(id)
   const { hasPermission } = useAuth()
@@ -269,6 +271,35 @@ const ClientDetail = () => {
                 <Field label="KYC Verified At">{formatDate(client.kycVerifiedAt)}</Field>
                 <Field label="ID Document Type">{client.idDocumentType || '—'}</Field>
                 <Field label="ID Document Number">{client.idDocumentNumber || '—'}</Field>
+                <Field label="Client Portal">
+                  <div className="d-flex flex-wrap align-items-center gap-2">
+                    <CBadge color={client.portalEnabled === false ? 'secondary' : 'success'}>
+                      {client.portalEnabled === false ? 'Disabled' : 'Enabled'}
+                    </CBadge>
+                    <span className="small text-body-secondary">
+                      {client.lastLoginAt ? `Last sign-in ${formatDateTime(client.lastLoginAt)}` : 'Never signed in'}
+                    </span>
+                    {canManage && (
+                      <CButton
+                        color={client.portalEnabled === false ? 'success' : 'secondary'}
+                        variant="outline"
+                        size="sm"
+                        disabled={portalAccess.isPending}
+                        title={client.portalEnabled === false
+                          ? 'Allow this client to sign in to the self-service portal with their phone number'
+                          : 'Block portal sign-in and end any active portal session'}
+                        onClick={() =>
+                          portalAccess.mutate(
+                            { id, enabled: client.portalEnabled === false },
+                            { onError: (err) => setActionError(err) },
+                          )
+                        }
+                      >
+                        {portalAccess.isPending ? <CSpinner size="sm" /> : client.portalEnabled === false ? 'Enable' : 'Disable'}
+                      </CButton>
+                    )}
+                  </div>
+                </Field>
               </CRow>
             </CCardBody>
           </CCard>
@@ -380,23 +411,14 @@ const ClientDetail = () => {
                 </CTooltip>
               </CCardHeader>
               <CCardBody>
-                <div className="d-flex align-items-baseline gap-2">
-                  <span className="fs-3 fw-semibold">
-                    {client.creditScore.riskScore ?? '—'}
-                  </span>
-                  {client.creditScore.riskGrade && (
-                    <CBadge color="info">Grade {client.creditScore.riskGrade}</CBadge>
-                  )}
-                </div>
-                <dl className="row mb-0 mt-2 small">
+                <CreditScoreGauge
+                  score={client.creditScore.riskScore}
+                  grade={client.creditScore.riskGrade}
+                  compact
+                />
+                <dl className="row mb-0 mt-3 small">
                   <dt className="col-6 text-body-secondary fw-normal">Credit Limit</dt>
                   <dd className="col-6 mb-1">{formatCurrency(client.creditScore.creditLimit)}</dd>
-
-                  <dt className="col-6 text-body-secondary fw-normal">Risk Score</dt>
-                  <dd className="col-6 mb-1">{client.creditScore.riskScore ?? '—'}</dd>
-
-                  <dt className="col-6 text-body-secondary fw-normal">Risk Grade</dt>
-                  <dd className="col-6 mb-1">{client.creditScore.riskGrade || '—'}</dd>
 
                   <dt className="col-6 text-body-secondary fw-normal">Model Version</dt>
                   <dd className="col-6 mb-1">{client.creditScore.scoringModelVersion || '—'}</dd>

@@ -23,6 +23,8 @@ class ClientResponseDto {
     this.kycVerifiedAt = client.kycVerifiedAt;
     this.kycNotes = client.kycNotes;
     this.verifiedBy = client.verifiedBy;
+    this.portalEnabled = client.portalEnabled ?? true;
+    this.lastLoginAt = client.lastLoginAt ?? null;
     this.createdAt = client.createdAt;
     this.updatedAt = client.updatedAt;
 

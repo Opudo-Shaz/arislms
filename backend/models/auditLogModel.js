@@ -41,7 +41,7 @@ const AuditLog = sequelize.define('AuditLog', {
     type: DataTypes.STRING(50),
     allowNull: false,
     validate: {
-      isIn: [['USER', 'SERVICE', 'SYSTEM']],
+      isIn: [['USER', 'SERVICE', 'SYSTEM', 'CLIENT']],
     },
   },
   occurred_at: {

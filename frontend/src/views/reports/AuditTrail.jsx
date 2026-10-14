@@ -132,7 +132,7 @@ const AuditTrail = () => {
           return (
             <span>
               {name ? (
-                <span title={`ID ${r.actor_id}`}>{name}</span>
+                <span title={`${ACTOR_TYPE.labels[r.actor_type] || r.actor_type} #${r.actor_id}`}>{name}</span>
               ) : (
                 <span className="text-body-secondary">#{r.actor_id}</span>
               )}

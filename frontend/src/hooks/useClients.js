@@ -89,3 +89,12 @@ export const useClientAction = () => {
     },
   })
 }
+
+/** Enable/disable a client's self-service portal access. */
+export const useSetPortalAccess = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, enabled }) => clientApi.setPortalAccess(id, enabled),
+    onSuccess: (_data, { id }) => qc.invalidateQueries({ queryKey: clientKeys.detail(id) }),
+  })
+}

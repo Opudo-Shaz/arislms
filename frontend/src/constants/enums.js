@@ -321,6 +321,43 @@ export const PAYMENT_STATUS = buildEnum({
   reversed: 'dark',
 })
 
+/** Co-signer consent to guarantee a loan. */
+export const CO_SIGNER_CONSENT_STATUS = buildEnum(
+  {
+    pending: 'warning',
+    accepted: 'success',
+    declined: 'danger',
+    expired: 'secondary',
+    superseded: 'secondary',
+  },
+  {
+    pending: 'Awaiting co-signer',
+    accepted: 'Co-signer consented',
+    declined: 'Co-signer declined',
+    expired: 'Consent link expired',
+    superseded: 'Replaced',
+  },
+)
+
+/** Client-reported (portal) payment awaiting staff confirmation. */
+export const PAYMENT_REPORT_STATUS = buildEnum(
+  {
+    pending: 'warning',
+    processing: 'info',
+    applied: 'success',
+    rejected: 'danger',
+  },
+  {
+    pending: 'Awaiting confirmation',
+    processing: 'Processing',
+    applied: 'Confirmed',
+    rejected: 'Not confirmed',
+  },
+)
+
+/** Same states with staff-facing labels (Payment Reports review queue). */
+export const PAYMENT_REPORT_REVIEW_STATUS = buildEnum(PAYMENT_REPORT_STATUS.colors)
+
 /**
  * Payment methods. The backend stores this as a free string (max 32 chars);
  * these are the supported options offered in the record-payment form.
@@ -374,8 +411,8 @@ export const AUDIT_ACTION = buildEnum(
 
 /** Audit actor types. */
 export const ACTOR_TYPE = buildEnum(
-  { USER: 'primary', SERVICE: 'info', SYSTEM: 'secondary' },
-  { USER: 'User', SERVICE: 'Service', SYSTEM: 'System' },
+  { USER: 'primary', CLIENT: 'success', SERVICE: 'info', SYSTEM: 'secondary' },
+  { USER: 'Staff user', CLIENT: 'Client (portal)', SERVICE: 'Service', SYSTEM: 'System' },
 )
 
 /** Notification types (see backend/models/notificationModel.js). */
@@ -469,6 +506,10 @@ export const PERMISSIONS = {
     READ: 'payments:read',
     CREATE: 'payments:create',
     DELETE: 'payments:delete',
+  },
+  PAYMENT_REPORTS: {
+    READ: 'payment_reports:read',
+    REVIEW: 'payment_reports:review',
   },
   LOAN_PRODUCTS: {
     READ: 'loan_products:read',
@@ -580,6 +621,7 @@ const ACTION_LABELS = {
   manage_outbox: 'Manage Outbox',
   manage: 'Manage',
   reveal_secret: 'Reveal Secret',
+  review: 'Review (amend / apply / reject)',
 }
 
 /** Human-friendly labels per module key, used as picker section headers. */
@@ -587,6 +629,7 @@ const MODULE_LABELS = {
   CLIENTS: 'Clients',
   LOANS: 'Loans',
   PAYMENTS: 'Payments',
+  PAYMENT_REPORTS: 'Client-reported Payments',
   LOAN_PRODUCTS: 'Loan Products',
   COLLATERALS: 'Collaterals',
   CREDIT_SCORES: 'Credit Scores',

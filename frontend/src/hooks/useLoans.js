@@ -101,3 +101,20 @@ export const useLoanAction = () => {
     },
   })
 }
+
+/** Latest co-signer consent request for a loan. */
+export const useCoSignerConsent = (id, enabled = true) =>
+  useQuery({
+    queryKey: [...loanKeys.detail(id), 'coSignerConsent'],
+    queryFn: () => loanApi.getCoSignerConsent(id),
+    enabled: Boolean(id) && enabled,
+  })
+
+/** Re-send the co-signer consent link. */
+export const useResendCoSignerConsent = (id) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => loanApi.resendCoSignerConsent(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: loanKeys.detail(id) }),
+  })
+}

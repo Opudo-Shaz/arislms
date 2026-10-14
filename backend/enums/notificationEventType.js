@@ -7,4 +7,10 @@ module.exports = Object.freeze({
   LOAN_REJECTED: 'loan_rejected',
   REGISTRATION_INVITE: 'registration_invite',
   OTP_VERIFICATION: 'otp_verification',
+  LOAN_APPLICATION_SUBMITTED: 'loan_application_submitted',
+  LOAN_APPLICATION_RECEIVED: 'loan_application_received',
+  PAYMENT_REPORT_SUBMITTED: 'payment_report_submitted',
+  PAYMENT_REPORT_REJECTED: 'payment_report_rejected',
+  CO_SIGNER_CONSENT_REQUEST: 'co_signer_consent_request',
+  CO_SIGNER_CONSENT_RESPONDED: 'co_signer_consent_responded',
 });

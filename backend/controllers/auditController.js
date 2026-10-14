@@ -61,11 +61,16 @@ class AuditController {
   static async getActorAuditLogs(req, res) {
     try {
       const { actorId } = req.params;
-      const { limit = 100, offset = 0 } = req.query;
+      const { limit = 100, offset = 0, actorType = 'USER' } = req.query;
+      const type = String(actorType).toUpperCase();
+      if (!['USER', 'CLIENT', 'SERVICE', 'SYSTEM'].includes(type)) {
+        return res.status(400).json({ success: false, message: `Invalid actorType '${actorType}'` });
+      }
 
       const logs = await AuditService.getAuditsByActor(actorId, {
         limit: parseInt(limit),
         offset: parseInt(offset),
+        actorType: type,
       });
 
       return res.status(200).json({

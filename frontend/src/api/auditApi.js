@@ -37,11 +37,14 @@ export const listEntityAuditLogs = async (entityType, entityId) => {
 }
 
 /**
- * Audit logs performed by a specific actor.
- * @param {number|string} actorId @returns {Promise<object[]>}
+ * Audit logs performed by a specific actor. Ids are only unique per actor
+ * type (staff user 5 and client 5 are different people).
+ * @param {number|string} actorId
+ * @param {'USER'|'CLIENT'|'SERVICE'|'SYSTEM'} [actorType='USER']
+ * @returns {Promise<object[]>}
  */
-export const listActorAuditLogs = async (actorId) => {
-  const res = await http.get(`/audits/actor/${actorId}`)
+export const listActorAuditLogs = async (actorId, actorType = 'USER') => {
+  const res = await http.get(`/audits/actor/${actorId}`, { params: { actorType } })
   return res?.data ?? []
 }
 

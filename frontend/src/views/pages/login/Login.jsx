@@ -328,6 +328,10 @@ const Login = () => {
                       Loan Management System administration portal. Sign in with your staff
                       credentials to manage clients, loans, payments, and accounting.
                     </p>
+                    <p className="small mb-0">
+                      Are you a client?{' '}
+                      <Link to="/portal/login" className="text-white fw-semibold">Sign in to the client portal</Link>
+                    </p>
                     {/* <Link to="/register">
                       <CButton color="primary" className="mt-3" active tabIndex={-1}>
                         Register Now!

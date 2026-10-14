@@ -425,6 +425,36 @@ router.post('/:id/suspend', authenticate, requirePermission('clients:update'), c
 
 /**
  * @openapi
+ * /api/clients/{id}/portal-access:
+ *   patch:
+ *     summary: Enable or disable a client's self-service portal access
+ *     description: Disabling also revokes any active portal session immediately.
+ *     tags:
+ *       - Clients - Status
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             enabled: false
+ *     responses:
+ *       200:
+ *         description: Portal access updated
+ *       404:
+ *         description: Client not found
+ */
+router.patch('/:id/portal-access', authenticate, requirePermission('clients:update'), validateIdParam(), clientController.setPortalAccess);
+
+/**
+ * @openapi
  * /api/clients/{id}/blacklist:
  *   post:
  *     summary: Blacklist a client (admin only)

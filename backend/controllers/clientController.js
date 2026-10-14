@@ -272,6 +272,28 @@ const clientController = {
     }
   },
 
+  async setPortalAccess(req, res) {
+    try {
+      const userId = getUserId(req);
+      const userAgent = req.headers['user-agent'];
+      const id = req.params.id;
+      const { enabled } = req.body || {};
+      if (typeof enabled !== 'boolean') {
+        return res.status(400).json({ success: false, message: '`enabled` must be true or false' });
+      }
+
+      const client = await clientService.setPortalAccess(id, enabled, userId, userAgent);
+      return res.status(200).json({
+        success: true,
+        message: `Portal access ${enabled ? 'enabled' : 'disabled'}.`,
+        data: new ClientResponseDto(client)
+      });
+    } catch (error) {
+      logger.error(`Set Portal Access Error: ${error.message}`);
+      return res.status(error.statusCode || 400).json({ success: false, message: error.message });
+    }
+  },
+
   async suspendClient(req, res) {
     try {
       const userId = getUserId(req);
