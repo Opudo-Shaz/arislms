@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const { phoneSchema } = require('../../utils/phone');
 
 class ClientRequestDto {
   constructor(data) {
@@ -50,16 +51,9 @@ class ClientRequestDto {
         'any.required': 'Email is required'
       }),
 
-    phone: Joi.string().pattern(/^\d{7,}$/).required()
-      .messages({
-        'string.pattern.base': 'Phone must contain at least 7 digits',
-        'any.required': 'Phone is required'
-      }),
+    phone: phoneSchema({ required: true, label: 'Phone' }),
 
-    secondaryPhone: Joi.string().pattern(/^\d{7,}$/).allow(null, '')
-      .messages({
-        'string.pattern.base': 'Secondary phone must contain at least 7 digits'
-      }),
+    secondaryPhone: phoneSchema({ label: 'Secondary phone' }),
 
     dateOfBirth: Joi.date().iso().allow(null, '')
       .messages({

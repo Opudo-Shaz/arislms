@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const { phoneSchema } = require('../../utils/phone');
 
 /**
  * Request schemas for the client self-service portal (/api/portal). None of
@@ -6,10 +7,7 @@ const Joi = require('joi');
  */
 
 const requestOtpSchema = Joi.object({
-  phone: Joi.string().trim().pattern(/^\+?[\d\s-]{7,20}$/).required().messages({
-    'string.pattern.base': 'Enter a valid phone number',
-    'any.required': 'Phone number is required',
-  }),
+  phone: phoneSchema({ required: true, label: 'Phone number' }),
   channel: Joi.string().valid('sms', 'email').default('sms'),
 });
 
@@ -22,9 +20,7 @@ const verifyOtpSchema = Joi.object({
 
 const updateProfileSchema = Joi.object({
   email: Joi.string().trim().email({ tlds: false }).max(255).allow(null, ''),
-  secondaryPhone: Joi.string().trim().pattern(/^\+?[\d\s-]{7,20}$/).allow(null, '').messages({
-    'string.pattern.base': 'Enter a valid phone number',
-  }),
+  secondaryPhone: phoneSchema({ label: 'Secondary phone' }),
   address: Joi.object().unknown(true).allow(null),
   preferredContactMethod: Joi.string().valid('sms', 'email', 'phone').allow(null, ''),
 }).min(1);
@@ -42,10 +38,7 @@ const loanRequestSchema = Joi.object({
 });
 
 const coSignerLookupSchema = Joi.object({
-  phone: Joi.string().trim().pattern(/^\+?[\d\s-]{7,20}$/).required().messages({
-    'string.pattern.base': 'Enter a valid phone number',
-    'any.required': 'Phone number is required',
-  }),
+  phone: phoneSchema({ required: true, label: 'Phone number' }),
 });
 
 const renominateSchema = Joi.object({

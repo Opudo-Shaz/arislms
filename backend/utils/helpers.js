@@ -1,4 +1,4 @@
-
+const { isValidPhone } = require('./phone');
 
 const formatDateWithOffset = (date, offsetMinutes = 0) => {
   const localDate = new Date(date.getTime() + offsetMinutes * 60000);
@@ -78,9 +78,9 @@ const validateClientPayload = (payload) => {
     }
   }
 
-  // Validate phone format (basic check for digits)
-  if (payload.phone && !/^\d{7,}$/.test(payload.phone.replace(/[-\s()]/g, ''))) {
-    errors.push('Phone number must contain at least 7 digits');
+  // Validate phone format via the central libphonenumber-js validator.
+  if (payload.phone && !isValidPhone(payload.phone)) {
+    errors.push('Phone number must be a valid phone number');
   }
 
   // Check for extra fields not in DTO

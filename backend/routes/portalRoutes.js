@@ -16,11 +16,11 @@ const router = express.Router();
 // at auth.otp.max_attempts), with a looser per-IP backstop. Per-IP limits
 // assume `trust proxy` is configured when running behind a load balancer.
 const FIFTEEN_MIN = 15 * 60 * 1000;
-const otpIpLimiter = rateLimit({ name: 'portalOtpIp', windowMs: FIFTEEN_MIN, max: 100 });
+const otpIpLimiter = rateLimit({ name: 'portalOtpIp', windowMs: FIFTEEN_MIN, max: 20 });
 const otpRequestLimiter = rateLimit({
   name: 'portalOtpRequest',
   windowMs: FIFTEEN_MIN,
-  max: 5,
+  max: 3,
   keyFn: (req) => String(req.body?.phone || '').replace(/\D/g, '').slice(-9),
 });
 const otpVerifyLimiter = rateLimit({
