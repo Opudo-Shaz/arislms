@@ -165,6 +165,22 @@ const ClientDetail = () => {
 
   const cfg = activeAction ? ACTIONS[activeAction] : null
 
+  // Only surface actions that make sense for the client's current state.
+  const kycActions = ['verify', 'request-info', 'reject'].filter((key) => {
+    if (key === 'verify') return client.kycStatus !== 'verified'
+    if (key === 'reject') return client.kycStatus !== 'rejected'
+    return true
+  })
+  const statusActions = ['activate', 'deactivate', 'suspend', 'blacklist'].filter(
+    (key) => {
+      if (key === 'activate') return client.status !== 'active'
+      if (key === 'deactivate') return client.status !== 'inactive'
+      if (key === 'suspend') return client.status !== 'suspended'
+      if (key === 'blacklist') return client.status !== 'blacklisted'
+      return true
+    },
+  )
+
   return (
     <>
       <CRow>
@@ -347,13 +363,13 @@ const ClientDetail = () => {
             </CCardBody>
           </CCard>
 
-          {canManage && (
+          {canManage && kycActions.length > 0 && (
             <CCard className="mb-4">
               <CCardHeader className='text-bg-info'>
                 <strong>KYC</strong>
               </CCardHeader>
               <CCardBody className="d-grid gap-2">
-                {['verify', 'request-info', 'reject'].map((key) => (
+                {kycActions.map((key) => (
                   <CButton
                     key={key}
                     color={ACTIONS[key].color}
@@ -370,13 +386,13 @@ const ClientDetail = () => {
             </CCard>
           )}
 
-          {canManage && (
+          {canManage && statusActions.length > 0 && (
             <CCard className="mb-4">
               <CCardHeader className='text-bg-primary'>
                 <strong>Status</strong>
               </CCardHeader>
               <CCardBody className="d-grid gap-2">
-                {['activate', 'deactivate', 'suspend', 'blacklist'].map((key) => (
+                {statusActions.map((key) => (
                   <CButton
                     key={key}
                     color={ACTIONS[key].color}
