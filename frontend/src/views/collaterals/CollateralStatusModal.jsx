@@ -65,7 +65,7 @@ const CollateralStatusModal = ({ visible, collateral, loading, error, onConfirm,
               Current: <StatusBadge enumDef={COLLATERAL_STATUS} value={collateral.status} />
             </div>
           </div>
-          <CFormLabel>New status *</CFormLabel>
+          <CFormLabel>New status <span className="text-danger">*</span></CFormLabel>
           <CFormSelect
             className="mb-3"
             value={status}

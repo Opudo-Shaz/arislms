@@ -13,6 +13,12 @@ const requireSwaggerAuth = require('./middleware/swaggerAuthMiddleware');
 const app = express();
 app.disable('x-powered-by');
 
+// Needed for per-IP rate limiting behind a reverse proxy: a hop count (e.g. 1) or 'true'.
+if (process.env.TRUST_PROXY) {
+  const v = process.env.TRUST_PROXY;
+  app.set('trust proxy', v === 'true' ? true : /^\d+$/.test(v) ? Number(v) : v);
+}
+
 // CORS configuration
 const corsOptions = {
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
@@ -68,6 +74,8 @@ const invitationRoutes = require('./routes/invitationRoutes');
 const seederRoutes = require('./routes/seederRoutes');
 const portalRoutes = require('./routes/portalRoutes');
 const paymentReportRoutes = require('./routes/paymentReportRoutes');
+const clientRegistrationLinkRoutes = require('./routes/clientRegistrationLinkRoutes');
+const publicClientRegistrationRoutes = require('./routes/publicClientRegistrationRoutes');
 
 
 app.use('/api/users', userRoutes);
@@ -95,6 +103,8 @@ app.use('/api/invitations', invitationRoutes);
 app.use('/api/seeders', seederRoutes);
 app.use('/api/portal', portalRoutes);
 app.use('/api/payment-reports', paymentReportRoutes);
+app.use('/api/client-registration-links', clientRegistrationLinkRoutes);
+app.use('/api/public/client-registration', publicClientRegistrationRoutes);
 
 
 
@@ -171,6 +181,23 @@ const formatServerUrl = (addressInfo, preferredHost) => {
         handler: () => outboxWorker.run(),
         // Only persist a run row when it actually sent/retried something or failed,
         // so idle ticks don't swamp cron_job_runs.
+        quiet: true,
+      });
+    }
+
+    if (!cronRegistry.has('otp-cleanup')) {
+      cronRegistry.register({
+        key: 'otp-cleanup',
+        name: 'Expired OTP Cleanup',
+        description: 'Deletes one-time codes that expired more than a day ago',
+        schedule: '15 * * * *',
+        scheduleLabel: 'Hourly at :15',
+        handler: async () => {
+          const Otp = require('./models/otpModel');
+          const { Op } = require('sequelize');
+          const processed = await Otp.destroy({ where: { expiresAt: { [Op.lt]: new Date(Date.now() - 24 * 60 * 60 * 1000) } } });
+          return { processed };
+        },
         quiet: true,
       });
     }

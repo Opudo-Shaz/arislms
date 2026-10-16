@@ -73,7 +73,21 @@ async function getOtpConfig() {
  * the owner is the *actor*, not the entity. Logging them under USER/CLIENT
  * made "otp issued" read as "user/client record created/updated".
  */
-function resolveSubject({ user, client }) {
+function resolveSubject({ user, client, target }) {
+  // Someone with no user/client row yet (e.g. registration): keyed on the
+  // verified destination itself, attributed to the system actor.
+  if (target && target.key) {
+    return {
+      ownerWhere: { target: target.key },
+      label: `target=${target.key}`,
+      name: target.name || target.email || target.phone || 'there',
+      recipient: {
+        ...(target.email ? { email: target.email } : {}),
+        ...(target.phone ? { phone: target.phone } : {}),
+      },
+      audit: { actorId: AuditLogger.SYSTEM_USER_ID, actorType: 'SYSTEM' },
+    };
+  }
   if (client && client.id) {
     return {
       ownerWhere: { clientId: client.id },
@@ -111,6 +125,7 @@ function resolveSubject({ user, client }) {
  * @param {object} params
  * @param {object} [params.user]     - User instance/plain object (id, email, phone, first_name, last_name)
  * @param {object} [params.client]   - Client instance/plain object (id, email, phone, firstName, lastName); used instead of `user`
+ * @param {{key: string, phone?: string, email?: string, name?: string}} [params.target] - For people with no user/client row yet; `key` scopes the code
  * @param {string} params.purpose    - e.g. 'login'
  * @param {string[]} [params.channels] - Restrict delivery to a subset of channels (default: template-enabled)
  * @param {object} [params.auditContext] - Extra fields stored with the audit entry so the OTP
@@ -118,9 +133,9 @@ function resolveSubject({ user, client }) {
  * @param {string} [params.userAgent]
  * @returns {Promise<{expiresAt: Date, ttlMinutes: number}>}
  */
-async function generateAndSend({ user, client, purpose, channels = null, auditContext = null, userAgent = 'unknown' }) {
+async function generateAndSend({ user, client, target, purpose, channels = null, auditContext = null, userAgent = 'unknown' }) {
   if (!purpose) throw new Error('generateAndSend requires a purpose');
-  const subject = resolveSubject({ user, client });
+  const subject = resolveSubject({ user, client, target });
 
   const { length, ttlMinutes, maxAttempts } = await getOtpConfig();
 
@@ -170,11 +185,12 @@ async function generateAndSend({ user, client, purpose, channels = null, auditCo
 
 /**
  * Verify a code for a user/client + purpose. Consumes the code on success.
- * Enforces the per-code attempt cap. Pass exactly one of userId / clientId.
+ * Enforces the per-code attempt cap. Pass exactly one of userId / clientId / target.
  *
  * @param {object} params
  * @param {number} [params.userId]
  * @param {number} [params.clientId]
+ * @param {string} [params.target] - the `target.key` the code was issued for
  * @param {string} params.purpose
  * @param {string} params.code
  * @param {object} [params.auditContext] - Extra fields stored with the audit entry (see generateAndSend)
@@ -182,8 +198,8 @@ async function generateAndSend({ user, client, purpose, channels = null, auditCo
  * @returns {Promise<boolean>} true on success
  * @throws {Error} with .status 400 (invalid/expired) or 429 (too many attempts)
  */
-async function verify({ userId, clientId, purpose, code, auditContext = null, userAgent = 'unknown' }) {
-  const ownerWhere = clientId ? { clientId } : userId ? { userId } : null;
+async function verify({ userId, clientId, target, purpose, code, auditContext = null, userAgent = 'unknown' }) {
+  const ownerWhere = clientId ? { clientId } : userId ? { userId } : target ? { target } : null;
   if (!ownerWhere || !purpose || !code) {
     const err = new Error('Invalid or expired verification code');
     err.status = 400;
@@ -231,17 +247,18 @@ async function verify({ userId, clientId, purpose, code, auditContext = null, us
   await record.update({ usedAt: new Date() });
 
   const isClient = Boolean(clientId);
-  const ownerId = clientId || userId;
+  const isTarget = !clientId && !userId;
+  const ownerId = isTarget ? AuditLogger.SYSTEM_USER_ID : clientId || userId;
   await AuditLogger.log({
     entityType: 'OTP',
     entityId: record.id,
     action: 'UPDATE',
     data: { event: 'otp_verified', purpose, ...(auditContext || {}) },
     actorId: ownerId,
-    options: { actorType: isClient ? 'CLIENT' : 'USER', source: userAgent },
+    options: { actorType: isTarget ? 'SYSTEM' : isClient ? 'CLIENT' : 'USER', source: userAgent },
   });
 
-  logger.info(`[otpService] OTP verified for ${isClient ? 'client' : 'user'} id=${ownerId} purpose=${purpose}`);
+  logger.info(`[otpService] OTP verified for ${isTarget ? `target=${target}` : `${isClient ? 'client' : 'user'} id=${ownerId}`} purpose=${purpose}`);
   return true;
 }
 
@@ -250,8 +267,8 @@ async function verify({ userId, clientId, purpose, code, auditContext = null, us
  * Lets callers enforce a resend cooldown.
  * @param {{userId?: number, clientId?: number, purpose: string}} params
  */
-async function secondsSinceLastIssued({ userId, clientId, purpose }) {
-  const ownerWhere = clientId ? { clientId } : { userId };
+async function secondsSinceLastIssued({ userId, clientId, target, purpose }) {
+  const ownerWhere = clientId ? { clientId } : target ? { target } : { userId };
   const last = await Otp.findOne({
     where: { ...ownerWhere, purpose },
     order: [['created_at', 'DESC']],

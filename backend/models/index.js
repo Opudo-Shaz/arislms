@@ -29,6 +29,7 @@ const UserInvitation = require('./userInvitationModel');
 const Otp = require('./otpModel');
 const PaymentReport = require('./paymentReportModel');
 const CoSignerConsent = require('./coSignerConsentModel');
+const ClientRegistrationLink = require('./clientRegistrationLinkModel');
 
 // Define associations if not already defined in models
 // (models themselves may already call belongsTo/hasMany)
@@ -177,6 +178,10 @@ PaymentReport.belongsTo(Payment, { foreignKey: 'paymentId', as: 'payment', const
 PaymentReport.belongsTo(User, { foreignKey: 'reviewedBy', as: 'reviewer', constraints: false });
 Client.hasMany(PaymentReport, { foreignKey: 'clientId', as: 'paymentReports' });
 
+// Clients who registered through an invite link (usage count = rows per link)
+ClientRegistrationLink.hasMany(Client, { foreignKey: 'registrationLinkId', as: 'clients', constraints: false });
+Client.belongsTo(ClientRegistrationLink, { foreignKey: 'registrationLinkId', as: 'registrationLink', constraints: false });
+
 // Co-signer consent requests
 CoSignerConsent.belongsTo(Loan, { foreignKey: 'loanId', as: 'loan' });
 CoSignerConsent.belongsTo(Client, { foreignKey: 'coSignerId', as: 'coSigner' });
@@ -185,6 +190,7 @@ Loan.hasMany(CoSignerConsent, { foreignKey: 'loanId', as: 'coSignerConsents' });
 
 module.exports = {
   sequelize,
+  ClientRegistrationLink,
   PaymentReport,
   CoSignerConsent,
   Role,

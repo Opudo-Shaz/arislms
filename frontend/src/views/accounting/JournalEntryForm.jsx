@@ -142,7 +142,7 @@ const JournalEntryForm = ({ visible, onClose }) => {
 
           <CRow className="g-3 mb-3">
             <CCol md={4}>
-              <CFormLabel>Entry date *</CFormLabel>
+              <CFormLabel>Entry date <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 type="date"
                 value={form.entryDate}
@@ -173,7 +173,7 @@ const JournalEntryForm = ({ visible, onClose }) => {
             </CCol>
           </CRow>
 
-          <CFormLabel>Lines *</CFormLabel>
+          <CFormLabel>Lines <span className="text-danger">*</span></CFormLabel>
           {form.lines.map((line, idx) => (
             <CRow className="g-2 mb-2 align-items-center" key={idx}>
               <CCol md={4}>

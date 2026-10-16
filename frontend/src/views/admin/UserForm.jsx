@@ -143,7 +143,7 @@ const UserForm = ({ visible, user, onClose }) => {
           )}
           <CRow className="g-3">
             <CCol md={4}>
-              <CFormLabel>First name *</CFormLabel>
+              <CFormLabel>First name <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 value={form.first_name}
                 onChange={setField('first_name')}
@@ -160,7 +160,7 @@ const UserForm = ({ visible, user, onClose }) => {
               />
             </CCol>
             <CCol md={4}>
-              <CFormLabel>Last name *</CFormLabel>
+              <CFormLabel>Last name <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 value={form.last_name}
                 onChange={setField('last_name')}
@@ -170,7 +170,7 @@ const UserForm = ({ visible, user, onClose }) => {
             </CCol>
 
             <CCol md={6}>
-              <CFormLabel>Email *</CFormLabel>
+              <CFormLabel>Email <span className="text-danger">*</span></CFormLabel>
               <CFormInput type="email" value={form.email} onChange={setField('email')} required />
             </CCol>
             <CCol md={6}>
@@ -187,7 +187,7 @@ const UserForm = ({ visible, user, onClose }) => {
               />
             </CCol>
             <CCol md={4}>
-              <CFormLabel>Role *</CFormLabel>
+              <CFormLabel>Role <span className="text-danger">*</span></CFormLabel>
               <CFormSelect value={form.role} onChange={setField('role')} required disabled={roleLocked}>
                 <option value="">Select role…</option>
                 {assignableRoles.map((r) => (
@@ -201,7 +201,7 @@ const UserForm = ({ visible, user, onClose }) => {
               )}
             </CCol>
             <CCol md={4}>
-              <CFormLabel>{isEdit ? 'New password' : 'Password *'}</CFormLabel>
+              <CFormLabel>{isEdit ? 'New password' : <>Password <span className="text-danger">*</span></>}</CFormLabel>
               <CInputGroup>
                 <CFormInput
                   type={showPassword ? 'text' : 'password'}

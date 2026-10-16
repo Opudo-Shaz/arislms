@@ -13,7 +13,7 @@ const Otp = sequelize.define(
       autoIncrement: true,
     },
 
-    // Exactly one of userId (staff) / clientId (portal client) is set.
+    // Exactly one of userId (staff) / clientId (portal client) / target is set.
     userId: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -24,6 +24,12 @@ const Otp = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
       field: 'client_id',
+    },
+
+    // Normalised phone/email for people with no user/client row yet (registration).
+    target: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
     },
 
     // What this code authorises, e.g. 'login'. Scopes generation + verification.
@@ -77,6 +83,7 @@ const Otp = sequelize.define(
     indexes: [
       { fields: ['user_id', 'purpose'] },
       { fields: ['client_id', 'purpose'] },
+      { fields: ['target', 'purpose'] },
     ],
   }
 );

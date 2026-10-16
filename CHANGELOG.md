@@ -12,6 +12,26 @@ into the next dated release section below when that version ships.
 
 ### Added
 
+**Invite-only Client Registration Links**
+- Staff generate a registration link (`Clients > Registration Links`), valid for
+  10 days (`client.registration.link_ttl_days`), optionally sending it to a list
+  of emails and/or phone numbers. Recipients are used once to queue the
+  messages and are not stored; the link can be copied again later or revoked.
+- One link registers many clients; each link shows how many clients used it and
+  who they are.
+- Public multi-step form (`/register/client`) collects the profile and KYC
+  documents in a single submit, caching typed values so errors or reloads do
+  not lose input. Clients are created `pending` with KYC `in_progress` and
+  appear in the existing KYC queue.
+- Uploads are validated against their bytes (JPG/PNG/WebP/PDF only, 5 MB,
+  extension/MIME/content must agree, hidden trailing data and PDF scripts or
+  embedded files rejected). This is structural validation, not antivirus.
+- New system config `client.registration.enable_otp`: when on, the phone must
+  be verified with a one-time code for both self-registration and staff-created
+  clients. New permissions `client_registration_links:read|create|update`.
+- Public endpoints are rate limited per IP, phone and link; set `TRUST_PROXY`
+  when running behind a reverse proxy so per-IP limits see the real client IP.
+
 **Client Self-Service Portal**
 - Public home page (`/`) with loan products and separate client / staff
   sign-in entry points.

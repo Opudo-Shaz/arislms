@@ -1,9 +1,17 @@
 const express = require('express');
 const clientController = require('../controllers/clientController');
+const phoneVerification = require('../controllers/clientPhoneVerificationController');
 const { authenticate, requirePermission } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
+const { rateLimit } = require('../utils/rateLimiter');
 
 const router = express.Router();
+
+// Staff-side phone verification for the create-client form; must stay above the /:id routes.
+const otpLimiter = rateLimit({ name: 'clientPhoneOtp', windowMs: 15 * 60 * 1000, max: 20, keyFn: (req) => req.user?.id || req.ip });
+router.get('/registration-config', authenticate, requirePermission('clients:create'), phoneVerification.getConfig);
+router.post('/phone-otp/request', authenticate, requirePermission('clients:create'), otpLimiter, phoneVerification.requestOtp);
+router.post('/phone-otp/verify', authenticate, requirePermission('clients:create'), otpLimiter, phoneVerification.verifyOtp);
 
 /**
  * @openapi

@@ -164,11 +164,11 @@ const InviteUserModal = ({ visible, onClose }) => {
             )}
             <CRow className="g-3">
               <CCol md={6}>
-                <CFormLabel>Email *</CFormLabel>
+                <CFormLabel>Email <span className="text-danger">*</span></CFormLabel>
                 <CFormInput type="email" value={form.email} onChange={setField('email')} required />
               </CCol>
               <CCol md={6}>
-                <CFormLabel>Role *</CFormLabel>
+                <CFormLabel>Role <span className="text-danger">*</span></CFormLabel>
                 <CFormSelect value={form.role} onChange={setField('role')} required>
                   <option value="">Select role…</option>
                   {assignableRoles.map((r) => (

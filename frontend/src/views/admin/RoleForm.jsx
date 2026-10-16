@@ -116,7 +116,7 @@ const RoleForm = ({ visible, role, onClose }) => {
           )}
           <CRow className="g-3">
             <CCol xs={12}>
-              <CFormLabel>Name *</CFormLabel>
+              <CFormLabel>Name <span className="text-danger">*</span></CFormLabel>
               <CFormInput value={form.name} onChange={setField('name')} maxLength={100} required />
             </CCol>
             <CCol xs={12}>

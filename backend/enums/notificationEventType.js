@@ -6,6 +6,7 @@ module.exports = Object.freeze({
   LOAN_APPROVED: 'loan_approved',
   LOAN_REJECTED: 'loan_rejected',
   REGISTRATION_INVITE: 'registration_invite',
+  CLIENT_REGISTRATION_INVITE: 'client_registration_invite',
   OTP_VERIFICATION: 'otp_verification',
   LOAN_APPLICATION_SUBMITTED: 'loan_application_submitted',
   LOAN_APPLICATION_RECEIVED: 'loan_application_received',

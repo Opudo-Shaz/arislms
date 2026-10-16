@@ -92,6 +92,12 @@ const PERMISSIONS = Object.freeze({
     UPDATE: 'invitations:update',
     DELETE: 'invitations:delete',
   },
+  // Invite-only client self-registration links (UPDATE covers copying the URL and revoking)
+  CLIENT_REGISTRATION_LINKS: {
+    READ: 'client_registration_links:read',
+    CREATE: 'client_registration_links:create',
+    UPDATE: 'client_registration_links:update',
+  },
   NOTIFICATIONS: {
     READ: 'notifications:read',
     MANAGE_TEMPLATES: 'notifications:manage_templates',

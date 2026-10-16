@@ -41,6 +41,7 @@ const Page500 = React.lazy(() => import('./views/pages/page500/Page500'))
 const Unauthorized = React.lazy(() => import('./views/pages/unauthorized/Unauthorized'))
 const ResetPassword = React.lazy(() => import('./views/pages/resetPassword/ResetPassword'))
 const AcceptInvite = React.lazy(() => import('./views/pages/acceptInvite/AcceptInvite'))
+const ClientRegistration = React.lazy(() => import('./views/pages/clientRegistration/ClientRegistration'))
 const Home = React.lazy(() => import('./views/home/Home'))
 const PortalLogin = React.lazy(() => import('./views/portal/PortalLogin'))
 const CoSignerConsent = React.lazy(() => import('./views/portal/CoSignerConsent'))
@@ -100,6 +101,7 @@ const App = () => {
           <Route exact path="/register" name="Register Page" element={<Register />} />
           <Route exact path="/reset-password" name="Reset Password" element={<ResetPassword />} />
           <Route exact path="/accept-invite" name="Accept Invite" element={<AcceptInvite />} />
+          <Route exact path="/register/client" name="Client Registration" element={<ClientRegistration />} />
           <Route exact path="/404" name="Page 404" element={<Page404 />} />
           <Route exact path="/500" name="Page 500" element={<Page500 />} />
           <Route exact path="/unauthorized" name="Unauthorized" element={<Unauthorized />} />

@@ -80,7 +80,7 @@ const ResetPasswordModal = ({ visible, user, onClose }) => {
               <p className="text-body-secondary">
                 Set a new password for <strong>{user?.email}</strong>.
               </p>
-              <CFormLabel>New password *</CFormLabel>
+              <CFormLabel>New password <span className="text-danger">*</span></CFormLabel>
               <CInputGroup>
                 <CFormInput
                   type={showPassword ? 'text' : 'password'}

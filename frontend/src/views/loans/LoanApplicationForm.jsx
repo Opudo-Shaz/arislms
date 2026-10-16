@@ -153,7 +153,7 @@ const LoanApplicationForm = () => {
         <CForm onSubmit={handleSubmit}>
           <CRow className="g-3">
             <CCol md={6}>
-              <CFormLabel>Client *</CFormLabel>
+              <CFormLabel>Client <span className="text-danger">*</span></CFormLabel>
               {prefilledClientId ? (
                 <div className="form-control bg-body-secondary">{prefilledClientName || `Client #${prefilledClientId}`}</div>
               ) : (
@@ -179,7 +179,7 @@ const LoanApplicationForm = () => {
               )}
             </CCol>
             <CCol md={6}>
-              <CFormLabel>Loan product *</CFormLabel>
+              <CFormLabel>Loan product <span className="text-danger">*</span></CFormLabel>
               <CFormSelect
                 value={form.loanProductId}
                 onChange={setField('loanProductId')}
@@ -226,7 +226,7 @@ const LoanApplicationForm = () => {
             )}
 
             <CCol md={6}>
-              <CFormLabel>Principal amount *</CFormLabel>
+              <CFormLabel>Principal amount <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 type="number"
                 min="1"
@@ -237,7 +237,7 @@ const LoanApplicationForm = () => {
               />
             </CCol>
             <CCol md={6}>
-              <CFormLabel>Start date *</CFormLabel>
+              <CFormLabel>Start date <span className="text-danger">*</span></CFormLabel>
               <CFormInput type="date" value={form.startDate} onChange={setField('startDate')} required />
             </CCol>
 
@@ -251,7 +251,7 @@ const LoanApplicationForm = () => {
                   </div>
                 </CCol>
                 <CCol md={6}>
-                  <CFormLabel htmlFor="cosigner-select">Co-signer *</CFormLabel>
+                  <CFormLabel htmlFor="cosigner-select">Co-signer <span className="text-danger">*</span></CFormLabel>
                   <ClientAsyncSelect
                     inputId="cosigner-select"
                     value={form.coSignerId || null}
@@ -274,7 +274,7 @@ const LoanApplicationForm = () => {
                   </div>
                 </CCol>
                 <CCol md={4}>
-                  <CFormLabel>Collateral type *</CFormLabel>
+                  <CFormLabel>Collateral type <span className="text-danger">*</span></CFormLabel>
                   <CFormSelect value={form.collateralType} onChange={setField('collateralType')} required>
                     <option value="">—</option>
                     {COLLATERAL_TYPE.values.map((v) => (
@@ -285,7 +285,7 @@ const LoanApplicationForm = () => {
                   </CFormSelect>
                 </CCol>
                 <CCol md={8}>
-                  <CFormLabel>Description *</CFormLabel>
+                  <CFormLabel>Description <span className="text-danger">*</span></CFormLabel>
                   <CFormInput
                     value={form.collateralDetails}
                     onChange={setField('collateralDetails')}
@@ -315,7 +315,7 @@ const LoanApplicationForm = () => {
                   </div>
                 </CCol>
                 <CCol md={4}>
-                  <CFormLabel>Estimated value *</CFormLabel>
+                  <CFormLabel>Estimated value <span className="text-danger">*</span></CFormLabel>
                   <CFormInput
                     type="number"
                     min="0"

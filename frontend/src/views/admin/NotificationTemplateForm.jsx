@@ -139,7 +139,7 @@ const NotificationTemplateForm = ({ visible, template, onClose }) => {
           )}
           <CRow className="g-3">
             <CCol xs={12}>
-              <CFormLabel>Event Key *</CFormLabel>
+              <CFormLabel>Event Key <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 value={form.eventKey}
                 onChange={setField('eventKey')}

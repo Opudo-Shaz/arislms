@@ -61,7 +61,7 @@ import { useCursorPagination } from '../../hooks/useCursorPagination'
 
 const PAGE_SIZE = 10
 
-const CATEGORIES = (import.meta.env.VITE_SYSTEM_CONFIG_CATEGORIES || 'general,storage,notifications,loans,integrations,email,auth')
+const CATEGORIES = (import.meta.env.VITE_SYSTEM_CONFIG_CATEGORIES || 'general,storage,notifications,loans,integrations,email,auth,clients')
   .split(',')
   .map((c) => c.trim())
   .filter(Boolean)
