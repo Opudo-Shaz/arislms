@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Features merged after v1.1 will be documented here as they land, then rolled
+Features merged after v1.2.0 will be documented here as they land, then rolled
 into the next dated release section below when that version ships.
+
+## [1.2.0] - 2026-10-16
+
+Third release of Aris LMS, adding the client self-service portal and
+invite-only client registration on top of the v1.1 baseline.
 
 ### Added
 
@@ -23,14 +28,23 @@ into the next dated release section below when that version ships.
   documents in a single submit, caching typed values so errors or reloads do
   not lose input. Clients are created `pending` with KYC `in_progress` and
   appear in the existing KYC queue.
+- Documents are added by type (client photo, national ID, passport, driving
+  license, birth certificate, other) into a preview list, as on the client
+  details KYC card. A client photo and the document matching the chosen ID
+  type are required.
 - Uploads are validated against their bytes (JPG/PNG/WebP/PDF only, 5 MB,
   extension/MIME/content must agree, hidden trailing data and PDF scripts or
   embedded files rejected). This is structural validation, not antivirus.
-- New system config `client.registration.enable_otp`: when on, the phone must
-  be verified with a one-time code for both self-registration and staff-created
+- New system config `client.registration.enable_otp` (category `clients`): when
+  on, the phone must be verified with a one-time code, sent by SMS only so the
+  number itself is confirmed, for both self-registration and staff-created
   clients. New permissions `client_registration_links:read|create|update`.
+- Email is optional when registering a client (self or staff); clients without
+  one simply receive SMS/in-app notifications.
 - Public endpoints are rate limited per IP, phone and link; set `TRUST_PROXY`
   when running behind a reverse proxy so per-IP limits see the real client IP.
+- Clients is now a sidebar submenu (All Clients, Registration Links), and
+  required-field asterisks are shown in red across the app.
 
 **Client Self-Service Portal**
 - Public home page (`/`) with loan products and separate client / staff
@@ -83,6 +97,14 @@ re-run `scripts/seedNotificationTemplates.js`. Grant the new
 `payment_reports:*` permissions to the relevant roles (or re-run
 `scripts/seedDefaultPermissions.js`, which overwrites roles 1–3 with the
 defaults).
+
+For client registration links: run `scripts/seedSystemConfig.js` and
+`scripts/seedNotificationTemplates.js`, grant `client_registration_links:*` to
+the relevant roles, add `clients` to `SYSTEM_CONFIG_CATEGORIES` and
+`VITE_SYSTEM_CONFIG_CATEGORIES` if you override them, and set `TRUST_PROXY`
+behind a proxy. New columns and tables are created automatically on boot.
+SMS delivery is still a stub, so leave `client.registration.enable_otp` off
+until an SMS provider is configured.
 
 ## [1.1.0] - 2026-09-06
 
@@ -210,6 +232,7 @@ its own dated entry under `Unreleased` above.
   password/status change, closing the window where a revoked user could
   keep acting on a stale JWT.
 
-[Unreleased]: https://github.com/Opudo-Shaz/arislms/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Opudo-Shaz/arislms/compare/v1.2.0...HEAD
 [1.0.0]: https://github.com/Opudo-Shaz/arislms/releases/tag/v1.0.0
 [1.1.0]: https://github.com/Opudo-Shaz/arislms/releases/tag/v1.1.0
+[1.2.0]: https://github.com/Opudo-Shaz/arislms/releases/tag/v1.2.0
