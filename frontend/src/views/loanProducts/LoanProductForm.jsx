@@ -160,7 +160,7 @@ const LoanProductForm = ({ visible, product, onClose }) => {
           )}
           <CRow className="g-3">
             <CCol md={8}>
-              <CFormLabel>Name *</CFormLabel>
+              <CFormLabel>Name <span className="text-danger">*</span></CFormLabel>
               <CFormInput value={form.name} onChange={setField('name')} required />
             </CCol>
             <CCol md={4}>
@@ -177,7 +177,7 @@ const LoanProductForm = ({ visible, product, onClose }) => {
             </CCol>
 
             <CCol md={4}>
-              <CFormLabel>Interest rate (%) *</CFormLabel>
+              <CFormLabel>Interest rate (%) <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 type="number"
                 min="0"
@@ -213,7 +213,7 @@ const LoanProductForm = ({ visible, product, onClose }) => {
             </CCol>
 
             <CCol md={4}>
-              <CFormLabel>Repayment period (months) *</CFormLabel>
+              <CFormLabel>Repayment period (months) <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 type="number"
                 min="1"

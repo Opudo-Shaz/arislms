@@ -107,7 +107,7 @@ const MemberContributionForm = ({ visible, clientId, onClose }) => {
           )}
           <CRow className="g-3">
             <CCol xs={12}>
-              <CFormLabel htmlFor="mc-client-select">Member *</CFormLabel>
+              <CFormLabel htmlFor="mc-client-select">Member <span className="text-danger">*</span></CFormLabel>
               <ClientAsyncSelect
                 inputId="mc-client-select"
                 value={form.clientId || null}
@@ -117,14 +117,14 @@ const MemberContributionForm = ({ visible, clientId, onClose }) => {
             </CCol>
 
             <CCol md={6}>
-              <CFormLabel>Type *</CFormLabel>
+              <CFormLabel>Type <span className="text-danger">*</span></CFormLabel>
               <CFormSelect value={form.type} onChange={setField('type')}>
                 <option value="CONTRIBUTION">{CONTRIBUTION_TYPE.labels.CONTRIBUTION}</option>
                 <option value="WITHDRAWAL">{CONTRIBUTION_TYPE.labels.WITHDRAWAL}</option>
               </CFormSelect>
             </CCol>
             <CCol md={6}>
-              <CFormLabel>Amount *</CFormLabel>
+              <CFormLabel>Amount <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 type="number"
                 min="0"

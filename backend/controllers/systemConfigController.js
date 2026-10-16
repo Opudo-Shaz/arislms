@@ -4,7 +4,7 @@ const logger = require('../config/logger')
 const { getUserId } = require('../utils/helpers')
 const { parseKeysetQuery, toPaginationDto } = require('../utils/keysetPagination')
 
-const CATEGORIES = (process.env.SYSTEM_CONFIG_CATEGORIES || 'general,storage,notifications,loans,integrations,email,auth')
+const CATEGORIES = (process.env.SYSTEM_CONFIG_CATEGORIES || 'general,storage,notifications,loans,integrations,email,auth,clients')
   .split(',')
   .map((c) => c.trim())
   .filter(Boolean)

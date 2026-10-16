@@ -156,7 +156,7 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
 
           <CRow className="g-3">
             <CCol md={12}>
-              <CFormLabel>Loan *</CFormLabel>
+              <CFormLabel>Loan <span className="text-danger">*</span></CFormLabel>
               {lockedLoan ? (
                 <CFormInput
                   value={`${loan.referenceCode || `Loan #${loan.id}`}`}
@@ -213,7 +213,7 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
             )}
 
             <CCol md={6}>
-              <CFormLabel>Amount *</CFormLabel>
+              <CFormLabel>Amount <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 type="number"
                 min="0"
@@ -224,7 +224,7 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
               />
             </CCol>
             <CCol md={6}>
-              <CFormLabel>Transaction date *</CFormLabel>
+              <CFormLabel>Transaction date <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 type="date"
                 value={form.transactionDate}

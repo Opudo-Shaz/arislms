@@ -184,7 +184,7 @@ const CodeValuesManager = ({ visible, code, onClose }) => {
             )}
             <CRow className="g-2 align-items-end">
               <CCol md={3}>
-                <label className="form-label">Value *</label>
+                <label className="form-label">Value <span className="text-danger">*</span></label>
                 <CFormInput value={form.value} onChange={setField('value')} maxLength={120} required />
               </CCol>
               <CCol md={4}>

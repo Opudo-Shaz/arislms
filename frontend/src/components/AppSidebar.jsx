@@ -65,7 +65,21 @@ const AppSidebar = ({ items, brandTo = '/' }) => {
   const sidebarShow = useSelector((state) => state.sidebarShow)
   const { hasPermission } = useAuth()
 
-  const filteredNav = items ?? navigation.filter((item) => !item.permission || hasPermission(item.permission))
+  // Hide items (and, recursively, group children) the user lacks permission for;
+  // a group left with no visible children is dropped.
+  const filterNav = (list) =>
+    list.reduce((acc, item) => {
+      if (item.permission && !hasPermission(item.permission)) return acc
+      if (item.items) {
+        const children = filterNav(item.items)
+        if (children.length) acc.push({ ...item, items: children })
+        return acc
+      }
+      acc.push(item)
+      return acc
+    }, [])
+
+  const filteredNav = items ?? filterNav(navigation)
 
   return (
     <CSidebar

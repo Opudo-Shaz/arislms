@@ -23,7 +23,7 @@ const SystemConfig = sequelize.define('SystemConfig', {
     allowNull: true,
   },
 
-  // Grouping: 'storage' | 'notifications' | 'loans' | 'general' | 'integrations'
+  // Grouping: 'storage' | 'notifications' | 'loans' | 'general' | 'integrations' | 'clients'
   category: {
     type: DataTypes.STRING(50),
     allowNull: false,

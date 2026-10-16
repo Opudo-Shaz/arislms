@@ -103,7 +103,7 @@ const CodeForm = ({ visible, code, onClose }) => {
           )}
           <CRow className="g-3">
             <CCol xs={12}>
-              <CFormLabel>Key *</CFormLabel>
+              <CFormLabel>Key <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 value={form.key}
                 onChange={setField('key')}
@@ -115,7 +115,7 @@ const CodeForm = ({ visible, code, onClose }) => {
               <div className="form-text">Uppercase letters, numbers and underscores only. Cannot be changed later.</div>
             </CCol>
             <CCol xs={12}>
-              <CFormLabel>Name *</CFormLabel>
+              <CFormLabel>Name <span className="text-danger">*</span></CFormLabel>
               <CFormInput value={form.name} onChange={setField('name')} maxLength={120} required />
             </CCol>
             <CCol xs={12}>

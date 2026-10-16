@@ -355,6 +355,26 @@ const defaults = [
   },
   // ── Authentication / OTP ────────────────────────────────────────────────
   {
+    key: 'client.registration.enable_otp',
+    label: 'Require OTP on Client Registration',
+    value: null,
+    category: 'clients',
+    description: 'When enabled, the applicant\u2019s phone must be verified with a one-time code before a client can be registered, both via registration links and when staff create a client.',
+    isBoolean: true,
+    isActive: false,
+    isReadOnly: false,
+  },
+  {
+    key: 'client.registration.link_ttl_days',
+    label: 'Client Registration Link Validity (days)',
+    value: '10',
+    category: 'clients',
+    description: 'How many days a newly generated client registration link stays valid.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
     key: 'auth.otp.require_on_login',
     label: 'Require OTP on Login',
     value: null,

@@ -64,7 +64,7 @@ const ConfirmModal = ({
           <CForm className="mt-3">
             <CFormLabel>
               {notesLabel}
-              {notesRequired ? ' *' : ' (optional)'}
+              {notesRequired ? <span className="text-danger"> *</span> : ' (optional)'}
             </CFormLabel>
             <CFormTextarea
               rows={3}
