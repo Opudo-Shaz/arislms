@@ -16,7 +16,10 @@ const Client = sequelize.define('Client', {
   employer: { type: DataTypes.STRING(128) },
   monthlyIncome: { type: DataTypes.DECIMAL(12,2), field: 'monthly_income' },
   address: { type: DataTypes.JSONB },
-  createdBy: { type: DataTypes.INTEGER, allowNull: false, field: 'created_by' },
+  // Null for clients who registered themselves through a registration link.
+  createdBy: { type: DataTypes.INTEGER, allowNull: true, field: 'created_by' },
+  registrationLinkId: { type: DataTypes.INTEGER, allowNull: true, field: 'registration_link_id' },
+  registrationSource: { type: DataTypes.STRING(16), allowNull: true, field: 'registration_source' },
   idDocumentType: { type: DataTypes.STRING(32), field: 'id_document_type' },
   idDocumentNumber: { type: DataTypes.STRING(255), field: 'id_document_number' }, 
   idDocumentImages: { type: DataTypes.JSONB, field: 'id_document_images' },

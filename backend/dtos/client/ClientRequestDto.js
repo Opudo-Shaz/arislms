@@ -57,10 +57,9 @@ class ClientRequestDto {
         'any.required': 'Last name is required'
       }),
 
-    email: Joi.string().email().required()
+    email: Joi.string().email().allow(null, '')
       .messages({
-        'string.email': 'Email must be a valid email address',
-        'any.required': 'Email is required'
+        'string.email': 'Email must be a valid email address'
       }),
 
     phone: phoneSchema({ required: true, label: 'Phone' }),
@@ -143,6 +142,9 @@ class ClientRequestDto {
       .messages({
         'string.base': 'Notes must be a string'
       }),
+
+    // Proof of phone ownership; only enforced when client.registration.enable_otp is on.
+    phoneVerificationToken: Joi.string().max(2000).allow(null, ''),
 
   });
 

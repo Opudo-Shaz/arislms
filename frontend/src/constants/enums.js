@@ -79,6 +79,12 @@ export const INVITATION_STATUS = buildEnum({
   revoked: 'danger',
 })
 
+export const CLIENT_REGISTRATION_LINK_STATUS = buildEnum({
+  active: 'success',
+  expired: 'secondary',
+  revoked: 'danger',
+})
+
 export const ACCOUNT_TYPE = buildEnum(
   {
     ASSET: 'primary',
@@ -565,6 +571,11 @@ export const PERMISSIONS = {
     UPDATE: 'invitations:update',
     DELETE: 'invitations:delete',
   },
+  CLIENT_REGISTRATION_LINKS: {
+    READ: 'client_registration_links:read',
+    CREATE: 'client_registration_links:create',
+    UPDATE: 'client_registration_links:update',
+  },
   NOTIFICATIONS: {
     READ: 'notifications:read',
     MANAGE_TEMPLATES: 'notifications:manage_templates',
@@ -639,6 +650,7 @@ const MODULE_LABELS = {
   USERS: 'Users',
   ROLES: 'Roles',
   INVITATIONS: 'Invitations',
+  CLIENT_REGISTRATION_LINKS: 'Client Registration Links',
   NOTIFICATIONS: 'Notifications',
   DOCUMENTS: 'Documents',
   CODES: 'Codes',

@@ -90,6 +90,19 @@ const defaults = [
     inAppBody: '{{name}} was invited to join as a {{roleName}}.',
   },
   {
+    eventKey: NotificationEventType.CLIENT_REGISTRATION_INVITE,
+    description: 'Sent to a prospective client with an invite-only registration link.',
+    inAppEnabled: false,
+    pushEnabled: false,
+    emailSubject: 'Register with {{appName}}',
+    emailBody: '<p>Hello,</p><p>You have been invited to register as a client of {{appName}}. Use the link below to complete the registration form and upload your KYC documents:</p><p><a href="{{registrationUrl}}">{{registrationUrl}}</a></p><p>This link expires on {{expiresOn}}.</p>',
+    smsBody: 'You are invited to register with {{appName}}: {{registrationUrl}} (expires {{expiresOn}}).',
+    pushTitle: 'Registration invite',
+    pushBody: 'Complete your {{appName}} registration.',
+    inAppTitle: 'Registration invite',
+    inAppBody: 'A client registration link was sent.',
+  },
+  {
     eventKey: NotificationEventType.OTP_VERIFICATION,
     description: 'Sent with a one-time verification code (e.g. login two-factor).',
     // In-app/push disabled by default so verification codes are not persisted

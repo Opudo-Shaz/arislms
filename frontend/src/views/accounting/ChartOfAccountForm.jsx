@@ -117,7 +117,7 @@ const ChartOfAccountForm = ({ visible, account, onClose }) => {
           )}
           <CRow className="g-3">
             <CCol md={4}>
-              <CFormLabel>Code *</CFormLabel>
+              <CFormLabel>Code <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 value={form.code}
                 onChange={setField('code')}
@@ -127,12 +127,12 @@ const ChartOfAccountForm = ({ visible, account, onClose }) => {
               />
             </CCol>
             <CCol md={8}>
-              <CFormLabel>Name *</CFormLabel>
+              <CFormLabel>Name <span className="text-danger">*</span></CFormLabel>
               <CFormInput value={form.name} onChange={setField('name')} maxLength={120} required />
             </CCol>
 
             <CCol md={6}>
-              <CFormLabel>Type *</CFormLabel>
+              <CFormLabel>Type <span className="text-danger">*</span></CFormLabel>
               <CFormSelect value={form.type} onChange={setField('type')}>
                 {ACCOUNT_TYPE.values.map((v) => (
                   <option key={v} value={v}>
@@ -142,7 +142,7 @@ const ChartOfAccountForm = ({ visible, account, onClose }) => {
               </CFormSelect>
             </CCol>
             <CCol md={6}>
-              <CFormLabel>Normal balance *</CFormLabel>
+              <CFormLabel>Normal balance <span className="text-danger">*</span></CFormLabel>
               <CFormSelect value={form.normalBalance} onChange={setField('normalBalance')}>
                 {NORMAL_BALANCE.values.map((v) => (
                   <option key={v} value={v}>

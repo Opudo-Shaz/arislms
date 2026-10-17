@@ -696,7 +696,7 @@ const LoanDetail = () => {
                 : 'Are you sure you want to delete this loan? This cannot be undone.'}
           </p>
           <CForm>
-            <CFormLabel>Reason *</CFormLabel>
+            <CFormLabel>Reason <span className="text-danger">*</span></CFormLabel>
             <CFormSelect
               value={deleteReason}
               onChange={(e) => setDeleteReason(e.target.value)}

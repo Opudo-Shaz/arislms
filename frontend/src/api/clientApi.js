@@ -77,7 +77,28 @@ export const setPortalAccess = async (id, enabled) => {
   return res?.data
 }
 
+/** Whether creating a client requires phone verification. @returns {Promise<{otpRequired: boolean}>} */
+export const getRegistrationConfig = async () => {
+  const res = await http.get('/clients/registration-config')
+  return res?.data ?? { otpRequired: false }
+}
+
+/** Send a verification code to a prospective client's phone/email. */
+export const requestPhoneOtp = async (payload) => {
+  const res = await http.post('/clients/phone-otp/request', payload)
+  return res?.data
+}
+
+/** @returns {Promise<{verificationToken: string}>} token to submit with the create call */
+export const verifyPhoneOtp = async (payload) => {
+  const res = await http.post('/clients/phone-otp/verify', payload)
+  return res?.data
+}
+
 export default {
+  getRegistrationConfig,
+  requestPhoneOtp,
+  verifyPhoneOtp,
   setPortalAccess,
   listClients,
   getClient,

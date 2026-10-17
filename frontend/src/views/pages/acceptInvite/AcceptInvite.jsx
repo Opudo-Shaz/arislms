@@ -189,7 +189,7 @@ const AcceptInvite = () => {
                       </CCol>
 
                       <CCol md={4}>
-                        <label className="form-label">First name *</label>
+                        <label className="form-label">First name <span className="text-danger">*</span></label>
                         <CFormInput value={form.first_name} onChange={setField('first_name')} required />
                       </CCol>
                       <CCol md={4}>
@@ -197,12 +197,12 @@ const AcceptInvite = () => {
                         <CFormInput value={form.middle_name} onChange={setField('middle_name')} />
                       </CCol>
                       <CCol md={4}>
-                        <label className="form-label">Last name *</label>
+                        <label className="form-label">Last name <span className="text-danger">*</span></label>
                         <CFormInput value={form.last_name} onChange={setField('last_name')} required />
                       </CCol>
 
                       <CCol md={6}>
-                        <label className="form-label">Phone{invitation.phone ? '' : ' *'}</label>
+                        <label className="form-label">Phone{invitation.phone ? '' : <span className="text-danger"> *</span>}</label>
                         <CFormInput
                           value={form.phone}
                           onChange={setField('phone')}

@@ -65,7 +65,7 @@ const UserStatusModal = ({ visible, user, onClose }) => {
           <p className="text-body-secondary">
             Set the account status for <strong>{user?.email}</strong>.
           </p>
-          <CFormLabel>Status *</CFormLabel>
+          <CFormLabel>Status <span className="text-danger">*</span></CFormLabel>
           <CFormSelect value={status} onChange={(e) => setStatus(e.target.value)} required>
             {USER_STATUS.values.map((v) => (
               <option key={v} value={v}>

@@ -13,18 +13,27 @@ const logger = require('../config/logger');
 const { v4: uuidv4 } = require('uuid');
 const AuditLogger = require('../utils/auditLogger');
 const creditScoreService = require('./creditScoreService');
+const clientRegistrationOtpService = require('./clientRegistrationOtpService');
 
 const clientService = {
   // ✅ Create client 
-  async createClient(data, user, userAgent = 'unknown') {
+  // options: { registrationSource, registrationLinkId, kycStatus } — set by self-registration.
+  async createClient(data, user, userAgent = 'unknown', options = {}) {
     try {
       const creatorId = user?.id || null;
+
+      // Checked before the duplicate lookup so an unverified caller learns nothing about existing clients.
+      await clientRegistrationOtpService.assertVerified(data.phone, data.phoneVerificationToken);
+      data = { ...data };
+      delete data.phoneVerificationToken;
+      // Email is optional; store NULL (not '') so the unique index ignores clients without one.
+      data.email = data.email ? data.email : null;
 
       // Uniqueness checks
       const duplicate = await Client.findOne({
         where: {
           [Op.or]: [
-            { email: data.email },
+            ...(data.email ? [{ email: data.email }] : []),
             { phone: data.phone },
             { idDocumentNumber: data.idDocumentNumber }
           ]
@@ -32,7 +41,7 @@ const clientService = {
       });
 
       if (duplicate) {
-        if (duplicate.email === data.email)
+        if (data.email && duplicate.email === data.email)
           throw Object.assign(new Error('Email is already registered'), { statusCode: 409 });
         if (duplicate.phone === data.phone)
           throw Object.assign(new Error('Phone number is already registered'), { statusCode: 409 });
@@ -51,6 +60,9 @@ const clientService = {
 
       data.accountNumber = accountNumber;
       data.createdBy = creatorId;
+      data.registrationSource = options.registrationSource || 'staff';
+      data.registrationLinkId = options.registrationLinkId || null;
+      if (options.kycStatus) data.kycStatus = options.kycStatus;
 
       const client = await Client.create(data);
 
@@ -66,14 +78,14 @@ const clientService = {
         entityId: client.id,
         action: 'CREATE',
         data,
-        actorId: creatorId || 1,
+        actorId: creatorId || AuditLogger.SYSTEM_USER_ID,
         options: {
-          actorType: 'USER',
+          actorType: creatorId ? 'USER' : 'SYSTEM',
           source: userAgent
         }
       });
 
-      logger.info(`Client created: ${client.accountNumber} by user ID ${creatorId}`);
+      logger.info(`Client created: ${client.accountNumber} by ${creatorId ? `user ID ${creatorId}` : `${data.registrationSource} registration`}`);
       return client;
     } catch (error) {
       logger.error(`Error creating client: ${error.message}`);
@@ -170,6 +182,7 @@ const clientService = {
       if (!client) throw new Error('Client not found');
 
       const oldData = client.toJSON();
+      if (data.email === '') data.email = null;
       await client.update(data);
 
       // Log to audit table after successful update

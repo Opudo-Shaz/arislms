@@ -47,10 +47,22 @@ const _nav = [
     name: 'Lending',
   },
   {
-    component: CNavItem,
+    component: CNavGroup,
     name: 'Clients',
-    to: '/clients',
     icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+    items: [
+      {
+        component: CNavItem,
+        name: 'All Clients',
+        to: '/clients',
+      },
+      {
+        component: CNavItem,
+        name: 'Registration Links',
+        to: '/client-registration-links',
+        permission: 'client_registration_links:read',
+      },
+    ],
   },
   {
     component: CNavGroup,

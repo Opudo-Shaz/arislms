@@ -31,7 +31,7 @@ const validateClientPayload = (payload) => {
     accountNumber: { required: false, type: 'string' },
     firstName: { required: true, type: 'string' },
     lastName: { required: true, type: 'string' },
-    email: { required: true, type: 'string' },
+    email: { required: false, type: 'string' },
     phone: { required: true, type: 'string' },
     secondaryPhone: { required: false, type: 'string' },
     dateOfBirth: { required: false, type: 'string' }, // ISO date string

@@ -95,7 +95,7 @@ const CollateralEditModal = ({ visible, collateral, loading, error, onConfirm, o
           )}
           <CRow className="g-3">
             <CCol md={6}>
-              <CFormLabel>Collateral type *</CFormLabel>
+              <CFormLabel>Collateral type <span className="text-danger">*</span></CFormLabel>
               <CFormSelect value={form.collateralType} onChange={setField('collateralType')} required>
                 <option value="">—</option>
                 {COLLATERAL_TYPE.values.map((v) => (
@@ -106,7 +106,7 @@ const CollateralEditModal = ({ visible, collateral, loading, error, onConfirm, o
               </CFormSelect>
             </CCol>
             <CCol md={6}>
-              <CFormLabel>Description *</CFormLabel>
+              <CFormLabel>Description <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 value={form.description}
                 onChange={setField('description')}
@@ -136,7 +136,7 @@ const CollateralEditModal = ({ visible, collateral, loading, error, onConfirm, o
               </div>
             </CCol>
             <CCol md={4}>
-              <CFormLabel>Estimated value *</CFormLabel>
+              <CFormLabel>Estimated value <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 type="number"
                 min="0"

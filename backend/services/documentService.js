@@ -73,7 +73,7 @@ const documentService = {
       action:     'CREATE',
       data:       { documentType: doc.documentType, documentCategory: doc.documentCategory },
       actorId:    actorId || 1,
-      options:    { actorType: 'USER', source: userAgent },
+      options:    { actorType: actorId ? 'USER' : 'SYSTEM', source: userAgent },
     });
 
     logger.info(`Document ${doc.id} uploaded by user ${actorId}`);

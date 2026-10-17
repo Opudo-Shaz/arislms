@@ -54,7 +54,7 @@ const CONFIG = {
   },
   reject: {
     title: 'Reject Loan Application',
-    label: 'Rejection reason *',
+    label: <>Rejection reason <span className="text-danger">*</span></>,
     type: 'textarea',
     confirmText: 'Reject',
     color: 'danger',
@@ -127,7 +127,7 @@ const LoanActionModal = ({ visible, action, defaultValue, loading, error, onConf
                 />
               </div>
               <div>
-                <CFormLabel>Reason *</CFormLabel>
+                <CFormLabel>Reason <span className="text-danger">*</span></CFormLabel>
                 <CFormTextarea
                   rows={4}
                   value={writeOffReason}
