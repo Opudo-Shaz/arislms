@@ -16,7 +16,7 @@ const router = express.Router()
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of system configs
+ *         description: List of system configs, plus the allowed `categories` (from SYSTEM_CONFIG_CATEGORIES)
  *   post:
  *     summary: Create a new system config (admin only)
  *     tags:

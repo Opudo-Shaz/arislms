@@ -20,6 +20,14 @@ into the next dated release section below when that version ships.
   in-app can be enabled from the template). Existing installs must run the
   **Notification Templates** seeder to add it.
 
+### Changed
+
+- **System config categories come from the backend** — `GET /api/system-configs`
+  now returns a `categories` array (from `SYSTEM_CONFIG_CATEGORIES`), and the
+  admin UI uses it for the category filter, form dropdown and badges. The
+  frontend `VITE_SYSTEM_CONFIG_CATEGORIES` variable is no longer used and can be
+  removed.
+
 ## [1.2.0] - 2026-10-16
 
 Third release of Aris LMS, adding the client self-service portal and

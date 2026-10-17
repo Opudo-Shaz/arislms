@@ -56,7 +56,7 @@ module.exports = {
       const { cursor, direction, limit } = parseKeysetQuery(req.query, { maxLimit: 100 })
       const { category, q } = req.query
       const result = await service.getAll({ category, q, cursor, direction, limit })
-      res.json({ success: true, data: result.rows, pagination: toPaginationDto(result) })
+      res.json({ success: true, categories: CATEGORIES, data: result.rows, pagination: toPaginationDto(result) })
     } catch (err) {
       logger.error(`SystemConfigController.getAll: ${err.message}`)
       if (err.statusCode === 400) return res.status(400).json({ success: false, message: err.message })

@@ -61,11 +61,6 @@ import { useCursorPagination } from '../../hooks/useCursorPagination'
 
 const PAGE_SIZE = 10
 
-const CATEGORIES = (import.meta.env.VITE_SYSTEM_CONFIG_CATEGORIES || 'general,storage,notifications,loans,integrations,email,auth,clients')
-  .split(',')
-  .map((c) => c.trim())
-  .filter(Boolean)
-
 const emptyForm = {
   key: '',
   label: '',
@@ -95,7 +90,7 @@ const toForm = (c) => ({
 
 // ── Inline create/edit modal ──────────────────────────────────────────────────
 
-const ConfigForm = ({ visible, config, onClose }) => {
+const ConfigForm = ({ visible, config, categories, onClose }) => {
   const isEdit = Boolean(config)
   const { hasPermission } = useAuth()
   const canReveal = hasPermission('system_config:reveal_secret')
@@ -296,7 +291,7 @@ const ConfigForm = ({ visible, config, onClose }) => {
             <CCol md={form.isBoolean ? 12 : 4}>
               <CFormLabel>Category</CFormLabel>
               <CFormSelect value={form.category} onChange={set('category')}>
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
                 ))}
               </CFormSelect>
@@ -382,6 +377,7 @@ const SystemConfigList = () => {
   const { data: result, isLoading, error, refetch, isFetching } = useSystemConfigs(queryParams)
 
   const configs = result?.data ?? []
+  const categories = result?.categories ?? []
 
   const toggleMutation = useToggleSystemConfigStatus()
   const deleteMutation = useDeleteSystemConfig()
@@ -432,7 +428,7 @@ const SystemConfigList = () => {
       key: 'category',
       label: 'Category',
       render: (row) => {
-        const badge = getBadgeForValue(row.category, CATEGORIES)
+        const badge = getBadgeForValue(row.category, categories)
         return (
           <CBadge color={badge.color} textColor={badge.textColor} shape="rounded-pill">
             {row.category}
@@ -532,7 +528,7 @@ const SystemConfigList = () => {
             onChange={(e) => setCategoryFilter(e.target.value)}
           >
             <option value="">All categories</option>
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
             ))}
           </CFormSelect>
@@ -575,6 +571,7 @@ const SystemConfigList = () => {
       <ConfigForm
         visible={showForm}
         config={editing}
+        categories={categories}
         onClose={() => { setShowForm(false); setEditing(null) }}
       />
 

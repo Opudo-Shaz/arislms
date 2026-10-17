@@ -4,7 +4,7 @@ const BASE = '/system-configs'
 
 const unwrap = (res) => res.data
 
-/** Keyset paginated (see ./pagination). Resolves to `{ success, data, pagination }`. */
+/** Keyset paginated (see ./pagination). Resolves to `{ success, categories, data, pagination }`. */
 export const listSystemConfigs = (params = {}) => {
   const clean = Object.fromEntries(
     Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
