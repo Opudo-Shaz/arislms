@@ -108,6 +108,7 @@ const PERMISSIONS = Object.freeze({
     CREATE: 'documents:create',
     UPDATE: 'documents:update',
     DELETE: 'documents:delete',
+    VERIFY: 'documents:verify',
   },
   CODES: {
     READ: 'codes:read',

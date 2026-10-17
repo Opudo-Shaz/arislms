@@ -310,6 +310,16 @@ export const DOCUMENT_STATUS = buildEnum({
   deleted: 'danger',
 })
 
+export const DOCUMENT_VERIFICATION_STATUS = buildEnum(
+  {
+    pending_review: 'info',
+    verified: 'success',
+    pending_reverification: 'warning',
+    change_requested: 'primary',
+  },
+  { pending_reverification: 'Re-upload Required' },
+)
+
 /** Repayment schedule installment status: pending, paid, overdue, partial. */
 export const REPAYMENT_SCHEDULE_STATUS = buildEnum({
   pending: 'secondary',
@@ -586,6 +596,7 @@ export const PERMISSIONS = {
     CREATE: 'documents:create',
     UPDATE: 'documents:update',
     DELETE: 'documents:delete',
+    VERIFY: 'documents:verify',
   },
   CODES: {
     READ: 'codes:read',
@@ -633,6 +644,7 @@ const ACTION_LABELS = {
   manage: 'Manage',
   reveal_secret: 'Reveal Secret',
   review: 'Review (amend / apply / reject)',
+  verify: 'Verify / Flag KYC Files',
 }
 
 /** Human-friendly labels per module key, used as picker section headers. */

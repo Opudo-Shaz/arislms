@@ -5,6 +5,13 @@ const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
 const { resolveProvider } = require('../utils/storage/storageFactory');
 const DocumentStatus = require('../enums/documentStatus');
+const DocumentCategory = require('../enums/documentCategory');
+const DocumentVerificationStatus = require('../enums/documentVerificationStatus');
+
+// Portal uploads have no staff user: audit them against the client instead of SYSTEM.
+const auditActor = (actorId, opts = {}) => (opts.actorType === 'CLIENT'
+  ? { actorId: opts.clientId, actorType: 'CLIENT' }
+  : { actorId: actorId || 1, actorType: actorId ? 'USER' : 'SYSTEM' });
 
 const documentService = {
 
@@ -17,8 +24,9 @@ const documentService = {
    * @param {object} meta       - { documentType, documentCategory, clientId?, loanId?, collateralId?, description?, expiresAt? }
    * @param {object} actor      - req.user
    * @param {string} userAgent
+   * @param {{actorType?: 'CLIENT', clientId?: number}} [opts] - set when a portal client uploads
    */
-  async uploadDocument(file, meta, actor, userAgent = 'unknown') {
+  async uploadDocument(file, meta, actor, userAgent = 'unknown', opts = {}) {
     const actorId = actor?.id || null;
     const { provider, providerName } = await resolveProvider();
 
@@ -39,7 +47,7 @@ const documentService = {
     // title_deed being re-uploaded/updated.
     const existing = await this._findReplaceableDocument(meta);
     if (existing) {
-      return this._replaceDocument(existing, file, meta, folder, provider, providerName, actorId, userAgent);
+      return this._replaceDocument(existing, file, meta, folder, provider, providerName, actorId, userAgent, opts);
     }
 
     const { storedName, documentLink, fileSize, mimeType } = await provider.save(file, folder);
@@ -67,13 +75,14 @@ const documentService = {
     // Set the download link now that we have the DB record ID
     await doc.update({ documentLink: `/api/documents/${doc.id}/download` });
 
+    const audit = auditActor(actorId, opts);
     await AuditLogger.log({
       entityType: 'DOCUMENT',
       entityId:   doc.id,
       action:     'CREATE',
       data:       { documentType: doc.documentType, documentCategory: doc.documentCategory },
-      actorId:    actorId || 1,
-      options:    { actorType: actorId ? 'USER' : 'SYSTEM', source: userAgent },
+      actorId:    audit.actorId,
+      options:    { actorType: audit.actorType, source: userAgent },
     });
 
     logger.info(`Document ${doc.id} uploaded by user ${actorId}`);
@@ -106,7 +115,7 @@ const documentService = {
    * then best-effort delete the previous file from storage.
    * @private
    */
-  async _replaceDocument(existing, file, meta, folder, provider, providerName, actorId, userAgent) {
+  async _replaceDocument(existing, file, meta, folder, provider, providerName, actorId, userAgent, opts = {}) {
     const previousStoredName = existing.storedName;
     const previousProvider   = existing.storageProvider;
 
@@ -121,6 +130,10 @@ const documentService = {
       status:           DocumentStatus.ACTIVE,
       expiresAt:        meta.expiresAt    !== undefined ? meta.expiresAt    : existing.expiresAt,
       description:      meta.description  !== undefined ? meta.description : existing.description,
+      verificationStatus: DocumentVerificationStatus.PENDING_REVIEW,
+      verificationNotes:  null,
+      verifiedBy:         null,
+      verifiedAt:         null,
       updatedBy:        actorId,
     });
 
@@ -136,13 +149,14 @@ const documentService = {
       logger.warn(`Skipped deleting previous file for document ${existing.id}: stored under provider "${previousProvider}", active provider is "${providerName}"`);
     }
 
+    const audit = auditActor(actorId, opts);
     await AuditLogger.log({
       entityType: 'DOCUMENT',
       entityId:   existing.id,
       action:     'UPDATE',
       data:       { documentType: existing.documentType, documentCategory: existing.documentCategory, replacedFile: true },
-      actorId:    actorId || 1,
-      options:    { actorType: 'USER', source: userAgent },
+      actorId:    audit.actorId,
+      options:    { actorType: audit.actorType, source: userAgent },
     });
 
     logger.info(`Document ${existing.id} (${existing.documentType}) replaced by user ${actorId}`);
@@ -217,6 +231,91 @@ const documentService = {
 
     logger.info(`Document ${id} updated by user ${actorId}`);
     return doc;
+  },
+
+  // ─── KYC verification ─────────────────────────────────────────────────────
+
+  /**
+   * Staff review of a single KYC file: verify it, or flag it for re-upload
+   * (also how a client's change request is approved/declined).
+   *
+   * @param {number} id
+   * @param {{verificationStatus: string, notes?: string, requestClientReverification?: boolean}} data
+   */
+  async setVerificationStatus(id, data, actor, userAgent = 'unknown') {
+    const actorId = actor?.id || null;
+    const doc = await this.getDocumentById(id);
+    if (doc.documentCategory !== DocumentCategory.CLIENT_KYC || !doc.clientId) {
+      throw Object.assign(new Error('Only client KYC documents can be verified'), { statusCode: 422 });
+    }
+
+    const verified = data.verificationStatus === DocumentVerificationStatus.VERIFIED;
+    const previous = doc.verificationStatus;
+    await doc.update({
+      verificationStatus: data.verificationStatus,
+      verificationNotes:  data.notes || null,
+      verifiedBy:         verified ? actorId : null,
+      verifiedAt:         verified ? new Date() : null,
+      updatedBy:          actorId,
+    });
+
+    await AuditLogger.log({
+      entityType: 'DOCUMENT',
+      entityId:   doc.id,
+      action:     'UPDATE',
+      data:       { verificationStatus: { from: previous, to: data.verificationStatus }, notes: data.notes || null },
+      actorId:    actorId || 1,
+      options:    { actorType: 'USER', source: userAgent },
+    });
+
+    if (data.requestClientReverification && data.verificationStatus === DocumentVerificationStatus.PENDING_REVERIFICATION) {
+      // Lazy require: clientService depends on this module.
+      const clientService = require('./clientService');
+      const label = doc.documentType.replace(/_/g, ' ');
+      await clientService.requestKycInfo(
+        doc.clientId,
+        data.notes ? `Please re-upload your ${label}: ${data.notes}` : `Please re-upload your ${label}.`,
+        actorId,
+        userAgent
+      );
+    }
+
+    logger.info(`Document ${id} verification set to ${data.verificationStatus} by user ${actorId}`);
+    return doc;
+  },
+
+  /** Mark every client KYC file still awaiting review as verified (used when KYC as a whole is approved). */
+  async verifyPendingClientDocuments(clientId, actorId, options = {}) {
+    const [count] = await Document.update(
+      {
+        verificationStatus: DocumentVerificationStatus.VERIFIED,
+        verificationNotes:  null,
+        verifiedBy:         actorId || null,
+        verifiedAt:         new Date(),
+        updatedBy:          actorId || null,
+      },
+      {
+        where: {
+          clientId,
+          documentCategory:   DocumentCategory.CLIENT_KYC,
+          status:             { [Op.ne]: DocumentStatus.DELETED },
+          verificationStatus: DocumentVerificationStatus.PENDING_REVIEW,
+        },
+        transaction: options.transaction,
+      }
+    );
+    return count;
+  },
+
+  async countClientDocumentsAwaitingReupload(clientId) {
+    return Document.count({
+      where: {
+        clientId,
+        documentCategory:   DocumentCategory.CLIENT_KYC,
+        status:             { [Op.ne]: DocumentStatus.DELETED },
+        verificationStatus: DocumentVerificationStatus.PENDING_REVERIFICATION,
+      },
+    });
   },
 
   // ─── Download / serve ─────────────────────────────────────────────────────

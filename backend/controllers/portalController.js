@@ -3,6 +3,8 @@ const portalService = require('../services/portalService');
 const portalLoanService = require('../services/portalLoanService');
 const paymentReportService = require('../services/paymentReportService');
 const coSignerConsentService = require('../services/coSignerConsentService');
+const portalDocumentService = require('../services/portalDocumentService');
+const { sendDocumentFile } = require('./documentController');
 const RepaymentScheduleResponseDto = require('../dtos/repaymentSchedule/RepaymentScheduleResponseDto');
 const {
   PortalProfileDto,
@@ -11,6 +13,7 @@ const {
   PortalPaymentDto,
   PaymentReportDto,
   PortalLoanProductDto,
+  PortalDocumentDto,
 } = require('../dtos/portal/PortalResponseDto');
 const schemas = require('../dtos/portal/PortalRequestDto');
 const { validateSync } = require('../utils/validationMiddleware');
@@ -98,6 +101,40 @@ exports.updateMe = handle('updateMe', async (req, res) => {
 exports.getMyCreditScore = handle('getMyCreditScore', async (req, res) => {
   const score = await portalService.getLatestCreditScore(req.client.id);
   res.json({ success: true, data: PortalCreditScoreDto(score) });
+});
+
+// ── KYC documents ────────────────────────────────────────────────────────────────
+
+exports.listMyDocuments = handle('listMyDocuments', async (req, res) => {
+  const { documents, editable, uploadableTypes } = await portalDocumentService.listMine(req.client.id);
+  res.json({ success: true, data: { documents: documents.map(PortalDocumentDto), editable, uploadableTypes } });
+});
+
+exports.downloadMyDocument = handle('downloadMyDocument', async (req, res) => {
+  const info = await portalDocumentService.getMyDownload(req.client.id, req.params.id);
+  sendDocumentFile(res, info);
+});
+
+exports.uploadMyDocument = handle('uploadMyDocument', async (req, res) => {
+  const body = validated(req, res, schemas.documentUploadSchema);
+  if (!body) return;
+  const doc = await portalDocumentService.uploadMine(req.client.id, body.documentType, req.file, userAgentOf(req));
+  res.status(201).json({
+    success: true,
+    message: 'Thanks — your document has been submitted for review.',
+    data: PortalDocumentDto(doc),
+  });
+});
+
+exports.requestDocumentChange = handle('requestDocumentChange', async (req, res) => {
+  const body = validated(req, res, schemas.documentChangeRequestSchema);
+  if (!body) return;
+  const doc = await portalDocumentService.requestChange(req.client.id, req.params.id, body.reason, userAgentOf(req));
+  res.json({
+    success: true,
+    message: 'Your request has been sent. We will let you know when you can upload a new document.',
+    data: PortalDocumentDto(doc),
+  });
 });
 
 exports.getDashboard = handle('getDashboard', async (req, res) => {

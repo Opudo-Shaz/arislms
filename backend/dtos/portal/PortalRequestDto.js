@@ -97,6 +97,17 @@ const rejectPaymentReportSchema = Joi.object({
   }),
 });
 
+const documentUploadSchema = Joi.object({
+  documentType: Joi.string().required().messages({ 'any.required': 'Choose which document you are uploading' }),
+});
+
+const documentChangeRequestSchema = Joi.object({
+  reason: Joi.string().trim().min(3).max(500).required().messages({
+    'any.required': 'Tell us why this document needs to change',
+    'string.min': 'Tell us why this document needs to change',
+  }),
+});
+
 module.exports = {
   coSignerLookupSchema,
   renominateSchema,
@@ -110,4 +121,6 @@ module.exports = {
   amendPaymentReportSchema,
   reviewNotesSchema,
   rejectPaymentReportSchema,
+  documentUploadSchema,
+  documentChangeRequestSchema,
 };

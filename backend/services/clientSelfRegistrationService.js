@@ -5,6 +5,7 @@ const KycStatus = require('../enums/kycStatus');
 const clientService = require('./clientService');
 const documentService = require('./documentService');
 const registrationLinkService = require('./clientRegistrationLinkService');
+const systemConfigService = require('./systemConfigService');
 const { validateUpload } = require('../utils/fileSecurity');
 const logger = require('../config/logger');
 
@@ -28,6 +29,16 @@ const ID_TYPE_TO_DOCUMENT_TYPE = {
 
 const labelOf = (type) => type.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 
+// Missing config row keeps the original behaviour (documents required).
+const areKycDocumentsRequired = () =>
+  systemConfigService.getConfigValue('client.registration.require_kyc_documents', 'boolean', true);
+
+/** Document types a client must have on file: their photo plus the ID matching their stated ID type. */
+const requiredKycTypes = (idDocumentType) => [
+  REQUIRED_PHOTO,
+  ID_TYPE_TO_DOCUMENT_TYPE[idDocumentType] || DocumentType.OTHER,
+];
+
 const validationError = (errors) =>
   Object.assign(new Error('Validation error'), { status: 400, errors });
 
@@ -36,13 +47,14 @@ const validationError = (errors) =>
  * trusted MIME type and sanitised name applied, or throws a 400 listing each
  * rejected field.
  */
-function checkFiles(files = {}, idDocumentType) {
+function checkFiles(files = {}, idDocumentType, requireKyc = true) {
   const errors = [];
   const accepted = {};
 
-  const requiredIdType = ID_TYPE_TO_DOCUMENT_TYPE[idDocumentType] || DocumentType.OTHER;
-  for (const field of [REQUIRED_PHOTO, requiredIdType]) {
-    if (!files[field]?.[0]) errors.push({ field: `files.${field}`, message: `${labelOf(field)} is required` });
+  if (requireKyc) {
+    for (const field of requiredKycTypes(idDocumentType)) {
+      if (!files[field]?.[0]) errors.push({ field: `files.${field}`, message: `${labelOf(field)} is required` });
+    }
   }
 
   for (const [field, list] of Object.entries(files)) {
@@ -75,7 +87,7 @@ function checkFiles(files = {}, idDocumentType) {
  */
 async function registerViaLink(rawToken, data, files, userAgent = 'unknown') {
   const link = await registrationLinkService.resolveToken(rawToken);
-  const accepted = checkFiles(files, data.idDocumentType);
+  const accepted = checkFiles(files, data.idDocumentType, await areKycDocumentsRequired());
 
   let client;
   try {
@@ -123,4 +135,4 @@ async function registerViaLink(rawToken, data, files, userAgent = 'unknown') {
   return { referenceNumber: client.accountNumber };
 }
 
-module.exports = { registerViaLink, KYC_DOCUMENT_TYPES };
+module.exports = { registerViaLink, areKycDocumentsRequired, requiredKycTypes, KYC_DOCUMENT_TYPES };

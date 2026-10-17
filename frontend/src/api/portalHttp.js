@@ -24,5 +24,6 @@ const portalClient = createApiClient({
 
 export const setPortalUnauthorizedHandler = portalClient.setUnauthorizedHandler
 export const portalHttp = portalClient.http
+export const portalAxios = portalClient.axiosInstance
 
 export default portalHttp

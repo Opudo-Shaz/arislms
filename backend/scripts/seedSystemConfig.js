@@ -365,6 +365,16 @@ const defaults = [
     isReadOnly: false,
   },
   {
+    key: 'client.registration.require_kyc_documents',
+    label: 'Require KYC Documents on Self-Registration',
+    value: null,
+    category: 'clients',
+    description: 'When enabled, applicants registering through a link must upload at least their photo and ID document. When disabled, documents are optional and can be collected later (e.g. through the client portal during KYC reverification).',
+    isBoolean: true,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
     key: 'client.registration.link_ttl_days',
     label: 'Client Registration Link Validity (days)',
     value: '10',

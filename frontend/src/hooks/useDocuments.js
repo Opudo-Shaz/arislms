@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import documentApi from '../api/documentApi'
+import { clientKeys } from './useClients'
 
 export const documentKeys = {
   all: ['documents'],
@@ -76,6 +77,18 @@ export const useDeleteDocument = (clientId, loanId) => {
     onSuccess: () => {
       if (clientId) qc.invalidateQueries({ queryKey: documentKeys.byClient(clientId) })
       if (loanId)   qc.invalidateQueries({ queryKey: documentKeys.byLoan(loanId) })
+    },
+  })
+}
+
+/** Verify / flag a client KYC document. May also move the client to reverification, so refresh the client too. */
+export const useSetDocumentVerification = (clientId) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }) => documentApi.setDocumentVerification(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: documentKeys.byClient(clientId) })
+      qc.invalidateQueries({ queryKey: clientKeys.all })
     },
   })
 }

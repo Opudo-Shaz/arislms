@@ -47,9 +47,9 @@ const clientController = {
       logger.info(`User ${userId} fetching all clients`);
 
       const { cursor, direction, limit } = parseKeysetQuery(req.query);
-      const { search, status, kycStatus, queueOnly } = req.query;
+      const { search, status, kycStatus, queueOnly, docActionOnly } = req.query;
 
-      const result = await clientService.getAllClients({ cursor, direction, limit, search, status, kycStatus, queueOnly });
+      const result = await clientService.getAllClients({ cursor, direction, limit, search, status, kycStatus, queueOnly, docActionOnly });
 
       return res.status(200).json({
         success: true,

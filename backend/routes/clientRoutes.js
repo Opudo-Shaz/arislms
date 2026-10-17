@@ -83,6 +83,10 @@ router.post('/', authenticate, requirePermission('clients:create'), clientContro
  *       - in: query
  *         name: queueOnly
  *         schema: { type: boolean }
+ *       - in: query
+ *         name: docActionOnly
+ *         description: Only clients with KYC files awaiting review or a change request
+ *         schema: { type: boolean }
  *     responses:
  *       200:
  *         description: Page of clients

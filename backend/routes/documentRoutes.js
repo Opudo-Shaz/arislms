@@ -201,6 +201,39 @@ router.patch('/:id', authenticate, requirePermission('documents:update'), valida
 
 /**
  * @openapi
+ * /api/documents/{id}/verification:
+ *   patch:
+ *     summary: Verify a client KYC document or flag it for re-upload
+ *     description: Also used to approve (pending_reverification) or decline (verified) a client's change request.
+ *     tags: [Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [verificationStatus]
+ *             properties:
+ *               verificationStatus: { type: string, enum: [verified, pending_reverification] }
+ *               notes: { type: string, description: Required when flagging for re-upload }
+ *               requestClientReverification: { type: boolean, description: Also move the client to pending_kyc_reverification }
+ *     responses:
+ *       200:
+ *         description: Updated document
+ *       422:
+ *         description: Not a client KYC document
+ */
+router.patch('/:id/verification', authenticate, requirePermission('documents:verify'), validateIdParam(), documentController.setVerificationStatus);
+
+/**
+ * @openapi
  * /api/documents/{id}:
  *   delete:
  *     summary: Soft-delete a document

@@ -7,7 +7,7 @@
  * @module api/portalApi
  */
 
-import portalHttp from './portalHttp'
+import portalHttp, { portalAxios } from './portalHttp'
 import { EMPTY_PAGINATION } from './pagination'
 
 const clean = (params = {}) =>
@@ -69,7 +69,31 @@ export const listMyPayments = async (params) => page(await portalHttp.get('/port
 export const listMyPaymentReports = async (params) => page(await portalHttp.get('/portal/payment-reports', { params: clean(params) }))
 export const submitPaymentReport = (payload) => portalHttp.post('/portal/payment-reports', payload)
 
+// ── KYC documents ────────────────────────────────────────────────────────────────
+
+/** @returns {Promise<{ documents: object[], editable: boolean, uploadableTypes: string[] }>} */
+export const listMyDocuments = async () =>
+  (await portalHttp.get('/portal/me/documents'))?.data ?? { documents: [], editable: false, uploadableTypes: [] }
+
+export const uploadMyDocument = ({ documentType, file }) => {
+  const formData = new FormData()
+  formData.append('documentType', documentType)
+  formData.append('file', file)
+  return portalHttp.post('/portal/me/documents', formData)
+}
+
+export const requestDocumentChange = (id, reason) =>
+  portalHttp.post(`/portal/me/documents/${id}/change-request`, { reason })
+
+/** Fetch one of the client's own documents as a Blob (sent with the session token). */
+export const getMyDocumentBlob = (id) =>
+  portalAxios.get(`/portal/me/documents/${id}/download`, { responseType: 'blob' })
+
 export default {
+  listMyDocuments,
+  uploadMyDocument,
+  requestDocumentChange,
+  getMyDocumentBlob,
   requestOtp,
   verifyOtp,
   listPublicLoanProducts,

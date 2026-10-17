@@ -22,6 +22,7 @@ import {
 } from '@coreui/react'
 
 import StatusBadge from '../../components/StatusBadge'
+import MyKycDocuments from './MyKycDocuments'
 import { usePortalMe, useUpdatePortalMe } from '../../hooks/usePortal'
 import { CLIENT_STATUS, KYC_STATUS } from '../../constants/enums'
 import { formatDate, formatDateTime } from '../../utils/format'
@@ -155,6 +156,9 @@ const MyProfile = () => {
             <ContactForm key={JSON.stringify(fromProfile(me))} me={me} />
           </CCardBody>
         </CCard>
+      </CCol>
+      <CCol xs={12}>
+        <MyKycDocuments me={me} />
       </CCol>
     </CRow>
   )

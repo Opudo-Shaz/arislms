@@ -1,7 +1,9 @@
 const express = require('express');
+const multer = require('multer');
 const { authenticateClient } = require('../middleware/authMiddleware');
 const { validateIdParam } = require('../middleware/validateIdParam');
 const { rateLimit } = require('../utils/rateLimiter');
+const { MAX_FILE_BYTES, ALLOWED_MIME_TYPES } = require('../utils/fileSecurity');
 const portalController = require('../controllers/portalController');
 
 /**
@@ -233,6 +235,109 @@ router.get('/me/dashboard', portalController.getDashboard);
  *         description: Latest credit score, or null if never scored
  */
 router.get('/me/credit-score', portalController.getMyCreditScore);
+
+const documentUploadLimiter = rateLimit({ name: 'portalDocUpload', windowMs: 60 * 60 * 1000, max: 20, keyFn: (req) => `client:${req.client?.id}` });
+
+const documentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_BYTES, files: 1, fields: 2, parts: 4 },
+  fileFilter(_req, file, cb) {
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) return cb(null, true);
+    return cb(Object.assign(new Error('Only JPG, PNG, WebP or PDF files are accepted'), { status: 400 }));
+  },
+}).single('file');
+
+const handleDocumentUpload = (req, res, next) => {
+  documentUpload(req, res, (err) => {
+    if (!err) return next();
+    const message = err.code === 'LIMIT_FILE_SIZE'
+      ? `The file must be smaller than ${MAX_FILE_BYTES / (1024 * 1024)} MB`
+      : err.status === 400 || err instanceof multer.MulterError
+        ? err.message
+        : 'The upload could not be processed';
+    return res.status(400).json({ success: false, message });
+  });
+};
+
+/**
+ * @openapi
+ * /api/portal/me/documents:
+ *   get:
+ *     summary: The client's KYC documents and which types they may upload now
+ *     tags:
+ *       - Client Portal
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: "{ documents, editable, uploadableTypes }"
+ *   post:
+ *     summary: Upload / re-upload a KYC document
+ *     description: >
+ *       Only while the client is pending KYC reverification, and only for files
+ *       flagged for re-upload or required types (photo, ID) not yet on file.
+ *     tags:
+ *       - Client Portal
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [file, documentType]
+ *             properties:
+ *               file: { type: string, format: binary }
+ *               documentType: { type: string, example: national_id }
+ *     responses:
+ *       201:
+ *         description: Document submitted for review
+ *       403:
+ *         description: Upload not allowed for this document / status
+ */
+router.get('/me/documents', portalController.listMyDocuments);
+router.post('/me/documents', documentUploadLimiter, handleDocumentUpload, portalController.uploadMyDocument);
+
+/**
+ * @openapi
+ * /api/portal/me/documents/{id}/download:
+ *   get:
+ *     summary: View one of the client's own KYC documents
+ *     tags:
+ *       - Client Portal
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: File binary
+ *       404:
+ *         description: Not found (or not the client's)
+ */
+router.get('/me/documents/:id/download', validateIdParam(), portalController.downloadMyDocument);
+
+/**
+ * @openapi
+ * /api/portal/me/documents/{id}/change-request:
+ *   post:
+ *     summary: Ask staff to allow replacing a verified KYC document
+ *     tags:
+ *       - Client Portal
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             reason: My ID card has expired
+ *     responses:
+ *       200:
+ *         description: Request recorded (verificationStatus = change_requested)
+ *       409:
+ *         description: Document is not verified
+ */
+router.post('/me/documents/:id/change-request', validateIdParam(), portalController.requestDocumentChange);
 
 /**
  * @openapi

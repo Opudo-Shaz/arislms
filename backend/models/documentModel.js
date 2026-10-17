@@ -3,6 +3,7 @@ const sequelize = require('../config/sequalize_db');
 const DocumentType = require('../enums/documentType');
 const DocumentCategory = require('../enums/documentCategory');
 const DocumentStatus = require('../enums/documentStatus');
+const DocumentVerificationStatus = require('../enums/documentVerificationStatus');
 
 const Document = sequelize.define('Document', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -47,6 +48,17 @@ const Document = sequelize.define('Document', {
     defaultValue: DocumentStatus.ACTIVE,
   },
   expiresAt: { type: DataTypes.DATEONLY, allowNull: true, field: 'expires_at' },
+
+  // KYC review state of the file itself, independent of the lifecycle status above
+  verificationStatus: {
+    type: DataTypes.ENUM(Object.values(DocumentVerificationStatus)),
+    allowNull: false,
+    defaultValue: DocumentVerificationStatus.PENDING_REVIEW,
+    field: 'verification_status',
+  },
+  verificationNotes: { type: DataTypes.TEXT, allowNull: true, field: 'verification_notes' },
+  verifiedBy: { type: DataTypes.INTEGER, allowNull: true, field: 'verified_by' },
+  verifiedAt: { type: DataTypes.DATE, allowNull: true, field: 'verified_at' },
 
   // Extra
   description: { type: DataTypes.TEXT, allowNull: true },
