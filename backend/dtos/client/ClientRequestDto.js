@@ -1,6 +1,18 @@
 const Joi = require('joi');
 const { phoneSchema } = require('../../utils/phone');
 
+const MIN_AGE_YEARS = 18;
+
+const adult = (value, helpers) => {
+  if (value === null || value === '') return value;
+  const dob = new Date(value);
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - MIN_AGE_YEARS);
+  if (dob > cutoff) return helpers.error('date.adult');
+  if (dob.getFullYear() < 1900) return helpers.error('date.base');
+  return value;
+};
+
 class ClientRequestDto {
   constructor(data) {
     this.accountNumber = data.accountNumber;
@@ -55,9 +67,10 @@ class ClientRequestDto {
 
     secondaryPhone: phoneSchema({ label: 'Secondary phone' }),
 
-    dateOfBirth: Joi.date().iso().allow(null, '')
+    dateOfBirth: Joi.date().iso().custom(adult).allow(null, '')
       .messages({
-        'date.base': 'Date of birth must be a valid date'
+        'date.base': 'Date of birth must be a valid date',
+        'date.adult': `Client must be at least ${MIN_AGE_YEARS} years old`
       }),
 
     gender: Joi.string().valid('male', 'female', 'other').required()

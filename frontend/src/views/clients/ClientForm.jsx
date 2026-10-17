@@ -44,6 +44,12 @@ const EAC_COUNTRIES = [
   'Somalia',
 ]
 
+const adultCutoff = () => {
+  const d = new Date()
+  d.setFullYear(d.getFullYear() - 18)
+  return d.toISOString().slice(0, 10)
+}
+
 const emptyForm = {
   accountNumber: '',
   firstName: '',
@@ -146,6 +152,10 @@ const ClientForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setErrors(null)
+    if (form.dateOfBirth && form.dateOfBirth > adultCutoff()) {
+      setErrors({ message: 'Client must be at least 18 years old.' })
+      return
+    }
     const payload = toPayload(form)
     try {
       if (isEdit) {
@@ -217,6 +227,7 @@ const ClientForm = () => {
               <CFormLabel>Date of birth</CFormLabel>
               <CFormInput
                 type="date"
+                max={adultCutoff()}
                 value={form.dateOfBirth}
                 onChange={setField('dateOfBirth')}
               />
