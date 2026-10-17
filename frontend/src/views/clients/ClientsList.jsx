@@ -51,6 +51,7 @@ const ClientsList = () => {
   const [status, setStatus] = useState('')
   const [kycStatus, setKycStatus] = useState('')
   const [queueOnly, setQueueOnly] = useState(false)
+  const [docActionOnly, setDocActionOnly] = useState(false)
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
   const debouncedSearch = useDebouncedValue(search.trim())
 
@@ -64,9 +65,10 @@ const ClientsList = () => {
 
   const filters = {
     search: debouncedSearch || undefined,
-    status: queueOnly ? undefined : status || undefined,
+    status: queueOnly || docActionOnly ? undefined : status || undefined,
     kycStatus: kycStatus || undefined,
     queueOnly: queueOnly ? 'true' : undefined,
+    docActionOnly: docActionOnly ? 'true' : undefined,
   }
   const { cursorParams, goTo } = useCursorPagination(filters)
   const params = { ...filters, ...cursorParams, limit: PAGE_SIZE }
@@ -202,7 +204,7 @@ const ClientsList = () => {
       </CCardHeader>
       <CCardBody>
         <CRow className="g-2 mb-3">
-          <CCol md={4}>
+          <CCol md={3}>
             <CFormInput
               placeholder="Search name, email, phone…"
               value={search}
@@ -213,7 +215,7 @@ const ClientsList = () => {
             <CFormSelect
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              disabled={queueOnly}
+              disabled={queueOnly || docActionOnly}
             >
               <option value="">All statuses</option>
               {CLIENT_STATUS.values.map((v) => (
@@ -223,7 +225,7 @@ const ClientsList = () => {
               ))}
             </CFormSelect>
           </CCol>
-          <CCol md={3}>
+          <CCol md={2}>
             <CFormSelect
               value={kycStatus}
               onChange={(e) => setKycStatus(e.target.value)}
@@ -242,10 +244,25 @@ const ClientsList = () => {
               className="w-100"
               onClick={() => {
                 setQueueOnly((v) => !v)
+                setDocActionOnly(false)
                 setStatus('')
               }}
             >
               KYC Queue
+            </CButton>
+          </CCol>
+          <CCol md={2}>
+            <CButton
+              color={docActionOnly ? 'warning' : 'light'}
+              className="w-100 text-nowrap"
+              title="Clients with KYC documents awaiting review or a change request"
+              onClick={() => {
+                setDocActionOnly((v) => !v)
+                setQueueOnly(false)
+                setStatus('')
+              }}
+            >
+              Docs to Review
             </CButton>
           </CCol>
         </CRow>

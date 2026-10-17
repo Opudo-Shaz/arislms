@@ -6,8 +6,9 @@
  * @component
  */
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import Swal from 'sweetalert2'
 import {
   CAlert,
   CButton,
@@ -26,18 +27,63 @@ import KpiCard from '../../components/KpiCard'
 import StatusBadge from '../../components/StatusBadge'
 import CreditScoreGauge from '../../components/CreditScoreGauge'
 import PaymentsTable from '../../components/loans/PaymentsTable'
-import { usePortalDashboard } from '../../hooks/usePortal'
+import { usePortalDashboard, usePortalDocuments, usePortalMe } from '../../hooks/usePortal'
 import { useClientAuth } from '../../context/ClientAuthContext'
-import { LOAN_STATUS } from '../../constants/enums'
+import { DOCUMENT_TYPE, LOAN_STATUS } from '../../constants/enums'
 import { formatCurrency, formatDate } from '../../utils/format'
 
 const REPAYABLE = ['disbursed', 'active', 'partially_paid', 'overdue']
 const IN_REVIEW = ['pending', 'in_review', 'under_review', 'approved']
 
+// Shown once per browser session so returning to the dashboard doesn't nag.
+const REVERIFY_PROMPT_KEY = 'aris_portal_reverify_prompted'
+
+const escapeHtml = (s) =>
+  String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+
+/** Pop up once when staff have asked the client to re-verify, then steer them to Profile. */
+const useReverificationPrompt = (navigate) => {
+  const { data: me } = usePortalMe()
+  const pending = me?.status === 'pending_kyc_reverification'
+  const { data: docs, isSuccess: docsLoaded } = usePortalDocuments({ enabled: pending })
+
+  useEffect(() => {
+    const promptKey = `${REVERIFY_PROMPT_KEY}:${me?.id}`
+    if (!pending || !docsLoaded || sessionStorage.getItem(promptKey)) return
+    sessionStorage.setItem(promptKey, '1')
+
+    const flagged = (docs?.documents || []).filter((d) => d.verificationStatus === 'pending_reverification')
+    const missing = (docs?.uploadableTypes || []).filter((t) => !(docs?.documents || []).some((d) => d.documentType === t))
+    const items = [
+      ...flagged.map((d) => `<li><strong>${escapeHtml(DOCUMENT_TYPE.labels[d.documentType] || d.documentType)}</strong>${
+        d.verificationNotes ? ` &mdash; <em>${escapeHtml(d.verificationNotes)}</em>` : ''}</li>`),
+      ...missing.map((t) => `<li><strong>${escapeHtml(DOCUMENT_TYPE.labels[t] || t)}</strong> &mdash; <em>not yet provided</em></li>`),
+    ]
+
+    Swal.fire({
+      icon: 'warning',
+      title: 'We need to re-verify your identity',
+      html: [
+        me.kycNotes ? `<p style="margin:0 0 10px"><em>${escapeHtml(me.kycNotes)}</em></p>` : '',
+        items.length
+          ? `<p style="margin:0 0 4px">Please upload:</p><ul style="text-align:left;margin:0;padding-left:20px">${items.join('')}</ul>`
+          : '<p style="margin:0">Please review your identity documents on your profile.</p>',
+      ].join(''),
+      showCancelButton: true,
+      confirmButtonText: 'Go to my profile',
+      cancelButtonText: 'Later',
+      reverseButtons: true,
+    }).then(({ isConfirmed }) => {
+      if (isConfirmed) navigate('/portal/profile')
+    })
+  }, [pending, docsLoaded, docs, me, navigate])
+}
+
 const PortalDashboard = () => {
   const navigate = useNavigate()
   const { client } = useClientAuth()
   const { data, isLoading, error } = usePortalDashboard()
+  useReverificationPrompt(navigate)
 
   if (isLoading) {
     return (

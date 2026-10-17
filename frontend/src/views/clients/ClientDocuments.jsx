@@ -18,6 +18,7 @@ import {
   CCardHeader,
   CCol,
   CForm,
+  CFormCheck,
   CFormInput,
   CFormLabel,
   CFormSelect,
@@ -26,12 +27,17 @@ import {
   CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilCloudUpload, cilExternalLink, cilFile, cilTrash } from '@coreui/icons'
+import { cilCheckCircle, cilCloudUpload, cilExternalLink, cilFile, cilReload, cilTrash, cilX } from '@coreui/icons'
 
 import ConfirmModal from '../../components/ConfirmModal'
 import StatusBadge from '../../components/StatusBadge'
-import { DOCUMENT_TYPE, DOCUMENT_STATUS, CLIENT_KYC_DOCUMENT_TYPES } from '../../constants/enums'
-import { useClientDocuments, useUploadDocument, useDeleteDocument } from '../../hooks/useDocuments'
+import {
+  DOCUMENT_TYPE,
+  DOCUMENT_STATUS,
+  DOCUMENT_VERIFICATION_STATUS,
+  CLIENT_KYC_DOCUMENT_TYPES,
+} from '../../constants/enums'
+import { useClientDocuments, useUploadDocument, useDeleteDocument, useSetDocumentVerification } from '../../hooks/useDocuments'
 import { useAuth } from '../../context/AuthContext'
 import documentApi from '../../api/documentApi'
 import { formatDate } from '../../utils/format'
@@ -45,19 +51,87 @@ const formatSize = (bytes) => {
 
 const emptyForm = { documentType: 'national_id', description: '', file: null }
 
-const ClientDocuments = ({ clientId }) => {
+// Review dialogs: which verification status each action sets and how it's worded.
+const REVIEW_ACTIONS = {
+  verify: {
+    title: 'Verify Document',
+    status: 'verified',
+    confirmText: 'Mark Verified',
+    confirmColor: 'success',
+    notesRequired: false,
+    body: 'Mark this document as checked and valid?',
+  },
+  flag: {
+    title: 'Request Re-upload',
+    status: 'pending_reverification',
+    confirmText: 'Request Re-upload',
+    confirmColor: 'warning',
+    notesRequired: true,
+    notesLabel: 'What should the client fix? (shown to the client)',
+    body: 'The client will be able to replace this document from the portal while their account is pending KYC reverification.',
+  },
+  approveChange: {
+    title: 'Approve Change Request',
+    status: 'pending_reverification',
+    confirmText: 'Approve',
+    confirmColor: 'primary',
+    notesRequired: true,
+    notesLabel: 'Instructions for the client (shown to the client)',
+    body: 'Allow the client to upload a replacement for this document.',
+  },
+  declineChange: {
+    title: 'Decline Change Request',
+    status: 'verified',
+    confirmText: 'Decline',
+    confirmColor: 'danger',
+    notesRequired: true,
+    notesLabel: 'Reason',
+    body: 'The current document stays on file as verified.',
+  },
+}
+
+const ClientDocuments = ({ clientId, clientStatus }) => {
   const { data: documents = [], isLoading, error } = useClientDocuments(clientId)
   const uploadMutation  = useUploadDocument(clientId)
   const deleteMutation  = useDeleteDocument(clientId)
+  const verifyMutation  = useSetDocumentVerification(clientId)
   const { hasPermission } = useAuth()
   const canUpload = hasPermission('documents:create')
   const canDelete = hasPermission('documents:delete')
+  const canVerify = hasPermission('documents:verify')
 
   const [form, setForm]           = useState(emptyForm)
   const [formError, setFormError] = useState(null)
   const [openingId, setOpeningId] = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [review, setReview] = useState(null) // { doc, action }
+  const [moveClient, setMoveClient] = useState(false)
+  const [reviewError, setReviewError] = useState(null)
   const fileInputRef = useRef(null)
+
+  const reviewAction = review ? REVIEW_ACTIONS[review.action] : null
+  const clientAlreadyReverifying = clientStatus === 'pending_kyc_reverification'
+
+  const openReview = (doc, action) => {
+    setReview({ doc, action })
+    setMoveClient(!clientAlreadyReverifying && REVIEW_ACTIONS[action].status === 'pending_reverification')
+    setReviewError(null)
+  }
+
+  const handleReview = async (notes) => {
+    setReviewError(null)
+    try {
+      await verifyMutation.mutateAsync({
+        id: review.doc.id,
+        verificationStatus: reviewAction.status,
+        notes: notes || null,
+        requestClientReverification: reviewAction.status === 'pending_reverification' && moveClient,
+      })
+      setReview(null)
+    } catch (err) {
+      setReviewError(err?.data?.errors?.[0]?.message || err.message || 'Could not update the document')
+    }
+  }
 
   const handleFile = (e) => {
     const file = e.target.files?.[0] || null
@@ -142,6 +216,9 @@ const ClientDocuments = ({ clientId }) => {
                       <div className="d-flex align-items-center gap-2 flex-wrap">
                         <StatusBadge enumDef={DOCUMENT_TYPE} value={doc.documentType} />
                         <StatusBadge enumDef={DOCUMENT_STATUS} value={doc.status} />
+                        {doc.documentCategory === 'client_kyc' && doc.verificationStatus && (
+                          <StatusBadge enumDef={DOCUMENT_VERIFICATION_STATUS} value={doc.verificationStatus} />
+                        )}
                       </div>
                       <div
                         className="small text-truncate text-body-secondary mt-1"
@@ -156,10 +233,40 @@ const ClientDocuments = ({ clientId }) => {
                         <div className="small text-body-secondary">{doc.description}</div>
                       )}
                       <div className="small text-body-secondary">{formatDate(doc.createdAt)}</div>
+                      {doc.verificationNotes && doc.verificationStatus !== 'verified' && (
+                        <div className="small text-warning-emphasis mt-1">{doc.verificationNotes}</div>
+                      )}
                     </div>
                   </div>
 
                   <div className="d-flex gap-1 flex-shrink-0 ms-2">
+                    {canVerify && doc.documentCategory === 'client_kyc' && (
+                      <>
+                        {doc.verificationStatus === 'change_requested' ? (
+                          <>
+                            <CButton size="sm" color="primary" variant="ghost" title="Approve change request" onClick={() => openReview(doc, 'approveChange')}>
+                              <CIcon icon={cilCheckCircle} />
+                            </CButton>
+                            <CButton size="sm" color="danger" variant="ghost" title="Decline change request" onClick={() => openReview(doc, 'declineChange')}>
+                              <CIcon icon={cilX} />
+                            </CButton>
+                          </>
+                        ) : (
+                          <>
+                            {doc.verificationStatus !== 'verified' && (
+                              <CButton size="sm" color="success" variant="ghost" title="Mark verified" onClick={() => openReview(doc, 'verify')}>
+                                <CIcon icon={cilCheckCircle} />
+                              </CButton>
+                            )}
+                            {doc.verificationStatus !== 'pending_reverification' && (
+                              <CButton size="sm" color="warning" variant="ghost" title="Request re-upload" onClick={() => openReview(doc, 'flag')}>
+                                <CIcon icon={cilReload} />
+                              </CButton>
+                            )}
+                          </>
+                        )}
+                      </>
+                    )}
                     <CButton
                       size="sm"
                       color="primary"
@@ -256,12 +363,53 @@ const ClientDocuments = ({ clientId }) => {
         onConfirm={handleDelete}
         onClose={() => setConfirmDeleteId(null)}
       />
+
+      <ConfirmModal
+        visible={Boolean(review)}
+        title={reviewAction?.title || ''}
+        body={
+          reviewAction ? (
+            <>
+              {reviewError && <CAlert color="danger">{reviewError}</CAlert>}
+              <p className="mb-2">
+                <strong>{DOCUMENT_TYPE.labels[review.doc.documentType] || review.doc.documentType}</strong>
+                {' — '}
+                {reviewAction.body}
+              </p>
+              {review.doc.verificationStatus === 'change_requested' && review.doc.verificationNotes && (
+                <div className="small text-body-secondary mb-2">{review.doc.verificationNotes}</div>
+              )}
+              {reviewAction.status === 'pending_reverification' && (
+                clientAlreadyReverifying ? (
+                  <div className="small text-body-secondary">The client is already pending KYC reverification.</div>
+                ) : (
+                  <CFormCheck
+                    id="doc-review-move-client"
+                    label="Also set the client to Pending KYC Reverification (required for them to upload)"
+                    checked={moveClient}
+                    onChange={(e) => setMoveClient(e.target.checked)}
+                  />
+                )
+              )}
+            </>
+          ) : null
+        }
+        confirmText={reviewAction?.confirmText || 'Confirm'}
+        confirmColor={reviewAction?.confirmColor || 'primary'}
+        withNotes
+        notesLabel={reviewAction?.notesLabel || 'Notes'}
+        notesRequired={Boolean(reviewAction?.notesRequired)}
+        loading={verifyMutation.isPending}
+        onConfirm={handleReview}
+        onClose={() => setReview(null)}
+      />
     </>
   )
 }
 
 ClientDocuments.propTypes = {
   clientId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  clientStatus: PropTypes.string,
 }
 
 export default ClientDocuments

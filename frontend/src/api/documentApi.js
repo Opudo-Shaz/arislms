@@ -67,6 +67,15 @@ export const updateDocument = async (id, data) => {
   return res?.data
 }
 
+/**
+ * @param {number|string} id
+ * @param {{ verificationStatus: 'verified'|'pending_reverification', notes?: string, requestClientReverification?: boolean }} data
+ */
+export const setDocumentVerification = async (id, data) => {
+  const res = await http.patch(`/documents/${id}/verification`, data)
+  return res?.data
+}
+
 /** @param {number|string} id @returns {Promise<object>} */
 export const deleteDocument = async (id) => {
   const res = await http.delete(`/documents/${id}`)
@@ -87,6 +96,7 @@ const documentApi = {
   downloadDocumentBlob,
   openDocumentInTab,
   updateDocument,
+  setDocumentVerification,
   deleteDocument,
 }
 

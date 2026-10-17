@@ -128,7 +128,7 @@ const adultCutoff = () => {
 }
 
 /** Client-side checks for the fields on one step; mirrors the server's rules. */
-const validateFields = (fields, form, files, verified) => {
+const validateFields = (fields, form, files, verified, kycRequired = true) => {
   const errors = {}
   const required = (key, label) => {
     if (!String(form[key] ?? '').trim()) errors[key] = `${label} is required`
@@ -159,9 +159,11 @@ const validateFields = (fields, form, files, verified) => {
 
   if (fields.includes('idDocumentNumber')) {
     required('idDocumentNumber', 'ID number')
-    requiredDocTypes(form.idDocumentType).forEach((type) => {
-      if (!files[type]) errors[`files.${type}`] = `${docLabel(type)} is required`
-    })
+    if (kycRequired) {
+      requiredDocTypes(form.idDocumentType).forEach((type) => {
+        if (!files[type]) errors[`files.${type}`] = `${docLabel(type)} is required`
+      })
+    }
   }
 
   if (fields.includes('phoneVerification') && !verified) {
@@ -239,6 +241,7 @@ const ClientRegistration = () => {
   const logo = colorScheme === 'dark' ? arislmsLogoDefault : arislmsLogoDark
 
   const { data: link, isLoading, error: linkError } = useResolveRegistrationLink(token)
+  const kycRequired = link?.kycDocumentsRequired !== false
   const steps = useMemo(
     () => STEPS.filter((s) => s.id !== 'verify' || link?.otpRequired),
     [link?.otpRequired],
@@ -330,7 +333,7 @@ const ClientRegistration = () => {
     })
 
   const goNext = () => {
-    const errs = validateFields(step.fields, form, files, phoneVerified)
+    const errs = validateFields(step.fields, form, files, phoneVerified, kycRequired)
     setFieldErrors(errs)
     if (Object.keys(errs).length) return
     setFormError('')
@@ -420,6 +423,7 @@ const ClientRegistration = () => {
       form,
       files,
       phoneVerified || !link?.otpRequired,
+      kycRequired,
     )
     if (Object.keys(errs).length) {
       setFieldErrors(errs)
@@ -626,7 +630,10 @@ const ClientRegistration = () => {
           <CCol xs={12}>
             <hr className="mb-0" />
             <span className="text-body-secondary small">
-              KYC documents: a photo and your ID document are required. JPG, PNG, WebP or PDF, up to 5 MB
+              {kycRequired
+                ? 'KYC documents: a photo and your ID document are required.'
+                : 'KYC documents are optional now — you can upload them later if we ask for them.'}{' '}
+              JPG, PNG, WebP or PDF, up to 5 MB
               each; files are checked before they are accepted.
             </span>
           </CCol>
@@ -635,7 +642,7 @@ const ClientRegistration = () => {
               {CLIENT_KYC_DOCUMENT_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {docLabel(t)}
-                  {requiredDocTypes(form.idDocumentType).includes(t) ? ' *' : ''}
+                  {kycRequired && requiredDocTypes(form.idDocumentType).includes(t) ? ' *' : ''}
                 </option>
               ))}
             </CFormSelect>

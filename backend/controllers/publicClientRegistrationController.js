@@ -28,6 +28,7 @@ const resolveLink = async (req, res) => {
         label: link.label,
         expiresAt: link.expiresAt,
         otpRequired: await registrationOtpService.isEnabled(),
+        kycDocumentsRequired: await selfRegistrationService.areKycDocumentsRequired(),
       },
     });
   } catch (err) {

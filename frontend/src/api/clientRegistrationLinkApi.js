@@ -49,7 +49,7 @@ export const revokeLink = async (id) => {
 
 const base = (token) => `/public/client-registration/${encodeURIComponent(token)}`
 
-/** @returns {Promise<{ label: string|null, expiresAt: string, otpRequired: boolean }>} */
+/** @returns {Promise<{ label: string|null, expiresAt: string, otpRequired: boolean, kycDocumentsRequired: boolean }>} */
 export const resolveLink = async (token) => {
   const res = await http.get(base(token), { auth: false })
   return res?.data

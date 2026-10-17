@@ -14,6 +14,16 @@ const { v4: uuidv4 } = require('uuid');
 const AuditLogger = require('../utils/auditLogger');
 const creditScoreService = require('./creditScoreService');
 const clientRegistrationOtpService = require('./clientRegistrationOtpService');
+const documentService = require('./documentService');
+const DocumentCategory = require('../enums/documentCategory');
+const DocumentVerificationStatus = require('../enums/documentVerificationStatus');
+
+// Values are enum constants, never user input, so inlining them in SQL is safe.
+const AWAITING_DOC_ACTION_SQL = `"Client"."id" IN (SELECT d.client_id FROM documents d
+  WHERE d.client_id IS NOT NULL
+    AND d.document_category = '${DocumentCategory.CLIENT_KYC}'
+    AND d.status <> '${DocumentStatus.DELETED}'
+    AND d.verification_status IN ('${DocumentVerificationStatus.PENDING_REVIEW}', '${DocumentVerificationStatus.CHANGE_REQUESTED}'))`;
 
 const clientService = {
   // ✅ Create client 
@@ -94,7 +104,7 @@ const clientService = {
   },
 
   // ✅ Get clients (keyset paginated + filtered), newest first
-  async getAllClients({ cursor, direction, limit = 20, search, status, kycStatus, queueOnly } = {}) {
+  async getAllClients({ cursor, direction, limit = 20, search, status, kycStatus, queueOnly, docActionOnly } = {}) {
     try {
       const where = { [Op.and]: [] };
 
@@ -105,6 +115,7 @@ const clientService = {
       }
 
       if (kycStatus) where.kycStatus = kycStatus;
+      if (docActionOnly === 'true' || docActionOnly === true) where[Op.and].push(Sequelize.literal(AWAITING_DOC_ACTION_SQL));
 
       const tsQuery = buildPrefixTsQuery(search);
       if (tsQuery) where[Op.and].push(Sequelize.literal(`${clientSearchVector('Client')} @@ (${tsQuery})`));
@@ -242,6 +253,14 @@ const clientService = {
       const client = await Client.findByPk(id);
       if (!client) throw Object.assign(new Error('Client not found'), { statusCode: 404 });
 
+      const awaitingReupload = await documentService.countClientDocumentsAwaitingReupload(id);
+      if (awaitingReupload > 0) {
+        throw Object.assign(
+          new Error(`${awaitingReupload} KYC document(s) are still awaiting re-upload. Verify or clear them before verifying KYC.`),
+          { statusCode: 422 }
+        );
+      }
+
       await client.update({
         kycStatus: KycStatus.VERIFIED,
         kycVerifiedAt: new Date(),
@@ -250,6 +269,8 @@ const clientService = {
         status: ClientStatus.ACTIVE,
         isActive: true
       });
+
+      await documentService.verifyPendingClientDocuments(id, actorId);
 
       await AuditLogger.log({
         entityType: 'CLIENT',

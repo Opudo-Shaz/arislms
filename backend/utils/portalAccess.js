@@ -22,13 +22,16 @@ const STATUS_REASONS = {
 /** Machine-readable code the frontend uses to end the session and show the reason. */
 const PORTAL_ACCESS_DENIED = 'PORTAL_ACCESS_DENIED';
 
+// Reverification clients need the portal to re-upload KYC files; loan creation re-checks status itself.
+const PORTAL_STATUSES = [ClientStatus.ACTIVE, ClientStatus.PENDING_KYC_REVERIFICATION];
+
 /**
  * @param {{status: string, isActive: boolean, portalEnabled: boolean}} client
  * @returns {string|null} reason the client can't use the portal, or null if they can
  */
 function portalAccessDenialReason(client) {
   if (!client) return null;
-  if (client.status !== ClientStatus.ACTIVE) {
+  if (!PORTAL_STATUSES.includes(client.status)) {
     return STATUS_REASONS[client.status] || `Online access isn't available for your account. ${SUPPORT}.`;
   }
   if (!client.isActive) return STATUS_REASONS[ClientStatus.INACTIVE];

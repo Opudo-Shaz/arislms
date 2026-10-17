@@ -1,6 +1,8 @@
 const documentService = require('../services/documentService');
 const logger = require('../config/logger');
 const { getUserId } = require('../utils/helpers');
+const { validateSync } = require('../utils/validationMiddleware');
+const DocumentRequestDto = require('../dtos/document/DocumentRequestDto');
 
 const documentController = {
 
@@ -108,6 +110,23 @@ const documentController = {
     }
   },
 
+  // PATCH /api/documents/:id/verification
+  async setVerificationStatus(req, res) {
+    const validation = validateSync(req.body, DocumentRequestDto.verificationSchema);
+    if (!validation.valid) {
+      return res.status(400).json({ success: false, message: 'Validation error', errors: validation.errors });
+    }
+    try {
+      const doc = await documentService.setVerificationStatus(
+        req.params.id, validation.value, req.user, req.headers['user-agent']
+      );
+      return res.status(200).json({ success: true, message: 'Document verification updated', data: doc });
+    } catch (error) {
+      logger.error(`Set Document Verification Error: ${error.message}`);
+      return res.status(error.statusCode || error.status || 500).json({ success: false, message: error.message });
+    }
+  },
+
   // DELETE /api/documents/:id
   async deleteDocument(req, res) {
     try {
@@ -135,39 +154,40 @@ const documentController = {
   // GET /api/documents/:id/download
   async downloadDocument(req, res) {
     try {
-      const { filePath, stream, contentLength, mimeType, originalName } = await documentService.getDownloadInfo(req.params.id);
-
-      // Strip CR/LF/quotes from the user-supplied filename before it goes into a header value,
-      // to prevent header injection / response splitting.
-      const safeName = String(originalName || 'download').replace(/["\r\n]/g, '_');
-
-      if (stream) {
-        res.setHeader('Content-Type', mimeType || 'application/octet-stream');
-        if (contentLength) res.setHeader('Content-Length', contentLength);
-        res.setHeader('Cache-Control', 'private, no-store');
-        res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
-
-        stream.on('error', (err) => {
-          logger.error(`Download Document Stream Error: ${err.message}`);
-          if (!res.headersSent) {
-            res.status(500).json({ success: false, message: 'Error streaming file' });
-          } else {
-            res.destroy(err);
-          }
-        });
-
-        return stream.pipe(res);
-      }
-
-      res.setHeader('Content-Type', mimeType || 'application/octet-stream');
-      res.setHeader('Cache-Control', 'private, no-store');
-      res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
-      return res.sendFile(filePath);
+      return sendDocumentFile(res, await documentService.getDownloadInfo(req.params.id));
     } catch (error) {
       logger.error(`Download Document Error: ${error.message}`);
       return res.status(error.statusCode || 500).json({ success: false, message: error.message });
     }
   },
 };
+
+/** Stream or send a file returned by documentService.getDownloadInfo (shared with the client portal). */
+function sendDocumentFile(res, { filePath, stream, contentLength, mimeType, originalName }) {
+  // Strip CR/LF/quotes from the user-supplied filename before it goes into a header value,
+  // to prevent header injection / response splitting.
+  const safeName = String(originalName || 'download').replace(/["\r\n]/g, '_');
+
+  res.setHeader('Content-Type', mimeType || 'application/octet-stream');
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+
+  if (stream) {
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+    stream.on('error', (err) => {
+      logger.error(`Download Document Stream Error: ${err.message}`);
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, message: 'Error streaming file' });
+      } else {
+        res.destroy(err);
+      }
+    });
+    return stream.pipe(res);
+  }
+
+  return res.sendFile(filePath);
+}
+
+documentController.sendDocumentFile = sendDocumentFile;
 
 module.exports = documentController;

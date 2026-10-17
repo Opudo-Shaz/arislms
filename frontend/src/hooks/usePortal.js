@@ -22,6 +22,7 @@ export const portalKeys = {
   payments: (params) => [...portalKeys.all, 'payments', params],
   paymentReports: (params) => [...portalKeys.all, 'paymentReports', params],
   products: () => [...portalKeys.all, 'products'],
+  documents: () => [...portalKeys.all, 'documents'],
 }
 
 export const usePortalMe = () => useQuery({ queryKey: portalKeys.me(), queryFn: portalApi.getMe })
@@ -92,6 +93,25 @@ export const useSubmitPaymentReport = () => {
   return useMutation({
     mutationFn: (payload) => portalApi.submitPaymentReport(payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: [...portalKeys.all, 'paymentReports'] }),
+  })
+}
+
+export const usePortalDocuments = ({ enabled = true } = {}) =>
+  useQuery({ queryKey: portalKeys.documents(), queryFn: portalApi.listMyDocuments, enabled })
+
+export const useUploadPortalDocument = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload) => portalApi.uploadMyDocument(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: portalKeys.documents() }),
+  })
+}
+
+export const useRequestDocumentChange = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, reason }) => portalApi.requestDocumentChange(id, reason),
+    onSuccess: () => qc.invalidateQueries({ queryKey: portalKeys.documents() }),
   })
 }
 

@@ -320,7 +320,7 @@ const ClientDetail = () => {
             </CCardBody>
           </CCard>
 
-          <ClientDocuments clientId={id} />
+          <ClientDocuments clientId={id} clientStatus={client.status} />
         </CCol>
 
         <CCol lg={4}>

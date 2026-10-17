@@ -186,15 +186,15 @@ module.exports = {
         }
       })
 
-      if (!entry || !entry.isActive) return defaultValue
+      if (!entry) return defaultValue
 
-      // Boolean configs: the value IS isActive; the text value is irrelevant
+      // Boolean configs: the value IS isActive (so an inactive row means false, not "missing")
       if (entry.isBoolean) {
         if (type === 'boolean') return entry.isActive
         return defaultValue
       }
 
-      if (entry.rawValue == null) return defaultValue
+      if (!entry.isActive || entry.rawValue == null) return defaultValue
 
       switch (type) {
         case 'number': {

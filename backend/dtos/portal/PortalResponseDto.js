@@ -1,6 +1,7 @@
 const LoanResponseDto = require('../loan/LoanResponseDto');
 const { maskName } = require('../../utils/helpers');
 const CreditScoreResponseDto = require('../creditScore/CreditScoreResponseDto');
+const ClientStatus = require('../../enums/clientStatus');
 
 /**
  * Client-facing response shapes. These wrap the staff DTOs but drop internal
@@ -27,10 +28,26 @@ function PortalProfileDto(client) {
     preferredContactMethod: client.preferredContactMethod,
     status: client.status,
     kycStatus: client.kycStatus,
+    // Reviewer notes are only addressed to the client while we're asking them for documents.
+    kycNotes: client.status === ClientStatus.PENDING_KYC_REVERIFICATION ? client.kycNotes : null,
     kycVerifiedAt: client.kycVerifiedAt,
     loanTenure: client.loanTenure,
     lastLoginAt: client.lastLoginAt,
     creditScore: score ? PortalCreditScoreDto(score) : null,
+  };
+}
+
+function PortalDocumentDto(doc) {
+  return {
+    id: doc.id,
+    documentType: doc.documentType,
+    originalName: doc.originalName,
+    mimeType: doc.mimeType,
+    fileSize: doc.fileSize,
+    verificationStatus: doc.verificationStatus,
+    verificationNotes: doc.verificationNotes,
+    expiresAt: doc.expiresAt,
+    updatedAt: doc.updatedAt ?? doc.updated_at,
   };
 }
 
@@ -162,4 +179,5 @@ module.exports = {
   PortalPaymentDto,
   PaymentReportDto,
   PortalLoanProductDto,
+  PortalDocumentDto,
 };

@@ -83,9 +83,11 @@ export const useClientAction = () => {
           return clientApi.changeClientStatus(id, action, notes)
       }
     },
-    onSuccess: (_data, { id }) => {
+    onSuccess: (_data, { id, action }) => {
       qc.invalidateQueries({ queryKey: clientKeys.lists() })
       qc.invalidateQueries({ queryKey: clientKeys.detail(id) })
+      // Verifying KYC also marks the client's pending KYC files verified.
+      if (action === 'verify') qc.invalidateQueries({ queryKey: ['documents', 'client', String(id)] })
     },
   })
 }
