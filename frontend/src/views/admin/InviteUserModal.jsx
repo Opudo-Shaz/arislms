@@ -32,6 +32,7 @@ import {
 import { useCreateInvitation } from '../../hooks/useInvitations'
 import { useRoles } from '../../hooks/useRoles'
 import { useAuth } from '../../context/AuthContext'
+import PhoneInput from '../../components/PhoneInput'
 
 const emptyForm = {
   email: '',
@@ -194,7 +195,11 @@ const InviteUserModal = ({ visible, onClose }) => {
 
               <CCol md={6}>
                 <CFormLabel>Phone</CFormLabel>
-                <CFormInput value={form.phone} onChange={setField('phone')} placeholder="1234567 (optional)" />
+                <PhoneInput
+                  value={form.phone}
+                  onChange={(phone) => setForm((f) => ({ ...f, phone }))}
+                  placeholder="712345678 (optional)"
+                />
               </CCol>
             </CRow>
             <div className="text-body-secondary small mt-3">

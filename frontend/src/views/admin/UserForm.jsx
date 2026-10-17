@@ -33,6 +33,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useCreateUser, useUpdateUser } from '../../hooks/useUsers'
 import { useRoles } from '../../hooks/useRoles'
 import { useAuth } from '../../context/AuthContext'
+import PhoneInput from '../../components/PhoneInput'
 
 const emptyForm = {
   first_name: '',
@@ -175,7 +176,11 @@ const UserForm = ({ visible, user, onClose }) => {
             </CCol>
             <CCol md={6}>
               <CFormLabel>Phone</CFormLabel>
-              <CFormInput value={form.phone} onChange={setField('phone')} placeholder="1234567" />
+              <PhoneInput
+                value={form.phone}
+                onChange={(phone) => setForm((f) => ({ ...f, phone }))}
+                placeholder="712345678"
+              />
             </CCol>
 
             <CCol md={4}>

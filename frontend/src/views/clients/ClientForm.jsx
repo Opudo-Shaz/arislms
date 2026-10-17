@@ -30,6 +30,8 @@ import { useClient, useCreateClient, useUpdateClient } from '../../hooks/useClie
 import { useClientRegistrationConfig } from '../../hooks/useClientRegistrationLinks'
 import clientApi from '../../api/clientApi'
 import { useAuth } from '../../context/AuthContext'
+import PhoneInput from '../../components/PhoneInput'
+import swal from '../../utils/useSweetAlert'
 
 const GENDERS = ['male', 'female', 'other']
 const CONTACT_METHODS = ['email', 'phone', 'sms']
@@ -141,7 +143,6 @@ const ClientForm = () => {
   const saving = createMutation.isPending || updateMutation.isPending
 
   const [form, setForm] = useState(emptyForm)
-  const [errors, setErrors] = useState(null)
 
   // Phone verification, enforced server-side when client.registration.enable_otp is on.
   const { data: regConfig } = useClientRegistrationConfig(!isEdit)
@@ -184,16 +185,20 @@ const ClientForm = () => {
   if (!canSubmit) return <Navigate to="/unauthorized" replace />
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  const dobUnderAge = Boolean(form.dateOfBirth) && form.dateOfBirth > adultCutoff()
+
+  const fireError = (message, details) => {
+    swal.alert.error(isEdit ? 'Client Update Failed' : 'Client Creation Failed', message, details)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setErrors(null)
     if (otpRequired && !phoneVerified) {
-      setErrors({ message: 'Verify the client\u2019s phone number before creating the client.' })
+      fireError('Verify phone number before creating the client.')
       return
     }
     if (form.dateOfBirth && form.dateOfBirth > adultCutoff()) {
-      setErrors({ message: 'Client must be at least 18 years old.' })
+      fireError('Client must be at least 18 years old.')
       return
     }
     const payload = toPayload(form)
@@ -207,7 +212,7 @@ const ClientForm = () => {
         navigate(created?.id ? `/clients/${created.id}` : '/clients')
       }
     } catch (err) {
-      setErrors(err)
+      fireError(err.message || 'Failed to save client.', err.data?.errors)
     }
   }
 
@@ -225,19 +230,6 @@ const ClientForm = () => {
         <strong>{isEdit ? 'Edit Client' : 'New Client'}</strong>
       </CCardHeader>
       <CCardBody>
-        {errors && (
-          <CAlert color="danger" dismissible onClose={() => setErrors(null)}>
-            <div>{errors.message || 'Failed to save client.'}</div>
-            {Array.isArray(errors.data?.errors) && (
-              <ul className="mb-0 mt-2">
-                {errors.data.errors.map((m, i) => (
-                  <li key={i}>{typeof m === 'string' ? m : m.message}</li>
-                ))}
-              </ul>
-            )}
-          </CAlert>
-        )}
-
         <CForm onSubmit={handleSubmit}>
           <CRow className="g-3">
             <CCol md={6}>
@@ -248,17 +240,26 @@ const ClientForm = () => {
               <CFormLabel>Last name <span className="text-danger">*</span></CFormLabel>
               <CFormInput value={form.lastName} onChange={setField('lastName')} required />
             </CCol>
-            <CCol md={6}>
+            <CCol md={4}>
               <CFormLabel>Email</CFormLabel>
               <CFormInput type="email" value={form.email} onChange={setField('email')} />
             </CCol>
-            <CCol md={3}>
+            <CCol md={4}>
               <CFormLabel>Phone <span className="text-danger">*</span></CFormLabel>
-              <CFormInput value={form.phone} onChange={setField('phone')} required />
+              <PhoneInput
+                value={form.phone}
+                onChange={(phone) => setForm((f) => ({ ...f, phone }))}
+                placeholder="712345678"
+                required
+              />
             </CCol>
-            <CCol md={3}>
+            <CCol md={4}>
               <CFormLabel>Secondary phone</CFormLabel>
-              <CFormInput value={form.secondaryPhone} onChange={setField('secondaryPhone')} />
+              <PhoneInput
+                value={form.secondaryPhone}
+                onChange={(secondaryPhone) => setForm((f) => ({ ...f, secondaryPhone }))}
+                placeholder="712345678"
+              />
             </CCol>
             <CCol md={3}>
               <CFormLabel>Account number</CFormLabel>
@@ -271,6 +272,8 @@ const ClientForm = () => {
                 max={adultCutoff()}
                 value={form.dateOfBirth}
                 onChange={setField('dateOfBirth')}
+                invalid={dobUnderAge}
+                feedbackInvalid="Client must be at least 18 years old."
               />
             </CCol>
             <CCol md={3}>

@@ -14,15 +14,13 @@ import PropTypes from 'prop-types'
 import {
   CAlert,
   CButton,
-  CFormInput,
   CFormLabel,
-  CInputGroup,
-  CInputGroupText,
   CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilCheckCircle, cilPhone } from '@coreui/icons'
+import { cilCheckCircle } from '@coreui/icons'
 import portalApi from '../../api/portalApi'
+import PhoneInput from '../PhoneInput'
 
 const CoSignerPicker = ({ value, onChange, id = 'co-signer-phone', disabled = false }) => {
   const [phone, setPhone] = useState('')
@@ -73,31 +71,28 @@ const CoSignerPicker = ({ value, onChange, id = 'co-signer-phone', disabled = fa
   return (
     <div>
       <CFormLabel htmlFor={id}>Co-signer&apos;s phone number</CFormLabel>
-      <CInputGroup>
-        <CInputGroupText>
-          <CIcon icon={cilPhone} />
-        </CInputGroupText>
-        <CFormInput
-          id={id}
-          type="tel"
-          inputMode="tel"
-          placeholder="e.g. 0712 345 678"
-          value={phone}
-          disabled={disabled || looking}
-          onChange={(e) => setPhone(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              if (phone.trim()) lookup()
-            }
-          }}
-        />
+      <div className="d-flex gap-2">
+        <div className="flex-grow-1">
+          <PhoneInput
+            id={id}
+            value={phone}
+            onChange={setPhone}
+            placeholder="712345678"
+            disabled={disabled || looking}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                if (phone.trim()) lookup()
+              }
+            }}
+          />
+        </div>
         <CButton type="button" color="secondary" variant="outline" disabled={disabled || looking || !phone.trim()} onClick={lookup}>
           {looking ? <CSpinner size="sm" /> : 'Find'}
         </CButton>
-      </CInputGroup>
+      </div>
       <div className="form-text">
-        Your co-signer must be a registered client with verified identity. Enter the phone number they registered with.
+        Your co-signer must be a registered client with verified identity. Enter the phone number they registered with and pick its country code.
       </div>
       {error ? <CAlert color="warning" className="py-2 mt-2 mb-0 small">{error}</CAlert> : null}
     </div>

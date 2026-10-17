@@ -34,6 +34,7 @@ import CIcon from '@coreui/icons-react'
 import { cilCloudUpload, cilFile, cilTrash } from '@coreui/icons'
 
 import StatusBadge from '../../../components/StatusBadge'
+import PhoneInput from '../../../components/PhoneInput'
 import { CLIENT_KYC_DOCUMENT_TYPES, DOCUMENT_TYPE } from '../../../constants/enums'
 import { useResolveRegistrationLink } from '../../../hooks/useClientRegistrationLinks'
 import api from '../../../api/clientRegistrationLinkApi'
@@ -139,8 +140,9 @@ const validateFields = (fields, form, files, verified) => {
     if (!form.dateOfBirth) errors.dateOfBirth = 'Date of birth is required'
     else if (form.dateOfBirth > adultCutoff()) errors.dateOfBirth = 'You must be at least 18 years old to register'
     if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errors.email = 'Enter a valid email address'
-    if (form.phone.replace(/\D/g, '').length < 9) errors.phone = 'Enter a valid phone number'
-    if (form.secondaryPhone.trim() && form.secondaryPhone.replace(/\D/g, '').length < 9) {
+    // Digits include the 3-digit country code.
+    if (form.phone.replace(/\D/g, '').length < 11) errors.phone = 'Enter a valid phone number'
+    if (form.secondaryPhone.trim() && form.secondaryPhone.replace(/\D/g, '').length < 11) {
       errors.secondaryPhone = 'Enter a valid phone number'
     }
   }
@@ -284,8 +286,7 @@ const ClientRegistration = () => {
   const step = steps[Math.min(stepIndex, steps.length - 1)]
   const phoneVerified = Boolean(verification && verification.phone === form.phone.trim())
 
-  const setField = (key) => (e) => {
-    const { value } = e.target
+  const setValue = (key, value) => {
     setForm((f) => ({ ...f, [key]: value }))
     setFieldErrors((errs) => {
       if (!errs[key]) return errs
@@ -294,6 +295,7 @@ const ClientRegistration = () => {
       return next
     })
   }
+  const setField = (key) => (e) => setValue(key, e.target.value)
 
   // Adding a type that is already in the list replaces it, as the server keeps one document per type.
   const addDocument = () => {
@@ -550,10 +552,20 @@ const ClientRegistration = () => {
             <CFormInput type="email" value={form.email} onChange={setField('email')} invalid={invalid('email')} autoComplete="email" />
           </Field>
           <Field label="Phone *" error={fe('phone')}>
-            <CFormInput value={form.phone} onChange={setField('phone')} invalid={invalid('phone')} placeholder="0712 345 678" autoComplete="tel" />
+            <PhoneInput
+              value={form.phone}
+              onChange={(phone) => setValue('phone', phone)}
+              invalid={invalid('phone')}
+              placeholder="712345678"
+            />
           </Field>
           <Field label="Secondary phone" error={fe('secondaryPhone')}>
-            <CFormInput value={form.secondaryPhone} onChange={setField('secondaryPhone')} invalid={invalid('secondaryPhone')} />
+            <PhoneInput
+              value={form.secondaryPhone}
+              onChange={(secondaryPhone) => setValue('secondaryPhone', secondaryPhone)}
+              invalid={invalid('secondaryPhone')}
+              placeholder="712345678"
+            />
           </Field>
         </CRow>
       )}

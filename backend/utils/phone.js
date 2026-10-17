@@ -1,4 +1,5 @@
-const { parsePhoneNumberFromString } = require('libphonenumber-js');
+// Mobile metadata: isValid() only accepts mobile numbers (SMS/OTP need one), so valid landlines are rejected.
+const { parsePhoneNumberFromString } = require('libphonenumber-js/mobile');
 const Joi = require('joi');
 
 /**

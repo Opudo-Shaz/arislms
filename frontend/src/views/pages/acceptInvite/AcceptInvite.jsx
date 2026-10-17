@@ -32,6 +32,7 @@ import { Eye, EyeOff } from 'lucide-react'
 
 import { useVerifyInvitation, useAcceptInvitation } from '../../../hooks/useInvitations'
 import { ApiError } from '../../../api'
+import PhoneInput from '../../../components/PhoneInput'
 import arislmsLogoDefault from '../../../assets/brand/arislms_logo_fit.png'
 import arislmsLogoDark from '../../../assets/brand/arislms_logo_dark.png'
 
@@ -203,11 +204,11 @@ const AcceptInvite = () => {
 
                       <CCol md={6}>
                         <label className="form-label">Phone{invitation.phone ? '' : <span className="text-danger"> *</span>}</label>
-                        <CFormInput
+                        <PhoneInput
                           value={form.phone}
-                          onChange={setField('phone')}
+                          onChange={(phone) => setForm((f) => ({ ...f, phone }))}
                           required={!invitation.phone}
-                          placeholder="1234567"
+                          placeholder="712345678"
                         />
                       </CCol>
                       <CCol md={6}>
