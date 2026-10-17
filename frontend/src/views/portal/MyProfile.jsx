@@ -22,6 +22,7 @@ import {
 } from '@coreui/react'
 
 import StatusBadge from '../../components/StatusBadge'
+import PhoneInput from '../../components/PhoneInput'
 import MyKycDocuments from './MyKycDocuments'
 import { usePortalMe, useUpdatePortalMe } from '../../hooks/usePortal'
 import { CLIENT_STATUS, KYC_STATUS } from '../../constants/enums'
@@ -54,10 +55,15 @@ const ContactForm = ({ me }) => {
 
   const saved = fromProfile(me)
   const dirty = Object.keys(saved).some((k) => form[k] !== saved[k])
+  const digits = (s) => String(s || '').replace(/\D/g, '')
+  // Compare the last 9 digits so 07xx / 7xx / +2547xx forms of the same number match.
+  const sameAsPrimary = Boolean(form.secondaryPhone.trim()) &&
+    digits(form.secondaryPhone).slice(-9) === digits(me.phone).slice(-9)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setFormError(null)
+    if (sameAsPrimary) return
     try {
       await update.mutateAsync({
         email: form.email.trim() || null,
@@ -86,13 +92,16 @@ const ContactForm = ({ me }) => {
       </div>
       <div className="mb-3">
         <CFormLabel htmlFor="pf-phone2">Alternative phone</CFormLabel>
-        <CFormInput
+        <PhoneInput
           id="pf-phone2"
-          type="tel"
-          inputMode="tel"
           value={form.secondaryPhone}
-          onChange={(e) => setForm((f) => ({ ...f, secondaryPhone: e.target.value }))}
+          onChange={(secondaryPhone) => setForm((f) => ({ ...f, secondaryPhone }))}
+          invalid={sameAsPrimary}
+          placeholder="712345678"
         />
+        {sameAsPrimary && (
+          <div className="invalid-feedback d-block">Must be different from your sign-in phone number.</div>
+        )}
       </div>
       <div className="mb-4">
         <CFormLabel htmlFor="pf-contact">Preferred contact method</CFormLabel>
@@ -107,7 +116,7 @@ const ContactForm = ({ me }) => {
           <option value="phone">Phone call</option>
         </CFormSelect>
       </div>
-      <CButton color="primary" type="submit" disabled={!dirty || update.isPending}>
+      <CButton color="primary" type="submit" disabled={!dirty || sameAsPrimary || update.isPending}>
         {update.isPending ? <CSpinner size="sm" /> : 'Save changes'}
       </CButton>
     </CForm>

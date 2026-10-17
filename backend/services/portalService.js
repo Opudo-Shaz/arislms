@@ -8,6 +8,7 @@ const LoanStatus = require('../enums/loanStatus');
 const AuditLogger = require('../utils/auditLogger');
 const { paginateKeyset } = require('../utils/keysetPagination');
 const { invalidateAuthClient } = require('../utils/clientAuthCache');
+const { normalizePhone } = require('../utils/phone');
 const logger = require('../config/logger');
 
 /**
@@ -73,6 +74,13 @@ const portalService = {
       if (data[field] !== undefined) changes[field] = data[field];
     }
     if (!Object.keys(changes).length) return client;
+
+    if (changes.secondaryPhone && normalizePhone(changes.secondaryPhone) === normalizePhone(client.phone)) {
+      throw Object.assign(new Error('Alternative phone must be different from your sign-in phone number'), {
+        statusCode: 400,
+        errors: [{ field: 'secondaryPhone', message: 'Alternative phone must be different from your sign-in phone number' }],
+      });
+    }
 
     if (changes.email && changes.email !== client.email) {
       const taken = await Client.findOne({ where: { email: changes.email }, attributes: ['id'] });

@@ -144,6 +144,8 @@ const validateFields = (fields, form, files, verified, kycRequired = true) => {
     if (form.phone.replace(/\D/g, '').length < 11) errors.phone = 'Enter a valid phone number'
     if (form.secondaryPhone.trim() && form.secondaryPhone.replace(/\D/g, '').length < 11) {
       errors.secondaryPhone = 'Enter a valid phone number'
+    } else if (form.secondaryPhone.trim() && form.secondaryPhone.replace(/\D/g, '') === form.phone.replace(/\D/g, '')) {
+      errors.secondaryPhone = 'Secondary phone must be different from your primary phone'
     }
   }
 

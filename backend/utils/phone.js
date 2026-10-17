@@ -64,15 +64,21 @@ function normalizePhone(value, defaultCountry = DEFAULT_COUNTRY) {
  * @param {boolean} [opts.allowEmpty=true]    - accept null / '' (ignored when required)
  * @param {string}  [opts.defaultCountry]     - override the default region
  * @param {string}  [opts.label='Phone']      - human label used in messages
+ * @param {string}  [opts.distinctFrom]       - sibling phone key this one must differ from (e.g. 'phone')
  * @returns {Joi.StringSchema}
  */
-function phoneSchema({ required = false, allowEmpty = true, defaultCountry = DEFAULT_COUNTRY, label = 'Phone' } = {}) {
+function phoneSchema({ required = false, allowEmpty = true, defaultCountry = DEFAULT_COUNTRY, label = 'Phone', distinctFrom } = {}) {
   let schema = Joi.string().trim().custom((value, helpers) => {
     const normalized = normalizePhone(value, defaultCountry);
     if (!normalized) return helpers.error('phone.invalid');
+    if (distinctFrom) {
+      const sibling = helpers.state.ancestors[0]?.[distinctFrom];
+      if (sibling && normalizePhone(sibling, defaultCountry) === normalized) return helpers.error('phone.duplicate');
+    }
     return normalized;
   }, 'phone validation').messages({
     'phone.invalid': `${label} must be a valid phone number`,
+    'phone.duplicate': `${label} must be different from the primary phone number`,
     'any.required': `${label} is required`,
     'string.empty': `${label} is required`,
   });

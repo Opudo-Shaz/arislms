@@ -25,7 +25,7 @@ class ClientRegistrationRequestDto {
     email: Joi.string().trim().lowercase().email().max(255).allow('', null)
       .messages({ 'string.email': 'Email must be a valid email address' }),
     phone: phoneSchema({ required: true, label: 'Phone' }),
-    secondaryPhone: phoneSchema({ label: 'Secondary phone' }).allow('', null),
+    secondaryPhone: phoneSchema({ label: 'Secondary phone', distinctFrom: 'phone' }).allow('', null),
     dateOfBirth: Joi.date().iso().custom(adult).required()
       .messages({
         'date.base': 'Date of birth must be a valid date',

@@ -186,6 +186,8 @@ const ClientForm = () => {
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
   const dobUnderAge = Boolean(form.dateOfBirth) && form.dateOfBirth > adultCutoff()
+  const sameSecondaryPhone = Boolean(form.secondaryPhone.trim()) &&
+    form.secondaryPhone.replace(/\D/g, '') === form.phone.replace(/\D/g, '')
 
   const fireError = (message, details) => {
     swal.alert.error(isEdit ? 'Client Update Failed' : 'Client Creation Failed', message, details)
@@ -199,6 +201,10 @@ const ClientForm = () => {
     }
     if (form.dateOfBirth && form.dateOfBirth > adultCutoff()) {
       fireError('Client must be at least 18 years old.')
+      return
+    }
+    if (sameSecondaryPhone) {
+      fireError('Secondary phone must be different from the primary phone number.')
       return
     }
     const payload = toPayload(form)
@@ -259,7 +265,11 @@ const ClientForm = () => {
                 value={form.secondaryPhone}
                 onChange={(secondaryPhone) => setForm((f) => ({ ...f, secondaryPhone }))}
                 placeholder="712345678"
+                invalid={sameSecondaryPhone}
               />
+              {sameSecondaryPhone && (
+                <div className="invalid-feedback d-block">Must be different from the primary phone.</div>
+              )}
             </CCol>
             <CCol md={3}>
               <CFormLabel>Account number</CFormLabel>

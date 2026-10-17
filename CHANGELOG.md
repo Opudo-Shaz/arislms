@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Features merged after v1.2.0 will be documented here as they land, then rolled
 into the next dated release section below when that version ships.
 
+### Added
+
+- **Client welcome email** — the first time a client's KYC is verified (and the
+  account becomes active), the client is emailed their account number and a
+  portal sign-in button with a copy-paste fallback link
+  (`{FRONTEND_URL}/portal/login`). Re-verifications don't resend it. Uses the new
+  `client_welcome` notification template (email only by default; SMS, push and
+  in-app can be enabled from the template). Existing installs must run the
+  **Notification Templates** seeder to add it.
+
 ## [1.2.0] - 2026-10-16
 
 Third release of Aris LMS, adding the client self-service portal and

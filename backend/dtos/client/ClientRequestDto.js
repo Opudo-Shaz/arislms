@@ -64,7 +64,7 @@ class ClientRequestDto {
 
     phone: phoneSchema({ required: true, label: 'Phone' }),
 
-    secondaryPhone: phoneSchema({ label: 'Secondary phone' }),
+    secondaryPhone: phoneSchema({ label: 'Secondary phone', distinctFrom: 'phone' }),
 
     dateOfBirth: Joi.date().iso().custom(adult).allow(null, '')
       .messages({

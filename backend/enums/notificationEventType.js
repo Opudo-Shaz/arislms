@@ -14,4 +14,5 @@ module.exports = Object.freeze({
   PAYMENT_REPORT_REJECTED: 'payment_report_rejected',
   CO_SIGNER_CONSENT_REQUEST: 'co_signer_consent_request',
   CO_SIGNER_CONSENT_RESPONDED: 'co_signer_consent_responded',
+  CLIENT_WELCOME: 'client_welcome',
 });

@@ -14,9 +14,16 @@ const { v4: uuidv4 } = require('uuid');
 const AuditLogger = require('../utils/auditLogger');
 const creditScoreService = require('./creditScoreService');
 const clientRegistrationOtpService = require('./clientRegistrationOtpService');
+const { normalizePhone } = require('../utils/phone');
 const documentService = require('./documentService');
 const DocumentCategory = require('../enums/documentCategory');
 const DocumentVerificationStatus = require('../enums/documentVerificationStatus');
+const NotificationEventType = require('../enums/notificationEventType');
+const { buildRecipients, safeNotify } = require('./notification/notificationTriggers');
+
+const escapeHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 // Values are enum constants, never user input, so inlining them in SQL is safe.
 const AWAITING_DOC_ACTION_SQL = `"Client"."id" IN (SELECT d.client_id FROM documents d
@@ -194,6 +201,16 @@ const clientService = {
 
       const oldData = client.toJSON();
       if (data.email === '') data.email = null;
+
+      // Partial updates may send only one of the two numbers, so compare against what's stored.
+      const nextPhone = data.phone !== undefined ? data.phone : client.phone;
+      const nextSecondary = data.secondaryPhone !== undefined ? data.secondaryPhone : client.secondaryPhone;
+      if (nextSecondary && nextPhone && normalizePhone(nextSecondary) === normalizePhone(nextPhone)) {
+        throw Object.assign(new Error('Secondary phone must be different from the primary phone number'), {
+          statusCode: 400,
+          errors: [{ field: 'secondaryPhone', message: 'Secondary phone must be different from the primary phone number' }],
+        });
+      }
       await client.update(data);
 
       // Log to audit table after successful update
@@ -261,6 +278,9 @@ const clientService = {
         );
       }
 
+      // kycVerifiedAt is only ever set here, so a null value means this is the client's first verification.
+      const isFirstVerification = !client.kycVerifiedAt;
+
       await client.update({
         kycStatus: KycStatus.VERIFIED,
         kycVerifiedAt: new Date(),
@@ -286,11 +306,30 @@ const clientService = {
       // Run credit scoring after KYC verification
       await this._computeAndSaveCreditScore(id, actorId, userAgent);
 
+      if (isFirstVerification) await this._sendWelcomeNotification(client);
+
       return client;
     } catch (error) {
       logger.error(`Error verifying KYC for client ID ${id}: ${error.message}`);
       throw error;
     }
+  },
+
+  // Welcome message with the account number and portal login link; never throws.
+  async _sendWelcomeNotification(client) {
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const clientName = [client.firstName, client.lastName].filter(Boolean).join(' ');
+
+    await safeNotify(NotificationEventType.CLIENT_WELCOME, {
+      recipients: buildRecipients({ client }),
+      context: {
+        appName: escapeHtml(process.env.APP_NAME || 'ARISLMS'),
+        clientName: escapeHtml(clientName || 'there'),
+        accountNumber: escapeHtml(client.accountNumber),
+        portalLoginUrl: escapeHtml(`${frontendUrl}/portal/login`),
+      },
+      dedupeKey: `client-welcome-${client.id}`,
+    });
   },
 
   // ✅ KYC: request-info — sets kycStatus=in_progress, status=pending_kyc_reverification, stores kycNotes
