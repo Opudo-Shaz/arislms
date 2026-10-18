@@ -31,6 +31,15 @@ const codes = [
       { value: 'widowed', description: 'Widowed', sortOrder: 4 },
     ],
   },
+  {
+    key: 'SMS_PROVIDER',
+    name: 'Bulk sms provider',
+    description: 'Bulk sms provider',
+    values: [
+      { value: 'stub', description: 'stub - fallback, log and alert only', sortOrder: 0 },
+      { value: 'ping-africa', description: 'Ping Africa', sortOrder: 1 },
+    ],
+  },
 ];
 
 async function seedCodes() {

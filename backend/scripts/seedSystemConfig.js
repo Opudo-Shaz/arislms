@@ -15,6 +15,8 @@
  */
 
 const SystemConfig = require('../models/systemConfigModel');
+const SystemConfigCodeRelation = require('../models/systemConfigCodeRelationModel');
+const Code = require('../models/codeModel');
 
 const defaults = [
   // ── Storage ────────────────────────────────────────────────────────────
@@ -298,7 +300,7 @@ const defaults = [
     label: 'SMS Notifications Enabled',
     value: null,
     category: 'notifications',
-    description: 'Global on/off switch for the SMS notification channel. No SMS provider is configured yet — sends will fail until one is added.',
+    description: 'Global on/off switch for the SMS notification channel. Requires a working sms.provider (see SMS Provider config).',
     isBoolean: true,
     isActive: true,
     isReadOnly: false,
@@ -328,7 +330,40 @@ const defaults = [
     label: 'SMS Provider',
     value: 'stub',
     category: 'notifications',
-    description: 'Active SMS sending provider. Only "stub" ships today (logs + fails until a real gateway is integrated).',
+    description: 'Active SMS sending provider. Supported: ping-africa, stub (logs + fails; fallback when no gateway is configured).',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+    isDropdown: true,
+    codeKey: 'SMS_PROVIDER', // run the "codes" seeder first
+  },
+  {
+    key: 'sms.provider.ping-africa.api_token',
+    label: 'Ping Africa — API Token',
+    value: '',
+    category: 'notifications',
+    description: 'API token from bulk.ping.africa (Account Settings → API Tokens). Required when sms.provider = ping-africa.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+    isSecret: true,
+  },
+  {
+    key: 'sms.provider.ping-africa.sender_id',
+    label: 'Ping Africa — Sender ID',
+    value: 'PING-AFRICA',
+    category: 'notifications',
+    description: 'Sender ID shown to recipients (max 11 chars; must be authorised on your Ping Africa account). Leave blank to use the account default.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
+    key: 'sms.provider.ping-africa.base_url',
+    label: 'Ping Africa — API Base URL',
+    value: 'https://bulk.ping.africa/api',
+    category: 'notifications',
+    description: 'Base URL of the Ping Africa API.',
     isBoolean: false,
     isActive: true,
     isReadOnly: false,
@@ -430,13 +465,27 @@ async function seedSystemConfig() {
   let created = 0;
   let skipped = 0;
 
-  for (const entry of defaults) {
-    const [, wasCreated] = await SystemConfig.findOrCreate({
+  for (const { codeKey, ...entry } of defaults) {
+    const [config, wasCreated] = await SystemConfig.findOrCreate({
       where: { key: entry.key },
       defaults: entry,
     });
     console.log(`  ${entry.key}: ${wasCreated ? 'inserted' : 'already exists (skipped)'}`);
     wasCreated ? created++ : skipped++;
+
+    // Dropdown configs take their options from a Code; link it if not linked yet.
+    if (codeKey) {
+      const code = await Code.findOne({ where: { key: codeKey } });
+      if (!code) {
+        console.warn(`    ${entry.key}: code ${codeKey} not found — run the "codes" seeder first`);
+        continue;
+      }
+      const [, linked] = await SystemConfigCodeRelation.findOrCreate({
+        where: { systemConfigId: config.id },
+        defaults: { systemConfigId: config.id, codeId: code.id },
+      });
+      if (linked) console.log(`    ${entry.key}: linked to code ${codeKey}`);
+    }
   }
 
   return { created, skipped };

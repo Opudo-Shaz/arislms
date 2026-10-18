@@ -10,6 +10,11 @@ class StubSmsProvider {
     logger.warn(`[StubSmsProvider] SMS not sent (no provider configured) — to=${to} body="${body}"`);
     throw new Error('SMS provider not configured. Set sms.provider in System Config to a supported gateway.');
   }
+
+  async sendBulk({ recipients, body }) {
+    logger.warn(`[StubSmsProvider] Bulk SMS not sent (no provider configured) — recipients=${recipients?.length} body="${body}"`);
+    throw new Error('SMS provider not configured. Set sms.provider in System Config to a supported gateway.');
+  }
 }
 
 module.exports = StubSmsProvider;
