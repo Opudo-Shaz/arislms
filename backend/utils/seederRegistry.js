@@ -22,13 +22,13 @@ const SEEDERS = {
   'system-config': {
     key: 'system-config',
     name: 'System Config Defaults',
-    description: 'Inserts default system configuration entries (storage, email, loans, notifications).',
+    description: 'Inserts default system configuration entries (storage, email, loans, notifications, SMS provider/Ping Africa).',
     fn: require('../scripts/seedSystemConfig'),
   },
   codes: {
     key: 'codes',
     name: 'Config Codes',
-    description: 'Inserts example config codes and values (gender, marital status, etc.).',
+    description: 'Inserts config codes and values (gender, marital status, SMS provider, etc.). Run before System Config Defaults.',
     fn: require('../scripts/seedCodes'),
   },
   'chart-of-accounts': {
