@@ -7,14 +7,21 @@
  */
 
 import React from 'react'
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { matchPath, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { routes } from '../routes'
+import Page404 from '../views/pages/page404/Page404'
+
+const isKnownRoute = (pathname) => routes.some((route) => matchPath(route.path, pathname))
 
 const RequireAuth = () => {
   const { isAuthenticated } = useAuth()
   const location = useLocation()
 
   if (!isAuthenticated) {
+    // Unknown URLs get the 404 page instead of a pointless login redirect.
+    if (!isKnownRoute(location.pathname)) return <Page404 />
+
     // When redirecting to login, preserve only the pathname the user attempted to access
     // This prevents stale state from previous sessions from affecting new users
     return (
