@@ -49,13 +49,34 @@ function detectType(buf) {
   return null;
 }
 
+// Walks the JPEG's marker structure and reports whether the primary image reaches its EOI marker.
+// Camera JPEGs legitimately carry data after EOI (MPF/Ultra HDR gain maps, motion-photo videos,
+// vendor trailers), so bytes beyond it are tolerated; the script-marker scan still covers them.
+function jpegIsComplete(buf) {
+  let i = 2;
+  while (i + 1 < buf.length) {
+    if (buf[i] !== 0xff) return false;
+    const marker = buf[i + 1];
+    if (marker === 0xff) { i += 1; continue; }
+    if (marker === 0xd9) return true;
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd8)) { i += 2; continue; }
+    if (i + 3 >= buf.length) return false;
+    const segLen = buf.readUInt16BE(i + 2);
+    if (segLen < 2) return false;
+    i += 2 + segLen;
+    if (marker === 0xda) {
+      // Entropy-coded data: 0xFF is always stuffed (FF00) or a restart marker until the next real marker.
+      while (i + 1 < buf.length && !(buf[i] === 0xff && buf[i + 1] !== 0x00 && !(buf[i + 1] >= 0xd0 && buf[i + 1] <= 0xd7))) {
+        i += 1;
+      }
+    }
+  }
+  return false;
+}
+
 // Trailing bytes after the format's own terminator are how payloads get smuggled into valid images.
 function hasTrailingData(type, buf) {
-  if (type === 'image/jpeg') {
-    let end = buf.length;
-    while (end > 0 && buf[end - 1] === 0x00) end -= 1;
-    return !(end >= 2 && buf[end - 2] === 0xff && buf[end - 1] === 0xd9);
-  }
+  if (type === 'image/jpeg') return !jpegIsComplete(buf);
   if (type === 'image/png') {
     const iend = Buffer.from([0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
     return !(buf.length >= 8 && buf.subarray(buf.length - 8).equals(iend));
