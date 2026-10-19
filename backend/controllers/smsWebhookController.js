@@ -21,7 +21,13 @@ function sendGatewayError(res, error, action) {
   return res.status(status).json({ success: false, message: error.message });
 }
 
+let badSignatureLimiter = null;
+
 const smsWebhookController = {
+  setBadSignatureLimiter(limiter) {
+    badSignatureLimiter = limiter;
+  },
+
   /** POST /api/webhooks/sms/ping-africa — public; authenticated by HMAC signature. Body is the raw Buffer. */
   async receivePingAfrica(req, res) {
     try {
@@ -29,6 +35,7 @@ const smsWebhookController = {
       return res.status(200).json({ success: true, status: result.status });
     } catch (error) {
       if (error instanceof smsWebhookService.WebhookError) {
+        if (error.statusCode === 401) badSignatureLimiter?.recordFailure(req);
         return res.status(error.statusCode).json({ success: false, message: error.message });
       }
       // 5xx makes the gateway retry (30s → 2min → 10min).

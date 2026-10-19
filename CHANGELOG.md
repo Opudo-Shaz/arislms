@@ -22,7 +22,9 @@ into the next dated release section below when that version ships.
   in the new `sms.provider.ping-africa.webhook_secret` config; the same path also
   supports `GET` (list) and `GET`/`PUT`/`DELETE` on `/:id` to inspect, update or
   remove endpoints (deleting the active one clears the stored secret). Existing
-  installs must run the **System Config Defaults** seeder.
+  installs   must run the **System Config Defaults** seeder. The webhook rejects bodies over
+  16 KB and answers 429 to an IP after 20 bad signatures in 15 minutes (valid
+  traffic is never throttled).
 - **Client welcome email** — the first time a client's KYC is verified (and the
   account becomes active), the client is emailed their account number and a
   portal sign-in button with a copy-paste fallback link

@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const logger = require('../../config/logger');
 const sequelize = require('../../config/sequalize_db');
 const SmsWebhookEvent = require('../../models/smsWebhookEventModel');
@@ -65,7 +66,7 @@ const smsWebhookService = {
    * Verify and apply a Ping Africa delivery webhook.
    * @param {Buffer} rawBody - exact bytes received (the signature covers them)
    * @param {object} headers - request headers (lower-cased by Node)
-   * @returns {Promise<{status: 'processed'|'duplicate'|'unmatched'}>}
+   * @returns {Promise<{status: 'processed'|'duplicate'|'unmatched'|'ignored'}>}
    */
   async handlePingAfrica(rawBody, headers) {
     const secret = await systemConfigService.getConfigValue(SECRET_KEY, 'string', null);
@@ -80,13 +81,27 @@ const smsWebhookService = {
     try {
       body = JSON.parse(rawBody.toString('utf8'));
     } catch {
+      logger.warn(`[smsWebhookService] Ping Africa webhook with invalid JSON: ${rawBody.toString('utf8').slice(0, 300)}`);
       throw new WebhookError(400, 'Invalid JSON payload');
+    }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      throw new WebhookError(400, 'Payload must be a JSON object');
     }
 
     const event = body.event || headers['x-webhook-event'];
-    const data = body.data || {};
-    const deliveryId = headers['x-webhook-delivery-id'];
-    if (!event || !deliveryId) throw new WebhookError(400, 'Missing event or delivery id');
+    const data = body.data && typeof body.data === 'object' ? body.data : {};
+
+    // Anything that isn't a delivery event (e.g. the dashboard's "test webhook" ping) is
+    // acknowledged with 2xx so the gateway doesn't count it as a failure and disable the endpoint.
+    if (!PingAfricaSmsProvider.WEBHOOK_EVENTS.includes(event)) {
+      logger.info(`[smsWebhookService] Ping Africa webhook acknowledged but ignored: event=${event} body=${rawBody.toString('utf8').slice(0, 300)}`);
+      return { status: 'ignored' };
+    }
+
+    // Normally the gateway supplies a unique delivery id; if it is ever missing, a hash of the
+    // exact body still de-duplicates identical retries.
+    const deliveryId =
+      headers['x-webhook-delivery-id'] || `body-${crypto.createHash('sha256').update(rawBody).digest('hex').slice(0, 48)}`;
 
     const recipient = smsMessageService.toRecipient(data.recipient);
     const batchId = data.batch_id ? String(data.batch_id) : null;
