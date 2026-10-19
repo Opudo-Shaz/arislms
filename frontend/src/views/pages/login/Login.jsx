@@ -332,11 +332,6 @@ const Login = () => {
                       Are you a client?{' '}
                       <Link to="/portal/login" className="text-white fw-semibold">Sign in to the client portal</Link>
                     </p>
-                    {/* <Link to="/register">
-                      <CButton color="primary" className="mt-3" active tabIndex={-1}>
-                        Register Now!
-                      </CButton>
-                    </Link> */}
                   </div>
                 </CCardBody>
               </CCard>

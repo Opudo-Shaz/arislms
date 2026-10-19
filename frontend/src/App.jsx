@@ -8,7 +8,7 @@
  * - Client-side routing with BrowserRouter
  * - Theme detection from URL parameters and Redux state
  * - Lazy loading for all routes with loading spinner fallback
- * - Public routes (home, login, register, error pages)
+ * - Public routes (home, login, client registration, error pages)
  * - Client self-service portal under /portal (ClientLayout, client session)
  * - Protected staff routes wrapped in DefaultLayout
  *
@@ -35,7 +35,6 @@ const ClientLayout = React.lazy(() => import('./layout/ClientLayout'))
 
 // Pages
 const Login = React.lazy(() => import('./views/pages/login/Login'))
-const Register = React.lazy(() => import('./views/pages/register/Register'))
 const Page404 = React.lazy(() => import('./views/pages/page404/Page404'))
 const Page500 = React.lazy(() => import('./views/pages/page500/Page500'))
 const Unauthorized = React.lazy(() => import('./views/pages/unauthorized/Unauthorized'))
@@ -98,7 +97,6 @@ const App = () => {
         <Routes>
           <Route exact path="/" name="Home" element={<Home />} />
           <Route exact path="/login" name="Login Page" element={<Login />} />
-          <Route exact path="/register" name="Register Page" element={<Register />} />
           <Route exact path="/reset-password" name="Reset Password" element={<ResetPassword />} />
           <Route exact path="/accept-invite" name="Accept Invite" element={<AcceptInvite />} />
           <Route exact path="/register/client" name="Client Registration" element={<ClientRegistration />} />

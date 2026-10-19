@@ -223,6 +223,28 @@ const defaults = [
     inAppTitle: 'Welcome',
     inAppBody: 'Your account {{accountNumber}} is now active.',
   },
+  {
+    eventKey: NotificationEventType.CLIENT_KYC_REVERIFICATION_REQUESTED,
+    description: 'Sent to a client (SMS + email) when staff ask them to sign in to the portal and update their KYC information.',
+    inAppEnabled: false,
+    pushEnabled: false,
+    emailSubject: 'Action required: update your information on {{appName}}',
+    emailBody: [
+      '<h2 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#23282c;">Hi {{clientName}}, we need a bit more information</h2>',
+      '<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#23282c;">To finish verifying your identity, please sign in to the client portal and update your information as requested.</p>',
+      '{{kycNotesBlock}}',
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;"><tr><td align="center">',
+      '<a href="{{portalLoginUrl}}" style="display:inline-block;background-color:#5dcae2;color:#080a0c;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:6px;">Sign in and update my information</a>',
+      '</td></tr></table>',
+      '<p style="margin:0 0 8px;font-size:12px;color:#8a93a2;">If the button above doesn&rsquo;t work, copy and paste this link into your browser:</p>',
+      '<p style="margin:0;font-size:12px;word-break:break-all;font-family:monospace,monospace;"><a href="{{portalLoginUrl}}" style="color:#2b3041;">{{portalLoginUrl}}</a></p>',
+    ].join(''),
+    smsBody: '{{appName}}: Hi {{clientName}}, please log in and update your information as requested: {{portalLoginUrl}}',
+    pushTitle: 'Update your information',
+    pushBody: 'Please sign in and update your information as requested.',
+    inAppTitle: 'KYC Update Required',
+    inAppBody: 'Please sign in and update your information as requested.',
+  },
 ];
 
 async function seedNotificationTemplates() {

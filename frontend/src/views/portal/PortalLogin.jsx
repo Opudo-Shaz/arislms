@@ -177,7 +177,7 @@ const PortalLogin = () => {
                         <CButtonGroup role="group" aria-label="Delivery method">
                           <CFormCheck
                             type="radio"
-                            button={{ color: 'secondary', variant: 'outline', size: 'sm' }}
+                            button={{ color: 'success', variant: 'outline', size: 'sm' }}
                             name="otp-channel"
                             id="otp-channel-sms"
                             autoComplete="off"
@@ -187,7 +187,7 @@ const PortalLogin = () => {
                           />
                           <CFormCheck
                             type="radio"
-                            button={{ color: 'secondary', variant: 'outline', size: 'sm' }}
+                            button={{ color: 'success', variant: 'outline', size: 'sm' }}
                             name="otp-channel"
                             id="otp-channel-email"
                             autoComplete="off"

@@ -44,6 +44,17 @@ export const clearStoredAuth = (key = config.authStorageKey) => {
 export const getToken = () => getStoredAuth()?.token ?? null
 
 /**
+ * Whether a JWT's `exp` claim is in the past. Tokens without a readable
+ * `exp` are treated as not expired (the server remains the authority).
+ * @param {string} token
+ * @returns {boolean}
+ */
+export const isTokenExpired = (token) => {
+  const exp = decodeToken(token)?.exp
+  return typeof exp === 'number' && exp * 1000 <= Date.now()
+}
+
+/**
  * Decode the payload of a JWT without verifying its signature.
  * Used only to read non-sensitive claims (id, role) on the client.
  * @param {string} token

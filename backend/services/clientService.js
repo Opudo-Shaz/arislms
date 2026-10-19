@@ -317,7 +317,6 @@ const clientService = {
 
   // Welcome message with the account number and portal login link; never throws.
   async _sendWelcomeNotification(client) {
-    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
     const clientName = [client.firstName, client.lastName].filter(Boolean).join(' ');
 
     await safeNotify(NotificationEventType.CLIENT_WELCOME, {
@@ -326,9 +325,34 @@ const clientService = {
         appName: escapeHtml(process.env.APP_NAME || 'ARISLMS'),
         clientName: escapeHtml(clientName || 'there'),
         accountNumber: escapeHtml(client.accountNumber),
-        portalLoginUrl: escapeHtml(`${frontendUrl}/portal/login`),
+        portalLoginUrl: escapeHtml(this._portalLoginUrl()),
       },
       dedupeKey: `client-welcome-${client.id}`,
+    });
+  },
+
+  _portalLoginUrl() {
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    return `${frontendUrl}/portal/login`;
+  },
+
+  // Tells the client (SMS + email) to log in and update their info, with the portal login link; never throws.
+  async _sendKycReverificationNotification(client) {
+    const clientName = [client.firstName, client.lastName].filter(Boolean).join(' ');
+    const notes = client.kycNotes ? escapeHtml(client.kycNotes) : '';
+
+    await safeNotify(NotificationEventType.CLIENT_KYC_REVERIFICATION_REQUESTED, {
+      recipients: buildRecipients({ client }),
+      context: {
+        appName: escapeHtml(process.env.APP_NAME || 'ARISLMS'),
+        clientName: escapeHtml(clientName || 'there'),
+        portalLoginUrl: escapeHtml(this._portalLoginUrl()),
+        kycNotesBlock: notes
+          ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;"><tr><td style="background-color:#f8f9fa;border-left:4px solid #5dcae2;border-radius:0 4px 4px 0;padding:14px 16px;"><p style="margin:0 0 4px;font-size:13px;color:#636f83;">What we need</p><p style="margin:0;font-size:15px;color:#23282c;">${notes}</p></td></tr></table>`
+          : '',
+      },
+      // Unique per request so every new reverification request notifies the client.
+      dedupeKey: `client-kyc-reverification-${client.id}-${Date.now()}`,
     });
   },
 
@@ -354,6 +378,8 @@ const clientService = {
       });
 
       logger.info(`Client ID ${id} KYC info requested by user ${actorId}`);
+
+      await this._sendKycReverificationNotification(client);
       return client;
     } catch (error) {
       logger.error(`Error requesting KYC info for client ID ${id}: ${error.message}`);

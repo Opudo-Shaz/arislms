@@ -16,10 +16,22 @@ import {
   clearStoredAuth,
   decodeToken,
   getStoredAuth,
+  getToken,
+  isTokenExpired,
   setStoredAuth,
 } from '../api/authStorage'
 
 const AuthContext = createContext(undefined)
+
+/** Load the persisted session, discarding it (silently) if its token has already expired. */
+const loadStoredSession = () => {
+  const stored = getStoredAuth()
+  if (stored?.token && isTokenExpired(stored.token)) {
+    clearStoredAuth()
+    return null
+  }
+  return stored
+}
 
 /**
  * Derive the numeric role id. Prefers the JWT claim (reliable) and falls back
@@ -35,7 +47,7 @@ const resolveRole = (token, user) => {
 }
 
 export const AuthProvider = ({ children }) => {
-  const [auth, setAuth] = useState(() => getStoredAuth())
+  const [auth, setAuth] = useState(loadStoredSession)
   const sessionAlertShown = useRef(false)
 
   const logout = useCallback(() => {
@@ -48,6 +60,8 @@ export const AuthProvider = ({ children }) => {
   // without triggering the RequireAuth redirect (which would dismiss the alert).
   useEffect(() => {
     setUnauthorizedHandler(() => {
+      // No stored session means the user isn't logged in (or already logged out) — nothing expired.
+      if (!getToken()) return
       if (sessionAlertShown.current) return
       sessionAlertShown.current = true
       clearStoredAuth()

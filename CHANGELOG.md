@@ -32,6 +32,13 @@ into the next dated release section below when that version ships.
   `client_welcome` notification template (email only by default; SMS, push and
   in-app can be enabled from the template). Existing installs must run the
   **Notification Templates** seeder to add it.
+- **KYC re-verification notice** — when staff request more KYC information from a
+  client (including flagging a document for re-upload), the client now gets an SMS
+  and an email asking them to log in and update their information, with the portal
+  login link (`{FRONTEND_URL}/portal/login`). This covers newly registered clients
+  who haven't been verified yet and so never received the welcome email. Uses the
+  new `client_kyc_reverification_requested` template; existing installs must run
+  the **Notification Templates** seeder.
 
 ### Changed
 

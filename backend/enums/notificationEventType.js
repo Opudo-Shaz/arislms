@@ -15,4 +15,5 @@ module.exports = Object.freeze({
   CO_SIGNER_CONSENT_REQUEST: 'co_signer_consent_request',
   CO_SIGNER_CONSENT_RESPONDED: 'co_signer_consent_responded',
   CLIENT_WELCOME: 'client_welcome',
+  CLIENT_KYC_REVERIFICATION_REQUESTED: 'client_kyc_reverification_requested',
 });
