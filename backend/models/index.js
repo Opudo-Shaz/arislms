@@ -25,6 +25,8 @@ const CronJobRun = require('./cronJobRunModel');
 const Notification = require('./notificationModel');
 const NotificationTemplate = require('./notificationTemplateModel');
 const NotificationOutbox = require('./notificationOutboxModel');
+const SmsMessage = require('./smsMessageModel');
+const SmsWebhookEvent = require('./smsWebhookEventModel');
 const UserInvitation = require('./userInvitationModel');
 const Otp = require('./otpModel');
 const PaymentReport = require('./paymentReportModel');
@@ -211,6 +213,8 @@ module.exports = {
   Notification,
   NotificationTemplate,
   NotificationOutbox,
+  SmsMessage,
+  SmsWebhookEvent,
   Code,
   CodeValue,
   SystemConfig,

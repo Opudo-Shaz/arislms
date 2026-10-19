@@ -2,6 +2,7 @@ const logger = require('../../config/logger');
 const StubSmsProvider = require('./providers/StubSmsProvider');
 const PingAfricaSmsProvider = require('./providers/PingAfricaSmsProvider');
 const systemConfigService = require('../systemConfigService');
+const smsMessageService = require('./smsMessageService');
 
 /**
  * SmsService — strategy-pattern router that delegates to the configured SMS provider.
@@ -27,6 +28,16 @@ class SmsService {
     this._provider = null;
   }
 
+  /** Build the Ping Africa provider from System Config (throws if the token is missing). */
+  async getPingAfricaProvider() {
+    const getVal = (key) => systemConfigService.getConfigValue(key, 'string', null);
+    return new PingAfricaSmsProvider({
+      apiToken: await getVal('sms.provider.ping-africa.api_token'),
+      senderId: await getVal('sms.provider.ping-africa.sender_id'),
+      baseUrl: await getVal('sms.provider.ping-africa.base_url'),
+    });
+  }
+
   async _resolveProvider() {
     if (this._provider) return this._provider;
 
@@ -34,12 +45,7 @@ class SmsService {
     logger.info(`[SmsService] Resolving SMS provider: ${providerName}`);
 
     if (providerName === 'ping-africa') {
-      const getVal = (key) => systemConfigService.getConfigValue(key, 'string', null);
-      this._provider = new PingAfricaSmsProvider({
-        apiToken: await getVal('sms.provider.ping-africa.api_token'),
-        senderId: await getVal('sms.provider.ping-africa.sender_id'),
-        baseUrl: await getVal('sms.provider.ping-africa.base_url'),
-      });
+      this._provider = await this.getPingAfricaProvider();
       return this._provider;
     }
 
@@ -50,15 +56,20 @@ class SmsService {
   }
 
   /**
-   * Send an SMS using the configured provider.
+   * Send an SMS using the configured provider. The send is also recorded in
+   * sms_messages so delivery webhooks can update its status.
    * @param {object} opts
    * @param {string} opts.to   - Recipient phone number
    * @param {string} opts.body - Message text
+   * @param {number} [opts.outboxId] - notification_outbox row this SMS belongs to
    */
-  async send({ to, body }) {
+  async send({ to, body, outboxId = null }) {
     try {
       const provider = await this._resolveProvider();
-      return await provider.send({ to, body });
+      const result = await provider.send({ to, body });
+      const providerName = provider.constructor.providerName;
+      if (providerName) await smsMessageService.recordSent({ provider: providerName, to, result, outboxId });
+      return result;
     } catch (err) {
       this._provider = null;
       logger.error(`[SmsService] send failed: ${err.message}`);
@@ -68,19 +79,31 @@ class SmsService {
 
   /**
    * Send the same SMS to many recipients using the configured provider.
+   * Bulk sends are queued by the gateway; per-recipient status arrives via
+   * delivery webhooks, matched by batch id + recipient.
    * @param {object} opts
    * @param {string[]} opts.recipients - Recipient phone numbers
    * @param {string} opts.body         - Message text
    */
   async sendBulk({ recipients, body }) {
+    let provider;
     try {
-      const provider = await this._resolveProvider();
-      return await provider.sendBulk({ recipients, body });
+      provider = await this._resolveProvider();
+      const batches = await provider.sendBulk({ recipients, body });
+      await this._recordBatches(provider, batches);
+      return batches;
     } catch (err) {
+      // Batches accepted before a later batch failed are already out — still track them.
+      if (provider && err.partialResults?.length) await this._recordBatches(provider, err.partialResults);
       this._provider = null;
       logger.error(`[SmsService] sendBulk failed: ${err.message}`);
       throw err;
     }
+  }
+
+  async _recordBatches(provider, batches) {
+    const providerName = provider.constructor.providerName;
+    if (providerName) await smsMessageService.recordBatches({ provider: providerName, batches });
   }
 
   /** Bust the cached provider instance. Call after updating sms.* system configs. */

@@ -5,9 +5,10 @@ const smsService = require('../../sms/SmsService');
  * @param {object} opts
  * @param {string} opts.to - Recipient phone number
  * @param {string} opts.body - Rendered message text
+ * @param {{outboxId?: number}} [opts.meta]
  */
-async function send({ to, body }) {
-  return smsService.send({ to, body });
+async function send({ to, body, meta }) {
+  return smsService.send({ to, body, outboxId: meta?.outboxId });
 }
 
 module.exports = { send };

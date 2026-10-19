@@ -359,6 +359,17 @@ const defaults = [
     isReadOnly: false,
   },
   {
+    key: 'sms.provider.ping-africa.webhook_secret',
+    label: 'Ping Africa — Webhook Signing Secret',
+    value: '',
+    category: 'notifications',
+    description: 'Signing secret for Ping Africa delivery webhooks. Filled automatically by POST /api/sms-providers/ping-africa/webhook; can also be pasted from the Ping Africa dashboard.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+    isSecret: true,
+  },
+  {
     key: 'sms.provider.ping-africa.base_url',
     label: 'Ping Africa — API Base URL',
     value: 'https://bulk.ping.africa/api',

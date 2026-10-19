@@ -12,6 +12,17 @@ into the next dated release section below when that version ships.
 
 ### Added
 
+- **Ping Africa SMS delivery receipts** — SMS sends (single and bulk) are now
+  tracked in `sms_messages`, and Ping Africa's `sms.sent` / `sms.delivered` /
+  `sms.failed` webhooks update them via the public, HMAC-signed
+  `POST /api/webhooks/sms/ping-africa`. A carrier failure on an outbox-backed SMS
+  is reflected on its `notification_outbox` row (no automatic re-send). Admins
+  register the webhook with `POST /api/sms-providers/ping-africa/webhook`
+  (needs `API_PUBLIC_URL` or a `url` in the body), which stores the signing secret
+  in the new `sms.provider.ping-africa.webhook_secret` config; the same path also
+  supports `GET` (list) and `GET`/`PUT`/`DELETE` on `/:id` to inspect, update or
+  remove endpoints (deleting the active one clears the stored secret). Existing
+  installs must run the **System Config Defaults** seeder.
 - **Client welcome email** — the first time a client's KYC is verified (and the
   account becomes active), the client is emailed their account number and a
   portal sign-in button with a copy-paste fallback link
