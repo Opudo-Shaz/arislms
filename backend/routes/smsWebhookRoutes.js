@@ -31,7 +31,7 @@ const router = express.Router();
  *           example: sha256=<hex hmac of body>
  *       - in: header
  *         name: X-Webhook-Delivery-Id
- *         required: true
+ *         description: Used for idempotency; a hash of the body is used when absent.
  *         schema:
  *           type: string
  *       - in: header
@@ -85,9 +85,9 @@ const router = express.Router();
  *                     nullable: true
  *     responses:
  *       200:
- *         description: Acknowledged (`status` is processed, duplicate or unmatched)
+ *         description: Acknowledged (`status` is processed, duplicate, unmatched or ignored). Non-delivery events such as the dashboard's test ping are acknowledged as `ignored`.
  *       400:
- *         description: Malformed payload or missing headers
+ *         description: Body is not a valid JSON object
  *       401:
  *         description: Invalid signature
  *       429:
