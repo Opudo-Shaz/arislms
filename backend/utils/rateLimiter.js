@@ -40,4 +40,51 @@ function rateLimit({ windowMs, max, keyFn = (req) => req.ip, name = 'rateLimit' 
   };
 }
 
-module.exports = { rateLimit };
+/**
+ * Throttles only *failed* attempts (e.g. bad webhook signatures): successful
+ * requests are never counted, so legitimate bursts pass untouched. Once a key
+ * has `max` failures in the window, `guard` answers 429 before any other work.
+ * Call `recordFailure(req)` wherever a request is rejected.
+ *
+ * @param {object} opts
+ * @param {number} opts.windowMs
+ * @param {number} opts.max
+ * @param {(req) => string} [opts.keyFn] - default: client IP
+ * @param {string} [opts.name]
+ */
+function failureLimiter({ windowMs, max, keyFn = (req) => req.ip, name = 'failureLimiter' }) {
+  const failures = new Map();
+
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, bucket] of failures) if (bucket.resetAt <= now) failures.delete(key);
+  }, windowMs).unref();
+
+  const live = (key) => {
+    const bucket = failures.get(key);
+    return bucket && bucket.resetAt > Date.now() ? bucket : null;
+  };
+
+  return {
+    guard(req, res, next) {
+      const bucket = live(keyFn(req));
+      if (bucket && bucket.count >= max) {
+        res.set('Retry-After', String(Math.ceil((bucket.resetAt - Date.now()) / 1000)));
+        return res.status(429).json({ success: false, message: 'Too many failed attempts. Please try again later.' });
+      }
+      next();
+    },
+    recordFailure(req) {
+      const key = keyFn(req);
+      let bucket = live(key);
+      if (!bucket) {
+        bucket = { count: 0, resetAt: Date.now() + windowMs };
+        failures.set(key, bucket);
+      }
+      bucket.count += 1;
+      if (bucket.count === max) logger.warn(`[${name}] ${key} blocked after ${max} failed attempts`);
+    },
+  };
+}
+
+module.exports = { rateLimit, failureLimiter };

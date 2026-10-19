@@ -1,5 +1,6 @@
 const express = require('express');
 const controller = require('../controllers/smsWebhookController');
+const { failureLimiter } = require('../utils/rateLimiter');
 
 /**
  * Public SMS gateway callbacks. Mounted BEFORE express.json() in server.js:
@@ -17,7 +18,8 @@ const router = express.Router();
  *       `sms.provider.ping-africa.webhook_secret`. Not for manual use; register it via
  *       `POST /api/sms-providers/ping-africa/webhook`. Duplicate deliveries (same
  *       `X-Webhook-Delivery-Id`) are acknowledged without being re-applied. A 5xx response makes
- *       Ping Africa retry.
+ *       Ping Africa retry. Bodies over 16 KB are rejected, and an IP with 20 bad signatures in
+ *       15 minutes gets 429 until the window expires.
  *     tags:
  *       - SMS Providers
  *     parameters:
@@ -88,13 +90,22 @@ const router = express.Router();
  *         description: Malformed payload or missing headers
  *       401:
  *         description: Invalid signature
+ *       429:
+ *         description: Too many failed signature attempts from this IP
  *       503:
  *         description: Webhook secret not configured
  */
 
+// Only bad-signature attempts count, so legitimate delivery-receipt bursts are never throttled.
+// Per-IP assumes TRUST_PROXY is set when running behind a load balancer.
+const badSignatureLimiter = failureLimiter({ name: 'smsWebhookBadSignature', windowMs: 15 * 60 * 1000, max: 20 });
+controller.setBadSignatureLimiter(badSignatureLimiter);
+
+// Real payloads are well under 2 KB; the guard runs first so blocked IPs never get their body read.
 router.post(
   '/ping-africa',
-  express.raw({ type: () => true, limit: '256kb' }),
+  badSignatureLimiter.guard,
+  express.raw({ type: () => true, limit: '16kb' }),
   controller.receivePingAfrica
 );
 
