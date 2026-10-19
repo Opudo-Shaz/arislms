@@ -27,6 +27,10 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+// SMS gateway webhooks need the raw body for signature verification, so they must be
+// mounted before express.json().
+app.use('/api/webhooks/sms', require('./routes/smsWebhookRoutes'));
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 // NOTE: uploads/ is intentionally NOT served via express.static.
@@ -101,6 +105,7 @@ app.use('/api/notification-templates', notificationTemplateRoutes);
 app.use('/api/notification-outbox', notificationOutboxRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/seeders', seederRoutes);
+app.use('/api/sms-providers', require('./routes/smsProviderRoutes'));
 app.use('/api/portal', portalRoutes);
 app.use('/api/payment-reports', paymentReportRoutes);
 app.use('/api/client-registration-links', clientRegistrationLinkRoutes);

@@ -42,6 +42,7 @@ async function sendOne(row) {
       subject: row.renderedSubject,
       body: row.renderedBody,
       meta: {
+        outboxId: row.id,
         eventKey: row.eventKey,
         relatedLoanId: row.relatedLoanId,
         relatedPaymentId: row.relatedPaymentId,
