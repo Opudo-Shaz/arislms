@@ -119,6 +119,7 @@ const Loan = sequelize.define('Loan', {
   },
 
   createdBy: { type: DataTypes.INTEGER, allowNull: true, field: 'created_by' },
+  approvedBy: { type: DataTypes.INTEGER, allowNull: true, field: 'approved_by' },
   // Where the application originated: 'staff' (management portal) or 'portal' (client self-service).
   source: { type: DataTypes.STRING(16), allowNull: false, defaultValue: 'staff' },
 

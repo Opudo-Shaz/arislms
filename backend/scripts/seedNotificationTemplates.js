@@ -24,15 +24,49 @@ const defaults = [
     inAppBody: 'Payment of {{currency}} {{amount}} received on loan {{referenceCode}}. New balance: {{currency}} {{outstandingBalance}}.',
   },
   {
+    eventKey: NotificationEventType.REPAYMENT_DUE_SOON,
+    description: 'Courteous reminder sent a few days before an installment is due (repayment-reminders cron). In-app copy goes to the loan officer.',
+    emailSubject: 'Friendly reminder: payment due {{dueDate}} — {{referenceCode}}',
+    emailBody: '<p>Hi {{clientName}},</p><p>Just a friendly reminder that your next installment of <strong>{{currency}} {{dueAmount}}</strong> on loan {{referenceCode}} is due on <strong>{{dueDate}}</strong> ({{daysToDue}} day(s) from today).</p><p>Paying on time keeps your account in good standing and helps you qualify for better loan terms. If you have already paid, thank you — please ignore this message.</p>',
+    smsBody: 'Hi {{clientName}}, a friendly reminder: {{currency}} {{dueAmount}} on loan {{referenceCode}} is due {{dueDate}}. Thank you for paying on time!',
+    pushTitle: 'Payment due soon',
+    pushBody: '{{currency}} {{dueAmount}} on loan {{referenceCode}} is due {{dueDate}}.',
+    inAppTitle: 'Payment Due Soon — {{referenceCode}}',
+    inAppBody: '{{clientName}} has {{currency}} {{dueAmount}} due on {{dueDate}} ({{daysToDue}} day(s)) for loan {{referenceCode}}. A courtesy reminder was sent to the client.',
+  },
+  {
+    eventKey: NotificationEventType.REPAYMENT_DUE_TODAY,
+    description: 'Courteous reminder sent on the day an installment is due (repayment-reminders cron). In-app copy goes to the loan officer.',
+    emailSubject: 'Your payment is due today — {{referenceCode}}',
+    emailBody: '<p>Hi {{clientName}},</p><p>This is a gentle reminder that your installment of <strong>{{currency}} {{dueAmount}}</strong> on loan {{referenceCode}} is due <strong>today</strong>.</p><p>If you have already paid, thank you — please ignore this message.</p>',
+    smsBody: 'Hi {{clientName}}, your payment of {{currency}} {{dueAmount}} on loan {{referenceCode}} is due today. Thank you!',
+    pushTitle: 'Payment due today',
+    pushBody: '{{currency}} {{dueAmount}} on loan {{referenceCode}} is due today.',
+    inAppTitle: 'Payment Due Today — {{referenceCode}}',
+    inAppBody: '{{clientName}} has {{currency}} {{dueAmount}} due today for loan {{referenceCode}}. A reminder was sent to the client.',
+  },
+  {
     eventKey: NotificationEventType.REPAYMENT_OVERDUE,
-    description: 'Sent when a loan has one or more overdue installments.',
-    emailSubject: 'Repayment overdue — {{referenceCode}}',
-    emailBody: '<p>Hi {{clientName}},</p><p>Your loan {{referenceCode}} has {{overdueCount}} overdue installment(s) totalling {{currency}} {{overdueAmount}}. Please make a payment as soon as possible.</p>',
-    smsBody: 'Loan {{referenceCode}} has {{overdueCount}} overdue installment(s) totalling {{currency}} {{overdueAmount}}. Please pay as soon as possible.',
-    pushTitle: 'Repayment overdue',
-    pushBody: 'Loan {{referenceCode}} has {{overdueCount}} overdue installment(s).',
-    inAppTitle: 'Repayment Overdue',
-    inAppBody: 'Loan {{referenceCode}} has {{overdueCount}} overdue installment(s) totalling {{currency}} {{overdueAmount}}.',
+    description: 'Direct reminder for loans 1–30 days past due, sent every few days (repayment-reminders cron). In-app copy goes to the loan officer.',
+    emailSubject: 'Action required: payment {{daysOverdue}} day(s) overdue — {{referenceCode}}',
+    emailBody: '<p>Hi {{clientName}},</p><p>Your loan {{referenceCode}} is <strong>{{daysOverdue}} day(s) overdue</strong>. You have {{overdueCount}} unpaid installment(s) totalling <strong>{{currency}} {{overdueAmount}}</strong> (oldest due {{oldestDueDate}}).</p><p>{{penaltyNote}} Penalties accrued to date: {{currency}} {{accruedPenalties}}.</p><p><strong>What to do:</strong> pay {{currency}} {{overdueAmount}} today to stop further penalties and protect your credit record. If you have already paid, please share your payment reference with us.</p>',
+    smsBody: 'Loan {{referenceCode}} is {{daysOverdue}} day(s) overdue. Pay {{currency}} {{overdueAmount}} today to avoid further late penalties. {{penaltyNote}}',
+    pushTitle: 'Payment overdue',
+    pushBody: 'Loan {{referenceCode}} is {{daysOverdue}} day(s) overdue. Pay {{currency}} {{overdueAmount}} to avoid penalties.',
+    inAppTitle: 'Loan Overdue ({{daysOverdue}} days) — {{referenceCode}}',
+    inAppBody: '{{clientName}}\'s loan {{referenceCode}} is {{daysOverdue}} day(s) overdue: {{overdueCount}} installment(s), {{currency}} {{overdueAmount}} outstanding (oldest due {{oldestDueDate}}), penalties {{currency}} {{accruedPenalties}}. An overdue reminder was sent — please follow up with the client.',
+  },
+  {
+    eventKey: NotificationEventType.REPAYMENT_DEFAULT_WARNING,
+    description: 'Strict demand for loans 31–60 days past due, sent every 15 days (repayment-reminders cron). In-app copy goes to the loan officer.',
+    pushEnabled: false,
+    emailSubject: 'FINAL DEMAND: loan {{referenceCode}} is in default',
+    emailBody: '<p>Dear {{clientName}},</p><p>Your loan {{referenceCode}} is now <strong>{{daysOverdue}} days overdue and in default</strong>. The overdue amount is <strong>{{currency}} {{overdueAmount}}</strong>, plus accrued penalties of {{currency}} {{accruedPenalties}}.</p><p>You are required to pay the full overdue amount immediately. Continued non-payment will <strong>lower your credit score</strong>, reduce your eligibility for future loans, and may lead to further recovery action.</p><p>Contact us today if you need to discuss your account.</p>',
+    smsBody: 'FINAL DEMAND: Loan {{referenceCode}} is {{daysOverdue}} days overdue and in default. Pay {{currency}} {{overdueAmount}} immediately. Non-payment will lower your credit score.',
+    pushTitle: 'Loan in default',
+    pushBody: 'Loan {{referenceCode}} is in default. Pay {{currency}} {{overdueAmount}} immediately.',
+    inAppTitle: 'Loan In Default ({{daysOverdue}} days) — {{referenceCode}}',
+    inAppBody: '{{clientName}}\'s loan {{referenceCode}} is {{daysOverdue}} days overdue and in default: {{currency}} {{overdueAmount}} outstanding, penalties {{currency}} {{accruedPenalties}}. A final demand was sent — escalate for collection.',
   },
   {
     eventKey: NotificationEventType.LOAN_DISBURSED,
@@ -247,29 +281,35 @@ const defaults = [
   },
 ];
 
-async function seedNotificationTemplates() {
+async function seedNotificationTemplates({ overwrite = [] } = {}) {
   for (const entry of defaults) {
-    const [, created] = await NotificationTemplate.findOrCreate({
+    const [template, created] = await NotificationTemplate.findOrCreate({
       where: { eventKey: entry.eventKey },
       defaults: entry,
     });
     if (created) logger.info(`NotificationTemplate: seeded default template for "${entry.eventKey}"`);
+    else if (overwrite.includes(entry.eventKey)) {
+      await template.update(entry);
+      logger.info(`NotificationTemplate: overwrote "${entry.eventKey}" with seed defaults`);
+    }
   }
 }
 
 module.exports = seedNotificationTemplates;
 
-// Allow standalone execution: node backend/scripts/seedNotificationTemplates.js
+// Allow standalone execution: node backend/scripts/seedNotificationTemplates.js [--overwrite=repayment_overdue,...]
 if (require.main === module) {
   const loadEnv = require('../config/env');
   loadEnv({ path: require('path').join(__dirname, '../.env') });
   const sequelize = require('../config/sequalize_db');
+  const overwriteArg = process.argv.find((a) => a.startsWith('--overwrite='));
+  const overwrite = overwriteArg ? overwriteArg.split('=')[1].split(',').map((s) => s.trim()).filter(Boolean) : [];
 
   (async () => {
     try {
       await sequelize.authenticate();
       console.log('DB connected.');
-      await seedNotificationTemplates();
+      await seedNotificationTemplates({ overwrite });
       console.log('Done.');
       await sequelize.close();
     } catch (err) {

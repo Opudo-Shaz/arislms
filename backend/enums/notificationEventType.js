@@ -1,6 +1,9 @@
 module.exports = Object.freeze({
   PAYMENT_RECEIVED: 'payment_received',
+  REPAYMENT_DUE_SOON: 'repayment_due_soon',
+  REPAYMENT_DUE_TODAY: 'repayment_due_today',
   REPAYMENT_OVERDUE: 'repayment_overdue',
+  REPAYMENT_DEFAULT_WARNING: 'repayment_default_warning',
   LOAN_DISBURSED: 'loan_disbursed',
   LOAN_DEFAULTED: 'loan_defaulted',
   LOAN_APPROVED: 'loan_approved',

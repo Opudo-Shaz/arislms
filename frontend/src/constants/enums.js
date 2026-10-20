@@ -467,7 +467,10 @@ export const NOTIFICATION_DELIVERY_STATUS = buildEnum({
 export const NOTIFICATION_EVENT_TYPE = buildEnum(
   {
     payment_received: 'success',
+    repayment_due_soon: 'info',
+    repayment_due_today: 'info',
     repayment_overdue: 'warning',
+    repayment_default_warning: 'danger',
     loan_disbursed: 'primary',
     loan_defaulted: 'danger',
     loan_approved: 'primary',

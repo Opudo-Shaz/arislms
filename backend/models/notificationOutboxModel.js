@@ -31,6 +31,8 @@ const NotificationOutbox = sequelize.define('NotificationOutbox', {
   priority: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   lastError: { type: DataTypes.TEXT, allowNull: true, field: 'last_error' },
   nextAttemptAt: { type: DataTypes.DATE, allowNull: true, field: 'next_attempt_at' },
+  // When true, outboxWorker holds the row until the configured business-hours window.
+  businessHoursOnly: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'business_hours_only' },
 
   relatedLoanId: { type: DataTypes.INTEGER, allowNull: true, field: 'related_loan_id' },
   relatedPaymentId: { type: DataTypes.INTEGER, allowNull: true, field: 'related_payment_id' },

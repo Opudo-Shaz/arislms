@@ -717,6 +717,7 @@ const loanService = {
       // Update loan with approval info
       await loan.update({
         approvalDate: approval.toISOString().split('T')[0],
+        approvedBy: approverId || null,
         status: LoanStatus.APPROVED
       });
 

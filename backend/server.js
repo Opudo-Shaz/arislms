@@ -171,6 +171,8 @@ const formatServerUrl = (addressInfo, preferredHost) => {
     const loanStatusCronJob = require('./utils/loanStatusCronJob');
     loanStatusCronJob.register();
 
+    require('./utils/repaymentReminderCronJob').register();
+
     // Register the notification outbox worker — picks up QUEUED/retry-due rows on a
     // configurable schedule (default every 5 minutes; override via .env to tune it).
     const cronRegistry = require('./utils/cronRegistry');

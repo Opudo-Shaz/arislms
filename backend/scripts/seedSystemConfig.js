@@ -18,6 +18,61 @@ const SystemConfig = require('../models/systemConfigModel');
 const SystemConfigCodeRelation = require('../models/systemConfigCodeRelationModel');
 const Code = require('../models/codeModel');
 
+const setting = (key, label, value, category, description) => ({
+  key, label, value, category, description, isBoolean: false, isActive: true, isReadOnly: false,
+});
+const toggle = (key, label, enabled, category, description) => ({
+  key, label, value: null, category, description, isBoolean: true, isActive: enabled, isReadOnly: false,
+});
+
+const reminderConfigs = [
+  setting('business_hours.timezone', 'Business Hours — Timezone', 'Africa/Nairobi', 'general',
+    'IANA timezone used to evaluate business hours (e.g. Africa/Nairobi).'),
+  setting('business_hours.days', 'Business Hours — Days', '[1,2,3,4,5,6]', 'general',
+    'JSON array of ISO weekdays considered business days (1 = Monday … 7 = Sunday).'),
+  setting('business_hours.start', 'Business Hours — Start', '08:00', 'general',
+    'Start of the business day (HH:MM, 24h, in the business-hours timezone).'),
+  setting('business_hours.end', 'Business Hours — End', '17:00', 'general',
+    'End of the business day (HH:MM, 24h, exclusive).'),
+  toggle('notification.reminders.enabled', 'Repayment Reminders Enabled', true, 'notifications',
+    'Master switch for the repayment-reminders cron (upcoming, overdue and defaulted reminders).'),
+  toggle('notification.reminders.upcoming.enabled', 'Upcoming Due Reminders Enabled', true, 'notifications',
+    'Send courteous reminders before / on an installment due date.'),
+  setting('notification.reminders.upcoming.days_before', 'Upcoming Due — Days Before', '[3,0]', 'notifications',
+    'JSON array of days before the due date to remind (0 = on the due date).'),
+  setting('notification.reminders.upcoming.channels', 'Upcoming Due — Channels', '["sms","email","push"]', 'notifications',
+    'JSON array of channels for upcoming-due reminders (sms, email, push, in_app).'),
+  toggle('notification.reminders.overdue.enabled', 'Overdue Reminders Enabled', true, 'notifications',
+    'Send reminders for loans in the overdue days-past-due range.'),
+  setting('notification.reminders.overdue.min_dpd', 'Overdue — From Day', '1', 'notifications',
+    'First day past due (oldest unpaid installment) in the overdue tier.'),
+  setting('notification.reminders.overdue.max_dpd', 'Overdue — To Day', '30', 'notifications',
+    'Last day past due in the overdue tier.'),
+  setting('notification.reminders.overdue.interval_days', 'Overdue — Interval (days)', '5', 'notifications',
+    'Minimum days between overdue reminders for the same loan.'),
+  setting('notification.reminders.overdue.channels', 'Overdue — Channels', '["sms","email","push"]', 'notifications',
+    'JSON array of channels for overdue reminders.'),
+  toggle('notification.reminders.defaulted.enabled', 'Default Warnings Enabled', true, 'notifications',
+    'Send strict demand reminders for loans in the defaulted days-past-due range.'),
+  setting('notification.reminders.defaulted.min_dpd', 'Defaulted — From Day', '31', 'notifications',
+    'First day past due in the defaulted tier.'),
+  setting('notification.reminders.defaulted.max_dpd', 'Defaulted — To Day', '60', 'notifications',
+    'Last day past due that receives automated alerts; beyond this no reminders are sent (handled by collections).'),
+  setting('notification.reminders.defaulted.interval_days', 'Defaulted — Interval (days)', '15', 'notifications',
+    'Minimum days between default warnings for the same loan.'),
+  setting('notification.reminders.defaulted.channels', 'Defaulted — Channels', '["sms","email"]', 'notifications',
+    'JSON array of channels for default warnings.'),
+  setting('notification.reminders.eligible_loan_statuses', 'Reminders — Eligible Loan Statuses',
+    '["disbursed","active","partially_paid","overdue","defaulted"]', 'notifications',
+    'JSON array of loan statuses considered for repayment reminders.'),
+  setting('notification.reminders.batch_size', 'Reminders — Batch Size', '200', 'notifications',
+    'Number of loans loaded per batch by the repayment-reminders cron.'),
+  setting('notification.reminders.priority', 'Reminders — Outbox Priority', '0', 'notifications',
+    'Outbox priority for reminder messages (higher = sent first).'),
+  toggle('notification.reminders.notify_loan_officer', 'Reminders — Notify Loan Officer', true, 'notifications',
+    'Also send an in-app copy of each repayment reminder to the loan officer (loan creator).'),
+];
+
 const defaults = [
   // ── Storage ────────────────────────────────────────────────────────────
   {
@@ -399,6 +454,7 @@ const defaults = [
     isActive: true,
     isReadOnly: false,
   },
+  ...reminderConfigs,
   // ── Authentication / OTP ────────────────────────────────────────────────
   {
     key: 'client.registration.enable_otp',

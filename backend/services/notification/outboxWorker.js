@@ -5,6 +5,7 @@ const NotificationChannel = require('../../enums/notificationChannel');
 const NotificationDeliveryStatus = require('../../enums/notificationDeliveryStatus');
 const AuditLogger = require('../../utils/auditLogger');
 const systemConfigService = require('../systemConfigService');
+const businessHours = require('../../utils/businessHours');
 
 const EmailChannel = require('./channels/EmailChannel');
 const SmsChannel = require('./channels/SmsChannel');
@@ -98,7 +99,10 @@ async function run({ batchSize = 50 } = {}) {
   const rows = await NotificationOutbox.findAll({
     where: {
       [Op.or]: [
-        { status: NotificationDeliveryStatus.QUEUED },
+        {
+          status: NotificationDeliveryStatus.QUEUED,
+          [Op.or]: [{ nextAttemptAt: null }, { nextAttemptAt: { [Op.lte]: now } }],
+        },
         {
           status: NotificationDeliveryStatus.FAILED,
           nextAttemptAt: { [Op.lte]: now },
@@ -112,11 +116,26 @@ async function run({ batchSize = 50 } = {}) {
   // Only rows that still have attempts remaining are actionable retries.
   const actionable = rows.filter(r => r.status === NotificationDeliveryStatus.QUEUED || r.attempts < r.maxAttempts);
 
+  let hoursConfig = null;
+  let sent = 0;
+  let deferred = 0;
+
   for (const row of actionable) {
+    if (row.businessHoursOnly) {
+      hoursConfig = hoursConfig || await businessHours.getBusinessHoursConfig();
+      if (!businessHours.isWithinBusinessHours(now, hoursConfig)) {
+        // Not an attempt — just park the row until the window opens.
+        const windowStart = businessHours.nextWindowStart(now, hoursConfig);
+        await row.update({ nextAttemptAt: windowStart || new Date(now.getTime() + 24 * 60 * 60 * 1000) });
+        deferred++;
+        continue;
+      }
+    }
     await sendOne(row);
+    sent++;
   }
 
-  return { processed: actionable.length };
+  return { processed: sent, deferred };
 }
 
 module.exports = { run };
