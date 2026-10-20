@@ -293,6 +293,39 @@ body {
   }
 }
 
+// SweetAlert2 brand default; an explicit confirmButtonColor still wins (set inline on the button)
+.swal2-popup {
+  --swal2-confirm-button-background-color: var(--cui-primary);
+  --swal2-confirm-button-color: var(--cui-primary-text-emphasis);
+}
+
+// Keep white text when a dialog passes its own confirmButtonColor (e.g. red error alerts)
+.swal2-popup .swal2-confirm[style*="--swal2-confirm-button-background-color"] {
+  --swal2-confirm-button-color: #fff;
+}
+
+// SweetAlert2 dialogs on small screens (toasts keep their own sizing)
+@include media-breakpoint-down(sm) {
+  .swal2-container .swal2-popup:not(.swal2-toast) {
+    padding: 0 0 1em;
+
+    .swal2-icon {
+      font-size: 0.75rem;
+      margin-top: 1.5em;
+    }
+
+    .swal2-title {
+      font-size: 1.25rem;
+      padding: 0.75em 1em 0;
+    }
+
+    .swal2-html-container {
+      font-size: 0.95rem;
+      margin: 0.75em 1em 0.25em;
+    }
+  }
+}
+
 @include color-mode(dark) {
   .table-modern {
     --cui-table-hover-bg: rgba(var(--cui-primary-rgb), 0.12);

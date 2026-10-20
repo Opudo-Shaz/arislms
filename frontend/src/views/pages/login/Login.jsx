@@ -71,7 +71,6 @@ const Login = () => {
       inputAttributes: { autocomplete: 'email' },
       showCancelButton: true,
       confirmButtonText: 'Send reset link',
-      confirmButtonColor: '#5dcae2',
       cancelButtonText: 'Cancel',
       showLoaderOnConfirm: true,
       preConfirm: async (value) => {
@@ -99,7 +98,6 @@ const Login = () => {
         icon: 'success',
         title: 'Check your inbox',
         text: 'If an account exists for that email, a reset link has been sent. It expires in 30 minutes.',
-        confirmButtonColor: '#321fdb',
       })
     }
   }
