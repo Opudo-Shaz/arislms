@@ -12,6 +12,12 @@ into the next dated release section below when that version ships.
 
 ### Added
 
+- **Health endpoints** — public `GET /api/health` (liveness, no DB access) and
+  `GET /api/health/ready` (readiness; 503 when the database is unreachable, with
+  the DB check cached for 5 seconds). Responses carry `timestamp` in the server
+  timezone (`TZ`, default `Africa/Nairobi`) with its UTC offset, plus `timezone`
+  and `utcOffset`. Neither is rate limited, and probes are not
+  written to the HTTP request log.
 - **Ping Africa SMS delivery receipts** — SMS sends (single and bulk) are now
   tracked in `sms_messages`, and Ping Africa's `sms.sent` / `sms.delivered` /
   `sms.failed` webhooks update them via the public, HMAC-signed

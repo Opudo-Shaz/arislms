@@ -27,6 +27,9 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+// Health probes are mounted before the request logger so they don't flood the logs.
+app.use('/api/health', require('./routes/healthRoutes'));
+
 // SMS gateway webhooks need the raw body for signature verification, so they must be
 // mounted before express.json().
 app.use('/api/webhooks/sms', require('./routes/smsWebhookRoutes'));
