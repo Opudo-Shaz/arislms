@@ -23,7 +23,6 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CModal,
   CModalBody,
@@ -33,6 +32,7 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 
 import { useCreatePayment } from '../../hooks/usePayments'
 import { useLoans } from '../../hooks/useLoans'
@@ -163,7 +163,7 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
                   disabled
                 />
               ) : (
-                <CFormSelect value={form.loanId} onChange={update('loanId')} required>
+                <FormSelect value={form.loanId} onChange={update('loanId')} required>
                   <option value="">Select a loan…</option>
                   {payableLoans.map((l) => (
                     <option key={l.id} value={l.id}>
@@ -172,7 +172,7 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
                         ` (${formatCurrency(l.outstandingBalance, l.currency)} due)`}
                     </option>
                   ))}
-                </CFormSelect>
+                </FormSelect>
               )}
             </CCol>
 
@@ -235,13 +235,13 @@ const PaymentForm = ({ visible, loan, onClose, onSuccess }) => {
 
             <CCol md={6}>
               <CFormLabel>Payment method</CFormLabel>
-              <CFormSelect value={form.paymentMethod} onChange={update('paymentMethod')}>
+              <FormSelect value={form.paymentMethod} onChange={update('paymentMethod')}>
                 {PAYMENT_METHOD.values.map((v) => (
                   <option key={v} value={v}>
                     {PAYMENT_METHOD.labels[v]}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={6}>
               <CFormLabel>External reference</CFormLabel>

@@ -10,7 +10,8 @@
 
 import React, { useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { CAlert, CButton, CCard, CCardBody, CCardHeader, CCol, CFormSelect, CRow } from '@coreui/react'
+import { CAlert, CButton, CCard, CCardBody, CCardHeader, CCol, CRow } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilBan, cilReload, cilSend } from '@coreui/icons'
 
@@ -136,13 +137,13 @@ const InvitationsList = () => {
 
         <CRow className="g-2 mb-3">
           <CCol md={4}>
-            <CFormSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <FormSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All statuses</option>
               <option value="pending">Pending</option>
               <option value="accepted">Accepted</option>
               <option value="expired">Expired</option>
               <option value="revoked">Revoked</option>
-            </CFormSelect>
+            </FormSelect>
           </CCol>
         </CRow>
 

@@ -16,7 +16,6 @@ import {
   CCardHeader,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CModal,
   CModalBody,
@@ -25,6 +24,7 @@ import {
   CModalTitle,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilCloudUpload, cilFile, cilMagnifyingGlass } from '@coreui/icons'
 
@@ -114,11 +114,11 @@ const UploadModal = ({ visible, types, initialType, onClose }) => {
         {error ? <CAlert color="danger">{error}</CAlert> : null}
         <div className="mb-3">
           <CFormLabel htmlFor="kyc-type">Document</CFormLabel>
-          <CFormSelect id="kyc-type" value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
+          <FormSelect id="kyc-type" value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
             {types.map((t) => (
               <option key={t} value={t}>{docLabel(t)}</option>
             ))}
-          </CFormSelect>
+          </FormSelect>
         </div>
         <div>
           <CFormLabel htmlFor="kyc-file">File</CFormLabel>

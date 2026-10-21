@@ -20,9 +20,9 @@ import {
   CCardHeader,
   CCol,
   CFormInput,
-  CFormSelect,
   CRow,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilPlus, cilReload } from '@coreui/icons'
 
@@ -212,7 +212,7 @@ const ClientsList = () => {
             />
           </CCol>
           <CCol md={3}>
-            <CFormSelect
+            <FormSelect
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               disabled={queueOnly || docActionOnly}
@@ -223,10 +223,10 @@ const ClientsList = () => {
                   {CLIENT_STATUS.labels[v]}
                 </option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </CCol>
           <CCol md={2}>
-            <CFormSelect
+            <FormSelect
               value={kycStatus}
               onChange={(e) => setKycStatus(e.target.value)}
             >
@@ -236,7 +236,7 @@ const ClientsList = () => {
                   {KYC_STATUS.labels[v]}
                 </option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </CCol>
           <CCol md={2}>
             <CButton

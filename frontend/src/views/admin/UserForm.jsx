@@ -17,7 +17,6 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CInputGroup,
   CInputGroupText,
   CModal,
@@ -28,6 +27,7 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import { Eye, EyeOff } from 'lucide-react'
 
 import { useCreateUser, useUpdateUser } from '../../hooks/useUsers'
@@ -193,14 +193,14 @@ const UserForm = ({ visible, user, onClose }) => {
             </CCol>
             <CCol md={4}>
               <CFormLabel>Role <span className="text-danger">*</span></CFormLabel>
-              <CFormSelect value={form.role} onChange={setField('role')} required disabled={roleLocked}>
+              <FormSelect value={form.role} onChange={setField('role')} required disabled={roleLocked}>
                 <option value="">Select role…</option>
                 {assignableRoles.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
               {roleLocked && (
                 <div className="form-text">Only a Super Admin can change a Super Admin's role.</div>
               )}

@@ -18,7 +18,6 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CInputGroup,
   CModal,
   CModalBody,
@@ -28,6 +27,7 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 
 import { useCreateInvitation } from '../../hooks/useInvitations'
 import { useRoles } from '../../hooks/useRoles'
@@ -170,14 +170,14 @@ const InviteUserModal = ({ visible, onClose }) => {
               </CCol>
               <CCol md={6}>
                 <CFormLabel>Role <span className="text-danger">*</span></CFormLabel>
-                <CFormSelect value={form.role} onChange={setField('role')} required>
+                <FormSelect value={form.role} onChange={setField('role')} required>
                   <option value="">Select role…</option>
                   {assignableRoles.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.name}
                     </option>
                   ))}
-                </CFormSelect>
+                </FormSelect>
               </CCol>
 
               <CCol md={4}>

@@ -25,9 +25,9 @@ import {
   CModalTitle,
   CRow,
   CCol,
-  CFormSelect,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import { COLLATERAL_TYPE } from '../../constants/enums'
 
 const CollateralEditModal = ({ visible, collateral, loading, error, onConfirm, onClose }) => {
@@ -96,14 +96,14 @@ const CollateralEditModal = ({ visible, collateral, loading, error, onConfirm, o
           <CRow className="g-3">
             <CCol md={6}>
               <CFormLabel>Collateral type <span className="text-danger">*</span></CFormLabel>
-              <CFormSelect value={form.collateralType} onChange={setField('collateralType')} required>
+              <FormSelect value={form.collateralType} onChange={setField('collateralType')} required>
                 <option value="">—</option>
                 {COLLATERAL_TYPE.values.map((v) => (
                   <option key={v} value={v}>
                     {COLLATERAL_TYPE.labels[v]}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={6}>
               <CFormLabel>Description <span className="text-danger">*</span></CFormLabel>

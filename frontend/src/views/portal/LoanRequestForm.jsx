@@ -22,13 +22,13 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CInputGroup,
   CInputGroupText,
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilCheckCircle, cilWarning } from '@coreui/icons'
 
@@ -154,7 +154,7 @@ const LoanRequestForm = () => {
             <CRow className="g-3">
               <CCol md={6}>
                 <CFormLabel htmlFor="lr-product">Loan product</CFormLabel>
-                <CFormSelect
+                <FormSelect
                   id="lr-product"
                   value={productId}
                   onChange={(e) => { setProductId(e.target.value); setTermMonths('') }}
@@ -164,7 +164,7 @@ const LoanRequestForm = () => {
                   {selfService.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}{p.requiresCoSigner ? ' (co-signer required)' : ''}</option>
                   ))}
-                </CFormSelect>
+                </FormSelect>
                 {branchOnly.length ? (
                   <div className="form-text">
                     Products that need collateral aren&apos;t listed here — apply for those at a branch.
@@ -195,7 +195,7 @@ const LoanRequestForm = () => {
               </CCol>
               <CCol md={6}>
                 <CFormLabel htmlFor="lr-term">Repayment period</CFormLabel>
-                <CFormSelect
+                <FormSelect
                   id="lr-term"
                   value={termMonths}
                   onChange={(e) => setTermMonths(e.target.value)}
@@ -206,7 +206,7 @@ const LoanRequestForm = () => {
                   {termOptions(product).map((m) => (
                     <option key={m} value={m}>{m} month{m === 1 ? '' : 's'}</option>
                   ))}
-                </CFormSelect>
+                </FormSelect>
                 {product ? (
                   <div className="form-text">
                     {formatTermRange(product.minRepaymentPeriodMonths, product.maxRepaymentPeriodMonths)} allowed

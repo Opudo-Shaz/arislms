@@ -20,11 +20,11 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 
 import { useClient, useCreateClient, useUpdateClient } from '../../hooks/useClients'
 import { useClientRegistrationConfig } from '../../hooks/useClientRegistrationLinks'
@@ -288,17 +288,17 @@ const ClientForm = () => {
             </CCol>
             <CCol md={3}>
               <CFormLabel>Gender <span className="text-danger">*</span></CFormLabel>
-              <CFormSelect value={form.gender} onChange={setField('gender')}>
+              <FormSelect value={form.gender} onChange={setField('gender')}>
                 {GENDERS.map((g) => (
                   <option key={g} value={g}>
                     {g.charAt(0).toUpperCase() + g.slice(1)}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={3}>
               <CFormLabel>Preferred contact</CFormLabel>
-              <CFormSelect
+              <FormSelect
                 value={form.preferredContactMethod}
                 onChange={setField('preferredContactMethod')}
               >
@@ -308,7 +308,7 @@ const ClientForm = () => {
                     {m.charAt(0).toUpperCase() + m.slice(1)}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
 
             <CCol md={4}>
@@ -353,11 +353,11 @@ const ClientForm = () => {
             </CCol>
             <CCol md={4}>
               <CFormLabel>Country <span className="text-danger">*</span></CFormLabel>
-              <CFormSelect value={form.country} onChange={setField('country')} required>
+              <FormSelect value={form.country} onChange={setField('country')} required>
                 {EAC_COUNTRIES.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
 
             <CCol xs={12}>
@@ -366,7 +366,7 @@ const ClientForm = () => {
             </CCol>
             <CCol md={6}>
               <CFormLabel>ID document type <span className="text-danger">*</span></CFormLabel>
-              <CFormSelect value={form.idDocumentType} onChange={setField('idDocumentType')}>
+              <FormSelect value={form.idDocumentType} onChange={setField('idDocumentType')}>
                 {ID_DOC_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {t
@@ -375,7 +375,7 @@ const ClientForm = () => {
                       .join(' ')}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={6}>
               <CFormLabel>ID document number <span className="text-danger">*</span></CFormLabel>

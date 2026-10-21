@@ -16,9 +16,9 @@ import {
   CCardHeader,
   CCol,
   CFormInput,
-  CFormSelect,
   CRow,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilLockLocked, cilPencil, cilPlus, cilReload, cilSend, cilShieldAlt, cilTrash } from '@coreui/icons'
 
@@ -213,14 +213,14 @@ const UsersList = () => {
             />
           </CCol>
           <CCol md={4}>
-            <CFormSelect value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+            <FormSelect value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
               <option value="">All roles</option>
               {roles.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
                 </option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </CCol>
         </CRow>
 

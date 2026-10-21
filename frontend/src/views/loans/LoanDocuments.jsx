@@ -21,11 +21,11 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilCloudUpload, cilExternalLink, cilFile, cilTrash } from '@coreui/icons'
 
@@ -212,18 +212,18 @@ const LoanDocuments = ({ loanId, collaterals }) => {
               {/* Category */}
               <CCol md={form.documentCategory === 'loan_collateral' && collaterals.length > 0 ? 3 : 4}>
                 <CFormLabel>Category</CFormLabel>
-                <CFormSelect value={form.documentCategory} onChange={handleCategoryChange}>
+                <FormSelect value={form.documentCategory} onChange={handleCategoryChange}>
                   {CATEGORY_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
-                </CFormSelect>
+                </FormSelect>
               </CCol>
 
               {/* Collateral picker — only when category is loan_collateral and collaterals exist */}
               {form.documentCategory === 'loan_collateral' && collaterals.length > 0 && (
                 <CCol md={3}>
                   <CFormLabel>Collateral </CFormLabel>
-                  <CFormSelect value={form.collateralId} onChange={handleCollateralChange} required>
+                  <FormSelect value={form.collateralId} onChange={handleCollateralChange} required>
                     <option value="">— Select collateral —</option>
                     {collaterals.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -231,17 +231,17 @@ const LoanDocuments = ({ loanId, collaterals }) => {
                         {c.description ? ` — ${c.description}` : ''}
                       </option>
                     ))}
-                  </CFormSelect>
+                  </FormSelect>
                 </CCol>
               )}
 
               <CCol md={form.documentCategory === 'loan_collateral' && collaterals.length > 0 ? 3 : 4}>
                 <CFormLabel>Document type</CFormLabel>
-                <CFormSelect value={form.documentType} onChange={setField('documentType')}>
+                <FormSelect value={form.documentType} onChange={setField('documentType')}>
                   {LOAN_DOCUMENT_TYPES.map((v) => (
                     <option key={v} value={v}>{DOCUMENT_TYPE.labels[v]}</option>
                   ))}
-                </CFormSelect>
+                </FormSelect>
               </CCol>
               <CCol md={form.documentCategory === 'loan_collateral' && collaterals.length > 0 ? 3 : 4}>
                 <CFormLabel>File</CFormLabel>

@@ -16,10 +16,10 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 
 import StatusBadge from '../../components/StatusBadge'
 import PhoneInput from '../../components/PhoneInput'
@@ -105,7 +105,7 @@ const ContactForm = ({ me }) => {
       </div>
       <div className="mb-4">
         <CFormLabel htmlFor="pf-contact">Preferred contact method</CFormLabel>
-        <CFormSelect
+        <FormSelect
           id="pf-contact"
           value={form.preferredContactMethod}
           onChange={(e) => setForm((f) => ({ ...f, preferredContactMethod: e.target.value }))}
@@ -114,7 +114,7 @@ const ContactForm = ({ me }) => {
           <option value="sms">SMS</option>
           <option value="email">Email</option>
           <option value="phone">Phone call</option>
-        </CFormSelect>
+        </FormSelect>
       </div>
       <CButton color="primary" type="submit" disabled={!dirty || sameAsPrimary || update.isPending}>
         {update.isPending ? <CSpinner size="sm" /> : 'Save changes'}

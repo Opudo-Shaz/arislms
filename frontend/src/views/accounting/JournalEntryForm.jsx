@@ -18,7 +18,6 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CModal,
   CModalBody,
@@ -28,6 +27,7 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilPlus, cilTrash } from '@coreui/icons'
 
@@ -152,7 +152,7 @@ const JournalEntryForm = ({ visible, onClose }) => {
             </CCol>
             <CCol md={4}>
               <CFormLabel>Source type</CFormLabel>
-              <CFormSelect
+              <FormSelect
                 value={form.sourceType}
                 onChange={(e) => setForm((f) => ({ ...f, sourceType: e.target.value }))}
               >
@@ -161,7 +161,7 @@ const JournalEntryForm = ({ visible, onClose }) => {
                     {LEDGER_SOURCE_TYPE.labels[v]}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={4}>
               <CFormLabel>Description</CFormLabel>
@@ -177,7 +177,7 @@ const JournalEntryForm = ({ visible, onClose }) => {
           {form.lines.map((line, idx) => (
             <CRow className="g-2 mb-2 align-items-center" key={idx}>
               <CCol md={4}>
-                <CFormSelect
+                <FormSelect
                   value={line.accountCode}
                   onChange={(e) => setLine(idx, 'accountCode', e.target.value)}
                 >
@@ -187,13 +187,13 @@ const JournalEntryForm = ({ visible, onClose }) => {
                       {a.code} – {a.name}
                     </option>
                   ))}
-                </CFormSelect>
+                </FormSelect>
               </CCol>
               <CCol md={2}>
-                <CFormSelect value={line.side} onChange={(e) => setLine(idx, 'side', e.target.value)}>
+                <FormSelect value={line.side} onChange={(e) => setLine(idx, 'side', e.target.value)}>
                   <option value="debit">Debit</option>
                   <option value="credit">Credit</option>
-                </CFormSelect>
+                </FormSelect>
               </CCol>
               <CCol md={2}>
                 <CFormInput

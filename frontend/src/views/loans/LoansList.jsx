@@ -12,9 +12,9 @@ import {
   CCardHeader,
   CCol,
   CFormInput,
-  CFormSelect,
   CRow,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilReload } from '@coreui/icons'
 
@@ -107,14 +107,14 @@ const LoansList = () => {
             />
           </CCol>
           <CCol md={4}>
-            <CFormSelect value={status} onChange={(e) => setStatus(e.target.value)}>
+            <FormSelect value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">All statuses</option>
               {LOAN_STATUS.values.map((v) => (
                 <option key={v} value={v}>
                   {LOAN_STATUS.labels[v]}
                 </option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </CCol>
         </CRow>
 

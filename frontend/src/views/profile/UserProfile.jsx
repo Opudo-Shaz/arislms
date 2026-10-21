@@ -22,7 +22,6 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CInputGroup,
   CInputGroupText,
   CNav,
@@ -33,6 +32,7 @@ import {
   CTabContent,
   CTabPane,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilCamera, cilLockLocked, cilPencil, cilSave, cilX } from '@coreui/icons'
 import { Eye, EyeOff } from 'lucide-react'
@@ -429,18 +429,18 @@ const UserProfile = () => {
                 <CRow>
                   <CCol md={6} className="mb-3">
                     <CFormLabel>Language</CFormLabel>
-                    <CFormSelect
+                    <FormSelect
                       value={settings.language}
                       onChange={(e) => handleSettingChange('language', e.target.value)}
                     >
                       <option value="en">English</option>
                       <option value="fr">French</option>
                       <option value="sw">Swahili</option>
-                    </CFormSelect>
+                    </FormSelect>
                   </CCol>
                   <CCol md={6} className="mb-3">
                     <CFormLabel>Date Format</CFormLabel>
-                    <CFormSelect
+                    <FormSelect
                       value={settings.dateFormat}
                       onChange={(e) => handleSettingChange('dateFormat', e.target.value)}
                     >
@@ -448,11 +448,11 @@ const UserProfile = () => {
                       <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                       <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
                       <option value="D MMM YYYY">D MMM YYYY</option>
-                    </CFormSelect>
+                    </FormSelect>
                   </CCol>
                   <CCol md={6} className="mb-3">
                     <CFormLabel>Timezone</CFormLabel>
-                    <CFormSelect
+                    <FormSelect
                       value={settings.timezone}
                       onChange={(e) => handleSettingChange('timezone', e.target.value)}
                     >
@@ -460,7 +460,7 @@ const UserProfile = () => {
                       <option value="UTC">UTC</option>
                       <option value="Europe/London">Europe/London</option>
                       <option value="America/New_York">America/New_York</option>
-                    </CFormSelect>
+                    </FormSelect>
                   </CCol>
                 </CRow>
                 <CButton color="primary" size="sm" onClick={handleSaveSettings}>

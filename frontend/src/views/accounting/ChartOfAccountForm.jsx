@@ -17,7 +17,6 @@ import {
   CFormCheck,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CModal,
   CModalBody,
@@ -27,6 +26,7 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 
 import { useCreateAccount, useUpdateAccount } from '../../hooks/useChartOfAccounts'
 import { ACCOUNT_TYPE, NORMAL_BALANCE } from '../../constants/enums'
@@ -133,23 +133,23 @@ const ChartOfAccountForm = ({ visible, account, onClose }) => {
 
             <CCol md={6}>
               <CFormLabel>Type <span className="text-danger">*</span></CFormLabel>
-              <CFormSelect value={form.type} onChange={setField('type')}>
+              <FormSelect value={form.type} onChange={setField('type')}>
                 {ACCOUNT_TYPE.values.map((v) => (
                   <option key={v} value={v}>
                     {ACCOUNT_TYPE.labels[v]}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={6}>
               <CFormLabel>Normal balance <span className="text-danger">*</span></CFormLabel>
-              <CFormSelect value={form.normalBalance} onChange={setField('normalBalance')}>
+              <FormSelect value={form.normalBalance} onChange={setField('normalBalance')}>
                 {NORMAL_BALANCE.values.map((v) => (
                   <option key={v} value={v}>
                     {NORMAL_BALANCE.labels[v]}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
 
             <CCol xs={12}>

@@ -20,11 +20,11 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 
 import { useCreateLoan } from '../../hooks/useLoans'
 import { useLoanProducts } from '../../hooks/useLoanProducts'
@@ -161,7 +161,7 @@ const LoanApplicationForm = () => {
                 <div className="form-control bg-body-secondary">{prefilledClientName || `Client #${prefilledClientId}`}</div>
               ) : (
                 <>
-                  <CFormSelect
+                  <FormSelect
                     value={form.clientId}
                     onChange={setField('clientId')}
                     required
@@ -174,7 +174,7 @@ const LoanApplicationForm = () => {
                         {c.accountNumber ? ` (${c.accountNumber})` : ''}
                       </option>
                     ))}
-                  </CFormSelect>
+                  </FormSelect>
                   <div className="form-text">
                     Only clients with verified KYC and an active account are eligible.
                   </div>
@@ -183,7 +183,7 @@ const LoanApplicationForm = () => {
             </CCol>
             <CCol md={6}>
               <CFormLabel>Loan product <span className="text-danger">*</span></CFormLabel>
-              <CFormSelect
+              <FormSelect
                 value={form.loanProductId}
                 onChange={(e) => setForm((f) => ({ ...f, loanProductId: e.target.value, termMonths: '' }))}
                 required
@@ -195,7 +195,7 @@ const LoanApplicationForm = () => {
                     {p.name} — {formatPercent(p.interestRate)}/{p.interestRatePeriod === 'monthly' ? 'mo' : 'yr'} {p.interestType}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
 
             {selectedProduct && (
@@ -241,7 +241,7 @@ const LoanApplicationForm = () => {
             </CCol>
             <CCol md={4}>
               <CFormLabel>Repayment period <span className="text-danger">*</span></CFormLabel>
-              <CFormSelect
+              <FormSelect
                 value={form.termMonths}
                 onChange={setField('termMonths')}
                 required
@@ -253,7 +253,7 @@ const LoanApplicationForm = () => {
                     {m} month{m === 1 ? '' : 's'}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={4}>
               <CFormLabel>Start date <span className="text-danger">*</span></CFormLabel>
@@ -294,14 +294,14 @@ const LoanApplicationForm = () => {
                 </CCol>
                 <CCol md={4}>
                   <CFormLabel>Collateral type <span className="text-danger">*</span></CFormLabel>
-                  <CFormSelect value={form.collateralType} onChange={setField('collateralType')} required>
+                  <FormSelect value={form.collateralType} onChange={setField('collateralType')} required>
                     <option value="">—</option>
                     {COLLATERAL_TYPE.values.map((v) => (
                       <option key={v} value={v}>
                         {COLLATERAL_TYPE.labels[v]}
                       </option>
                     ))}
-                  </CFormSelect>
+                  </FormSelect>
                 </CCol>
                 <CCol md={8}>
                   <CFormLabel>Description <span className="text-danger">*</span></CFormLabel>

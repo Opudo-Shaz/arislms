@@ -17,7 +17,6 @@ import {
   CFormCheck,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CModal,
   CModalBody,
@@ -27,6 +26,7 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 
 import { useCreateLoanProduct, useUpdateLoanProduct } from '../../hooks/useLoanProducts'
 import { COLLATERAL_TYPE, DOWN_PAYMENT_TYPE } from '../../constants/enums'
@@ -192,17 +192,17 @@ const LoanProductForm = ({ visible, product, onClose }) => {
             </CCol>
             <CCol md={4}>
               <CFormLabel>Interest type</CFormLabel>
-              <CFormSelect value={form.interestType} onChange={setField('interestType')}>
+              <FormSelect value={form.interestType} onChange={setField('interestType')}>
                 <option value="reducing">Reducing</option>
                 <option value="flat">Flat</option>
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={4}>
               <CFormLabel>Rate period</CFormLabel>
-              <CFormSelect value={form.interestRatePeriod} onChange={setField('interestRatePeriod')}>
+              <FormSelect value={form.interestRatePeriod} onChange={setField('interestRatePeriod')}>
                 <option value="annual">Annual</option>
                 <option value="monthly">Monthly</option>
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={4}>
               <CFormLabel>Penalty rate (%)</CFormLabel>
@@ -272,13 +272,13 @@ const LoanProductForm = ({ visible, product, onClose }) => {
             </CCol>
             <CCol md={4}>
               <CFormLabel>Down payment type</CFormLabel>
-              <CFormSelect value={form.downPaymentType} onChange={setField('downPaymentType')}>
+              <FormSelect value={form.downPaymentType} onChange={setField('downPaymentType')}>
                 {Object.keys(DOWN_PAYMENT_TYPE.labels).map((k) => (
                   <option key={k} value={k}>
                     {DOWN_PAYMENT_TYPE.labels[k]}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={4}>
               <CFormLabel>Fees</CFormLabel>

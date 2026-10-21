@@ -15,7 +15,6 @@ import {
   CButton,
   CForm,
   CFormLabel,
-  CFormSelect,
   CModal,
   CModalBody,
   CModalFooter,
@@ -23,6 +22,7 @@ import {
   CModalTitle,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 
 import { useUpdateUserStatus } from '../../hooks/useUsers'
 import { USER_STATUS, enumLabel } from '../../constants/enums'
@@ -66,13 +66,13 @@ const UserStatusModal = ({ visible, user, onClose }) => {
             Set the account status for <strong>{user?.email}</strong>.
           </p>
           <CFormLabel>Status <span className="text-danger">*</span></CFormLabel>
-          <CFormSelect value={status} onChange={(e) => setStatus(e.target.value)} required>
+          <FormSelect value={status} onChange={(e) => setStatus(e.target.value)} required>
             {USER_STATUS.values.map((v) => (
               <option key={v} value={v}>
                 {enumLabel(USER_STATUS, v)}
               </option>
             ))}
-          </CFormSelect>
+          </FormSelect>
         </CModalBody>
         <CModalFooter>
           <CButton color="secondary" variant="outline" onClick={onClose}>

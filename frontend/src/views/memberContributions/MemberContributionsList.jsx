@@ -11,9 +11,9 @@ import {
   CCardHeader,
   CCol,
   CFormInput,
-  CFormSelect,
   CRow,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilList, cilPlus, cilReload } from '@coreui/icons'
 
@@ -120,14 +120,14 @@ const MemberContributionsList = () => {
             />
           </CCol>
           <CCol md={4}>
-            <CFormSelect value={type} onChange={(e) => setType(e.target.value)}>
+            <FormSelect value={type} onChange={(e) => setType(e.target.value)}>
               <option value="">All types</option>
               {CONTRIBUTION_TYPE.values.map((v) => (
                 <option key={v} value={v}>
                   {CONTRIBUTION_TYPE.labels[v]}
                 </option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </CCol>
         </CRow>
 

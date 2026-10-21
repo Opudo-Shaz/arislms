@@ -15,13 +15,13 @@ import {
   CCardHeader,
   CCol,
   CFormInput,
-  CFormSelect,
   CModal,
   CModalBody,
   CModalHeader,
   CModalTitle,
   CRow,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilReload } from '@coreui/icons'
 
@@ -196,24 +196,24 @@ const AuditTrail = () => {
               />
             </CCol>
             <CCol md={4}>
-              <CFormSelect value={action} onChange={(e) => setAction(e.target.value)}>
+              <FormSelect value={action} onChange={(e) => setAction(e.target.value)}>
                 <option value="">All actions</option>
                 {AUDIT_ACTION.values.map((v) => (
                   <option key={v} value={v}>
                     {AUDIT_ACTION.labels[v]}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={4}>
-              <CFormSelect value={actorType} onChange={(e) => setActorType(e.target.value)}>
+              <FormSelect value={actorType} onChange={(e) => setActorType(e.target.value)}>
                 <option value="">All actor types</option>
                 {ACTOR_TYPE.values.map((v) => (
                   <option key={v} value={v}>
                     {ACTOR_TYPE.labels[v]}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
           </CRow>
 

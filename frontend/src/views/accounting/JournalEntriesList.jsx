@@ -15,10 +15,10 @@ import {
   CCardBody,
   CCardHeader,
   CCol,
-  CFormSelect,
   CFormInput,
   CRow,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilActionUndo, cilMagnifyingGlass, cilPlus, cilReload } from '@coreui/icons'
 
@@ -157,7 +157,7 @@ const JournalEntriesList = () => {
         <CCardBody>
           <CRow className="g-2 mb-3">
             <CCol md={4}>
-              <CFormSelect
+              <FormSelect
                 value={sourceType}
                 onChange={(e) => setSourceType(e.target.value)}
               >
@@ -167,7 +167,7 @@ const JournalEntriesList = () => {
                     {LEDGER_SOURCE_TYPE.labels[v]}
                   </option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={3}>
               <CFormInput

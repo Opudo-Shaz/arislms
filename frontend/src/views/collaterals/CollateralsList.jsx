@@ -16,9 +16,9 @@ import {
   CCardBody,
   CCardHeader,
   CCol,
-  CFormSelect,
   CRow,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilPencil } from '@coreui/icons'
 
@@ -105,14 +105,14 @@ const CollateralsList = () => {
       <CCardBody>
         <CRow className="g-2 mb-3">
           <CCol md={6}>
-            <CFormSelect value={loanId} onChange={(e) => setLoanId(e.target.value)}>
+            <FormSelect value={loanId} onChange={(e) => setLoanId(e.target.value)}>
               <option value="">Select a loan…</option>
               {loans.map((l) => (
                 <option key={l.id} value={l.id}>
                   {loanLabel(l)}
                 </option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </CCol>
           {loanId && (
             <CCol md="auto">

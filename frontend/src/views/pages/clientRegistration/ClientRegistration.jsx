@@ -24,12 +24,12 @@ import {
   CContainer,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormFeedback,
   CProgress,
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilCloudUpload, cilFile, cilTrash } from '@coreui/icons'
 
@@ -548,11 +548,11 @@ const ClientRegistration = () => {
             <CFormInput type="date" max={adultCutoff()} value={form.dateOfBirth} onChange={setField('dateOfBirth')} invalid={invalid('dateOfBirth')} />
           </Field>
           <Field label="Gender *" error={fe('gender')}>
-            <CFormSelect value={form.gender} onChange={setField('gender')}>
+            <FormSelect value={form.gender} onChange={setField('gender')}>
               {GENDERS.map((g) => (
                 <option key={g} value={g}>{titleCase(g)}</option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </Field>
           <Field label="Email" error={fe('email')}>
             <CFormInput type="email" value={form.email} onChange={setField('email')} invalid={invalid('email')} autoComplete="email" />
@@ -591,11 +591,11 @@ const ClientRegistration = () => {
             <CFormInput value={form.postalCode} onChange={setField('postalCode')} />
           </Field>
           <Field label="Country *" md={4} error={fe('country')}>
-            <CFormSelect value={form.country} onChange={setField('country')}>
+            <FormSelect value={form.country} onChange={setField('country')}>
               {COUNTRIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </Field>
           <Field label="Occupation *" md={4} error={fe('occupation')}>
             <CFormInput value={form.occupation} onChange={setField('occupation')} invalid={invalid('occupation')} />
@@ -607,12 +607,12 @@ const ClientRegistration = () => {
             <CFormInput type="number" min="0" step="0.01" value={form.monthlyIncome} onChange={setField('monthlyIncome')} invalid={invalid('monthlyIncome')} />
           </Field>
           <Field label="Preferred contact" error={fe('preferredContactMethod')}>
-            <CFormSelect value={form.preferredContactMethod} onChange={setField('preferredContactMethod')}>
+            <FormSelect value={form.preferredContactMethod} onChange={setField('preferredContactMethod')}>
               <option value="">No preference</option>
               {CONTACT_METHODS.map((m) => (
                 <option key={m} value={m}>{titleCase(m)}</option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </Field>
         </CRow>
       )}
@@ -620,11 +620,11 @@ const ClientRegistration = () => {
       {step.id === 'documents' && (
         <CRow className="g-3">
           <Field label="ID document type *" error={fe('idDocumentType')}>
-            <CFormSelect value={form.idDocumentType} onChange={setField('idDocumentType')}>
+            <FormSelect value={form.idDocumentType} onChange={setField('idDocumentType')}>
               {ID_DOC_TYPES.map((t) => (
                 <option key={t} value={t}>{titleCase(t)}</option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </Field>
           <Field label="ID number *" error={fe('idDocumentNumber')}>
             <CFormInput value={form.idDocumentNumber} onChange={setField('idDocumentNumber')} invalid={invalid('idDocumentNumber')} />
@@ -640,14 +640,14 @@ const ClientRegistration = () => {
             </span>
           </CCol>
           <Field label="Document type" md={5}>
-            <CFormSelect value={docType} onChange={(e) => setDocType(e.target.value)}>
+            <FormSelect value={docType} onChange={(e) => setDocType(e.target.value)}>
               {CLIENT_KYC_DOCUMENT_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {docLabel(t)}
                   {kycRequired && requiredDocTypes(form.idDocumentType).includes(t) ? ' *' : ''}
                 </option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </Field>
           <Field label="File" md={7}>
             <CFormInput

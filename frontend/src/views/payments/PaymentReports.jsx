@@ -22,7 +22,6 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CModal,
   CModalBody,
@@ -32,6 +31,7 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilReload } from '@coreui/icons'
 
@@ -194,9 +194,9 @@ const ReviewModal = ({ report, canReview, onClose }) => {
                 </CCol>
                 <CCol md={4}>
                   <CFormLabel htmlFor="pr-method">Method</CFormLabel>
-                  <CFormSelect id="pr-method" value={form.paymentMethod} onChange={set('paymentMethod')}>
+                  <FormSelect id="pr-method" value={form.paymentMethod} onChange={set('paymentMethod')}>
                     {PAYMENT_METHOD.values.map((v) => <option key={v} value={v}>{PAYMENT_METHOD.labels[v]}</option>)}
-                  </CFormSelect>
+                  </FormSelect>
                 </CCol>
                 <CCol md={4}>
                   <CFormLabel htmlFor="pr-phone">Payer phone</CFormLabel>
@@ -354,12 +354,12 @@ const PaymentReports = () => {
         </p>
         <CRow className="mb-3">
           <CCol sm={6} md={4}>
-            <CFormSelect aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <FormSelect aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">All</option>
               {PAYMENT_REPORT_REVIEW_STATUS.values.map((v) => (
                 <option key={v} value={v}>{PAYMENT_REPORT_REVIEW_STATUS.labels[v]}</option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </CCol>
         </CRow>
         <DataTable

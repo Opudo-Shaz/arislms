@@ -335,3 +335,83 @@ body {
     }
   }
 }
+
+// react-day-picker (DateRangePicker): map its tokens onto CoreUI theme variables
+// so the calendar follows the active color mode.
+// Scoped under .rdp-panel so these win over the library stylesheet regardless of
+// import order (both would otherwise be a single-class selector).
+.rdp-panel .rdp-root {
+  --rdp-accent-color: var(--cui-primary);
+  --rdp-accent-background-color: rgba(var(--cui-primary-rgb), 0.22);
+  --rdp-range_middle-background-color: rgba(var(--cui-primary-rgb), 0.22);
+  --rdp-range_middle-color: var(--cui-body-color);
+  --rdp-range_start-date-background-color: var(--cui-primary);
+  --rdp-range_end-date-background-color: var(--cui-primary);
+  --rdp-day-height: 38px;
+  --rdp-day-width: 38px;
+  --rdp-day_button-height: 36px;
+  --rdp-day_button-width: 36px;
+  --rdp-months-gap: 1.5rem;
+  // Primary is a light cyan, so endpoints use dark text for contrast in both modes.
+  --rdp-range_start-color: #1e2230;
+  --rdp-range_end-color: #1e2230;
+  color: var(--cui-body-color);
+  font-size: 0.875rem;
+
+  .rdp-month_caption {
+    font-weight: 600;
+  }
+
+  .rdp-dropdown_root select,
+  .rdp-dropdown {
+    background-color: var(--cui-body-bg);
+    color: var(--cui-body-color);
+  }
+
+  .rdp-weekday {
+    color: var(--cui-secondary-color);
+    font-weight: 500;
+  }
+
+  .rdp-chevron {
+    fill: var(--cui-secondary-color);
+  }
+
+  .rdp-today:not(.rdp-selected) .rdp-day_button {
+    border-color: var(--cui-border-color);
+    font-weight: 700;
+  }
+
+  .rdp-range_middle,
+  .rdp-range_middle .rdp-day_button {
+    color: var(--cui-body-color);
+  }
+
+  .rdp-range_start .rdp-day_button,
+  .rdp-range_end .rdp-day_button {
+    background-color: var(--cui-primary);
+    border-color: var(--cui-primary);
+    color: #1e2230;
+    font-weight: 600;
+  }
+
+  .rdp-button_previous:hover,
+  .rdp-button_next:hover,
+  .rdp-day_button:hover:not(:disabled) {
+    background-color: var(--cui-tertiary-bg);
+  }
+
+  // Selected endpoints keep the accent fill on hover.
+  .rdp-range_start .rdp-day_button:hover,
+  .rdp-range_end .rdp-day_button:hover {
+    background-color: var(--rdp-accent-color);
+  }
+}
+
+.rdp-panel .rdp-shortcuts {
+  min-width: 9rem;
+
+  @media (min-width: 768px) {
+    border-right: 1px solid var(--cui-border-color);
+  }
+}

@@ -14,7 +14,6 @@ import {
   CButton,
   CForm,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CModal,
   CModalBody,
@@ -23,6 +22,7 @@ import {
   CModalTitle,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 
 import StatusBadge from '../../components/StatusBadge'
 import { COLLATERAL_STATUS } from '../../constants/enums'
@@ -66,7 +66,7 @@ const CollateralStatusModal = ({ visible, collateral, loading, error, onConfirm,
             </div>
           </div>
           <CFormLabel>New status <span className="text-danger">*</span></CFormLabel>
-          <CFormSelect
+          <FormSelect
             className="mb-3"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -77,7 +77,7 @@ const CollateralStatusModal = ({ visible, collateral, loading, error, onConfirm,
                 {COLLATERAL_STATUS.labels[v]}
               </option>
             ))}
-          </CFormSelect>
+          </FormSelect>
           <CFormLabel>Notes</CFormLabel>
           <CFormTextarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </CModalBody>

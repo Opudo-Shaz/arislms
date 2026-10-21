@@ -16,6 +16,7 @@ import AsyncSelect from 'react-select/async'
 import { useQueryClient } from '@tanstack/react-query'
 import PropTypes from 'prop-types'
 import clientApi from '../api/clientApi'
+import { themedSelectStyles } from '../utils/selectStyles'
 
 /** Map a client record to a react-select option. */
 const toOption = (c) => ({
@@ -29,7 +30,7 @@ const formatOptionLabel = ({ label, sub }) => (
   <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
     <span>{label}</span>
     {sub && (
-      <span style={{ fontSize: '0.75rem', color: '#6c757d' }}>{sub}</span>
+      <span style={{ fontSize: '0.75rem', color: 'var(--cui-secondary-color)' }}>{sub}</span>
     )}
   </div>
 )
@@ -101,26 +102,7 @@ const ClientAsyncSelect = ({ value, onChange, isDisabled = false, inputId }) => 
       noOptionsMessage={({ inputValue }) =>
         inputValue ? 'No matching clients' : 'No active clients found'
       }
-      styles={{
-        control: (base, state) => ({
-          ...base,
-          borderColor: state.isFocused ? '#321fdb' : '#b1b7c1',
-          boxShadow: state.isFocused ? '0 0 0 0.25rem rgba(50,31,219,.25)' : 'none',
-          '&:hover': { borderColor: '#321fdb' },
-          minHeight: '36px',
-        }),
-        menu: (base) => ({ ...base, zIndex: 9999 }),
-        option: (base, state) => ({
-          ...base,
-          backgroundColor: state.isSelected
-            ? '#321fdb'
-            : state.isFocused
-              ? '#eaecf7'
-              : undefined,
-          color: state.isSelected ? '#fff' : '#212529',
-          padding: '6px 12px',
-        }),
-      }}
+      styles={themedSelectStyles}
     />
   )
 }

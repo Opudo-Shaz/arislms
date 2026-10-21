@@ -6,7 +6,8 @@
 
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CButton, CCard, CCardBody, CCardHeader, CCol, CFormSelect, CRow } from '@coreui/react'
+import { CButton, CCard, CCardBody, CCardHeader, CCol, CRow } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilPlus } from '@coreui/icons'
 
@@ -72,12 +73,12 @@ const MyLoans = () => {
       <CCardBody>
         <CRow className="mb-3">
           <CCol sm={6} md={4}>
-            <CFormSelect aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <FormSelect aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">All statuses</option>
               {FILTER_STATUSES.map((v) => (
                 <option key={v} value={v}>{LOAN_STATUS.labels[v] || v}</option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </CCol>
         </CRow>
         <DataTable

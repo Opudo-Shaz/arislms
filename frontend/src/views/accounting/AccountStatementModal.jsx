@@ -3,8 +3,8 @@
  *
  * Displays a ledger statement for a single chart-of-accounts entry over a
  * user-selected date range. Preset period buttons (This Month / Last Month /
- * This Quarter / This Year / Custom) feed a react-datepicker date-range
- * picker. The statement rows show date, reference, description, debit, credit
+ * This Quarter / This Year / Custom) feed a DateRangePicker (react-day-picker)
+ * panel. The statement rows show date, reference, description, debit, credit
  * and running balance.
  *
  * @module views/accounting/AccountStatementModal
@@ -29,15 +29,17 @@ import {
   CTableDataCell,
   CBadge,
 } from '@coreui/react'
-import DatePicker from 'react-datepicker'
-import 'react-datepicker/dist/react-datepicker.css'
+import DateRangePicker from '../../components/DateRangePicker'
 
 import { useAccountStatement } from '../../hooks/useChartOfAccounts'
 import { formatCurrency, formatDate } from '../../utils/format'
 
 // ─── preset helpers ────────────────────────────────────────────────────────────
 
-const fmt = (d) => d.toISOString().slice(0, 10)
+// Local-calendar formatting: toISOString() is UTC and shifts local midnight to the
+// previous day in UTC+ timezones.
+const pad = (n) => String(n).padStart(2, '0')
+const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
 const today = () => new Date()
 
@@ -79,10 +81,8 @@ const presets = [
 const AccountStatementModal = ({ visible, account, onClose }) => {
   const defaultPreset = presets[0]
 
-  // pickerDates drives the DatePicker's display (may have null end during selection)
-  const [pickerDates, setPickerDates] = useState(defaultPreset.get())
-  // queryDates only updates when a full [start, end] range is confirmed — avoids
-  // disabling the query mid-selection when the user clicks the first date.
+  // queryDates only updates when a full [start, end] range is confirmed.
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [queryDates, setQueryDates] = useState(defaultPreset.get())
   const [activePreset, setActivePreset] = useState(defaultPreset.label)
 
@@ -93,9 +93,9 @@ const AccountStatementModal = ({ visible, account, onClose }) => {
     if (account?.code && account.code !== prevCodeRef.current) {
       prevCodeRef.current = account.code
       const range = defaultPreset.get()
-      setPickerDates(range)
       setQueryDates(range)
       setActivePreset(defaultPreset.label)
+      setPickerOpen(false)
     }
   }, [account?.code]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -114,9 +114,10 @@ const AccountStatementModal = ({ visible, account, onClose }) => {
   const selectPreset = useCallback((preset) => {
     setActivePreset(preset.label)
     if (preset.get) {
-      const range = preset.get()
-      setPickerDates(range)
-      setQueryDates(range) // presets always produce a complete range
+      setQueryDates(preset.get()) // presets always produce a complete range
+      setPickerOpen(false)
+    } else {
+      setPickerOpen((o) => !o)
     }
   }, [])
 
@@ -152,36 +153,27 @@ const AccountStatementModal = ({ visible, account, onClose }) => {
             ))}
           </CButtonGroup>
 
-          {activePreset === 'Custom' && (
-            <DatePicker
-              selectsRange
-              startDate={pickerDates[0]}
-              endDate={pickerDates[1]}
-              onChange={(range) => {
-                const [start, end] = range ?? [null, null]
-                setPickerDates([start, end])
-                // Only apply to query when the user has finished picking both dates
-                if (start && end) setQueryDates([start, end])
-              }}
-              dateFormat="yyyy-MM-dd"
-              placeholderText="Select date range"
-              className="form-control form-control-sm"
-              wrapperClassName="d-inline-block"
-              maxDate={today()}
-            />
-          )}
-
           {from && to && (
             <small className="text-muted">
               {formatDate(from)} → {formatDate(to)}
-              {pickerDates[0] && !pickerDates[1] && activePreset === 'Custom' && (
-                <span className="ms-1 text-warning">(select end date)</span>
-              )}
             </small>
           )}
 
           {isFetching && !isLoading && <CSpinner size="sm" />}
         </div>
+
+        {pickerOpen && (
+          <DateRangePicker
+            from={queryDates[0]}
+            to={queryDates[1]}
+            maxDate={today()}
+            onCancel={() => setPickerOpen(false)}
+            onApply={(start, end) => {
+              setQueryDates([start, end])
+              setPickerOpen(false)
+            }}
+          />
+        )}
 
         {/* ── error ── */}
         {error && (

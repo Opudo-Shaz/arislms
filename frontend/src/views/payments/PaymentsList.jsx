@@ -13,9 +13,9 @@ import {
   CCardBody,
   CCardHeader,
   CCol,
-  CFormSelect,
   CRow,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilMagnifyingGlass, cilPlus, cilReload, cilTrash } from '@coreui/icons'
 
@@ -140,7 +140,7 @@ const PaymentsList = () => {
       <CCardBody>
         <CRow className="g-2 mb-3">
           <CCol md={5}>
-            <CFormSelect
+            <FormSelect
               value={method}
               onChange={(e) => setMethod(e.target.value)}
             >
@@ -150,7 +150,7 @@ const PaymentsList = () => {
                   {PAYMENT_METHOD.labels[v]}
                 </option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </CCol>
         </CRow>
 

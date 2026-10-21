@@ -19,13 +19,13 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CInputGroup,
   CInputGroupText,
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilCheckCircle } from '@coreui/icons'
 
@@ -150,9 +150,9 @@ const ReportPaymentForm = () => {
                 </CCol>
                 <CCol md={6}>
                   <CFormLabel htmlFor="rp-method">Paid via</CFormLabel>
-                  <CFormSelect id="rp-method" value={form.paymentMethod} onChange={set('paymentMethod')}>
+                  <FormSelect id="rp-method" value={form.paymentMethod} onChange={set('paymentMethod')}>
                     {METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-                  </CFormSelect>
+                  </FormSelect>
                 </CCol>
                 <CCol md={6}>
                   <CFormLabel htmlFor="rp-ref">

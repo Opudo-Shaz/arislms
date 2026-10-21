@@ -18,9 +18,9 @@ import {
   CCardHeader,
   CCol,
   CFormInput,
-  CFormSelect,
   CRow,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilReload, cilSync } from '@coreui/icons'
 
@@ -143,24 +143,24 @@ const NotificationOutboxList = () => {
       <CCardBody>
         <CRow className="g-2 mb-3">
           <CCol md={3}>
-            <CFormSelect value={status} onChange={(e) => setStatus(e.target.value)}>
+            <FormSelect value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">All statuses</option>
               {NOTIFICATION_DELIVERY_STATUS.values.map((v) => (
                 <option key={v} value={v}>
                   {NOTIFICATION_DELIVERY_STATUS.labels[v]}
                 </option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </CCol>
           <CCol md={3}>
-            <CFormSelect value={channel} onChange={(e) => setChannel(e.target.value)}>
+            <FormSelect value={channel} onChange={(e) => setChannel(e.target.value)}>
               <option value="">All channels</option>
               {NOTIFICATION_CHANNEL.values.map((v) => (
                 <option key={v} value={v}>
                   {NOTIFICATION_CHANNEL.labels[v]}
                 </option>
               ))}
-            </CFormSelect>
+            </FormSelect>
           </CCol>
           <CCol md={4}>
             <CFormInput

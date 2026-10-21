@@ -22,7 +22,6 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CModal,
   CModalBody,
@@ -38,6 +37,7 @@ import {
   CTabContent,
   CTabPane,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilBan, cilCash, cilCheckAlt, cilPencil, cilPlus, cilTrash, cilXCircle } from '@coreui/icons'
 
@@ -697,7 +697,7 @@ const LoanDetail = () => {
           </p>
           <CForm>
             <CFormLabel>Reason <span className="text-danger">*</span></CFormLabel>
-            <CFormSelect
+            <FormSelect
               value={deleteReason}
               onChange={(e) => setDeleteReason(e.target.value)}
               invalid={deleteTouched && !deleteReason}
@@ -708,7 +708,7 @@ const LoanDetail = () => {
                   {r.label}
                 </option>
               ))}
-            </CFormSelect>
+            </FormSelect>
             {deleteTouched && !deleteReason && (
               <div className="invalid-feedback d-block">A reason is required.</div>
             )}

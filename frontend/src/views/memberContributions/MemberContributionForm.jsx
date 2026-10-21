@@ -17,7 +17,6 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CModal,
   CModalBody,
@@ -27,6 +26,7 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 
 import { useCreateContribution } from '../../hooks/useMemberContributions'
 import { CONTRIBUTION_TYPE } from '../../constants/enums'
@@ -118,10 +118,10 @@ const MemberContributionForm = ({ visible, clientId, onClose }) => {
 
             <CCol md={6}>
               <CFormLabel>Type <span className="text-danger">*</span></CFormLabel>
-              <CFormSelect value={form.type} onChange={setField('type')}>
+              <FormSelect value={form.type} onChange={setField('type')}>
                 <option value="CONTRIBUTION">{CONTRIBUTION_TYPE.labels.CONTRIBUTION}</option>
                 <option value="WITHDRAWAL">{CONTRIBUTION_TYPE.labels.WITHDRAWAL}</option>
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol md={6}>
               <CFormLabel>Amount <span className="text-danger">*</span></CFormLabel>

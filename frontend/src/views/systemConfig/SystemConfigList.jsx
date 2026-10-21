@@ -24,7 +24,6 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormSwitch,
   CFormTextarea,
   CInputGroup,
@@ -38,10 +37,12 @@ import {
   CSpinner,
   CAlert,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilLockLocked, cilPencil, cilPlus, cilReload, cilTrash } from '@coreui/icons'
 import { Eye, EyeOff } from 'lucide-react'
 import Select from 'react-select'
+import { themedSelectStyles } from '../../utils/selectStyles'
 
 import DataTable from '../../components/DataTable'
 import CursorPager from '../../components/CursorPager'
@@ -222,21 +223,12 @@ const ConfigForm = ({ visible, config, categories, onClose }) => {
                     onChange={handleCodeChange}
                     placeholder="Search codes…"
                     isClearable
-                    styles={{
-                      control: (base, state) => ({
-                        ...base,
-                        borderColor: state.isFocused ? '#321fdb' : '#b1b7c1',
-                        boxShadow: state.isFocused ? '0 0 0 0.25rem rgba(50,31,219,.25)' : 'none',
-                        '&:hover': { borderColor: '#321fdb' },
-                        minHeight: '36px',
-                      }),
-                      menu: (base) => ({ ...base, zIndex: 9999 }),
-                    }}
+                    styles={themedSelectStyles}
                   />
                 </CCol>
                 <CCol md={6}>
                   <CFormLabel>Value {!isEdit && <span className="text-danger">*</span>}</CFormLabel>
-                  <CFormSelect
+                  <FormSelect
                     value={form.value}
                     onChange={set('value')}
                     disabled={!form.codeId}
@@ -246,7 +238,7 @@ const ConfigForm = ({ visible, config, categories, onClose }) => {
                     {(codeValues || []).map((cv) => (
                       <option key={cv.id} value={cv.value}>{cv.value}</option>
                     ))}
-                  </CFormSelect>
+                  </FormSelect>
                 </CCol>
               </>
             )}
@@ -290,11 +282,11 @@ const ConfigForm = ({ visible, config, categories, onClose }) => {
             )}
             <CCol md={form.isBoolean ? 12 : 4}>
               <CFormLabel>Category</CFormLabel>
-              <CFormSelect value={form.category} onChange={set('category')}>
+              <FormSelect value={form.category} onChange={set('category')}>
                 {categories.map((c) => (
                   <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
                 ))}
-              </CFormSelect>
+              </FormSelect>
             </CCol>
             <CCol xs={12}>
               <CFormSwitch
@@ -521,7 +513,7 @@ const SystemConfigList = () => {
         <CCardHeader className="d-flex align-items-center gap-2 flex-wrap">
           <span className="fw-semibold me-auto">System Configurations</span>
 
-          <CFormSelect
+          <FormSelect
             size="sm"
             style={{ width: 'auto' }}
             value={categoryFilter}
@@ -531,7 +523,7 @@ const SystemConfigList = () => {
             {categories.map((c) => (
               <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
             ))}
-          </CFormSelect>
+          </FormSelect>
 
           <CButton
             color="secondary"

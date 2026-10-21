@@ -21,11 +21,11 @@ import {
   CFormCheck,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CFormTextarea,
   CRow,
   CSpinner,
 } from '@coreui/react'
+import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
 import { cilCheckCircle, cilCloudUpload, cilExternalLink, cilFile, cilReload, cilTrash, cilX } from '@coreui/icons'
 
@@ -302,14 +302,14 @@ const ClientDocuments = ({ clientId, clientStatus }) => {
             <CRow className="g-3">
               <CCol md={5}>
                 <CFormLabel>Document type</CFormLabel>
-                <CFormSelect
+                <FormSelect
                   value={form.documentType}
                   onChange={(e) => setForm((f) => ({ ...f, documentType: e.target.value }))}
                 >
                   {CLIENT_KYC_DOCUMENT_TYPES.map((v) => (
                     <option key={v} value={v}>{DOCUMENT_TYPE.labels[v]}</option>
                   ))}
-                </CFormSelect>
+                </FormSelect>
               </CCol>
               <CCol md={7}>
                 <CFormLabel>File</CFormLabel>

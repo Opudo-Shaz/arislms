@@ -14,7 +14,8 @@
 
 import React from 'react'
 import PropTypes from 'prop-types'
-import { CFormSelect, CSpinner } from '@coreui/react'
+import { CSpinner } from '@coreui/react'
+import FormSelect from './FormSelect'
 
 import { useCodeByKey } from '../hooks/useCodes'
 
@@ -28,7 +29,7 @@ const CodeSelect = ({ codeKey, value, onChange, required, disabled, placeholder,
 
   return (
     <div className="d-flex align-items-center gap-2">
-      <CFormSelect
+      <FormSelect
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value || null)}
         required={required}
@@ -41,7 +42,7 @@ const CodeSelect = ({ codeKey, value, onChange, required, disabled, placeholder,
             {v.description || v.value}
           </option>
         ))}
-      </CFormSelect>
+      </FormSelect>
       {isLoading && <CSpinner size="sm" />}
     </div>
   )
