@@ -61,6 +61,12 @@ module.exports = {
       const product = await LoanProduct.findByPk(id);
       if (!product) return null;
 
+      const minTerm = Number(data.minRepaymentPeriodMonths ?? product.minRepaymentPeriodMonths);
+      const maxTerm = Number(data.maxRepaymentPeriodMonths ?? product.maxRepaymentPeriodMonths);
+      if (minTerm > maxTerm) {
+        throw new Error('Minimum repayment period cannot exceed maximum repayment period');
+      }
+
       product.updated_at = formatDateWithOffset(new Date());
       await product.update(data);
 

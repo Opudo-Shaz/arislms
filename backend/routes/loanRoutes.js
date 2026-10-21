@@ -117,7 +117,8 @@ router.get('/:id', authenticate, validateIdParam(), getLoanById);
  *       - `APPROVED` decision → loan is set to `under_review` (awaiting admin approval)
  *       - `MANUAL_REVIEW` or `REJECTED` decision → loan is set to `pending` (requires manual review)
  *
- *       Interest rates, term, fees, and currency are derived from the selected loan product.
+ *       Interest rates, fees, and currency are derived from the selected loan product; the
+ *       repayment period (termMonths) is chosen by the applicant within the product's range.
  *       The client must have a verified KYC status to be eligible.
  *     tags:
  *       - Loans
@@ -133,6 +134,7 @@ router.get('/:id', authenticate, validateIdParam(), getLoanById);
  *               - clientId
  *               - loanProductId
  *               - principalAmount
+ *               - termMonths
  *               - startDate
  *             properties:
  *               clientId:
@@ -141,7 +143,7 @@ router.get('/:id', authenticate, validateIdParam(), getLoanById);
  *                 example: 1
  *               loanProductId:
  *                 type: integer
- *                 description: ID of the loan product to apply (determines interest rate, term, fees)
+ *                 description: ID of the loan product to apply (determines interest rate, allowed term range, fees)
  *                 example: 1
  *               principalAmount:
  *                 type: number
@@ -154,7 +156,7 @@ router.get('/:id', authenticate, validateIdParam(), getLoanById);
  *                 example: "2026-04-04"
  *               termMonths:
  *                 type: integer
- *                 description: Loan term in months. Defaults to the loan product's repayment period if omitted.
+ *                 description: Repayment period in months chosen by the applicant; must be within the loan product's min/max repayment period. Drives the repayment schedule.
  *                 example: 12
  *               collateral:
  *                 type: object
@@ -256,6 +258,7 @@ router.post('/', authenticate, requirePermission('loans:create'), createLoan);
  *             clientId: 1
  *             loanProductId: 1
  *             principalAmount: 20000
+ *             termMonths: 12
  *             startDate: "2026-04-04"
  *             collateral: { type: "Logbook", details: "Toyota Vitz 2018" }
  *     responses:

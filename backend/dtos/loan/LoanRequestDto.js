@@ -35,6 +35,13 @@ class LoanRequestDto {
         'number.positive': 'Principal amount must be greater than zero',
         'any.required': 'Principal amount is required'
       }),
+    termMonths: Joi.number().integer().min(1).required()
+      .messages({
+        'number.base': 'Repayment period must be a number of months',
+        'number.integer': 'Repayment period must be a whole number of months',
+        'number.min': 'Repayment period must be at least 1 month',
+        'any.required': 'Repayment period (termMonths) is required'
+      }),
     startDate: Joi.date().iso().required()
       .messages({
         'date.base': 'Start date must be a valid date',
@@ -104,6 +111,7 @@ class LoanRequestDto {
       'clientId',
       'loanProductId',
       'principalAmount',
+      'termMonths',
       'startDate'
     ],
     (schema) => schema.optional()

@@ -31,7 +31,12 @@ const loanRequestSchema = Joi.object({
     'number.positive': 'Amount must be greater than zero',
     'any.required': 'Amount is required',
   }),
-  termMonths: Joi.number().integer().min(1).max(120),
+  termMonths: Joi.number().integer().min(1).required().messages({
+    'number.base': 'Repayment period must be a number of months',
+    'number.integer': 'Repayment period must be a whole number of months',
+    'number.min': 'Repayment period must be at least 1 month',
+    'any.required': 'Select a repayment period',
+  }),
   notes: Joi.string().trim().max(1000).allow(null, ''),
   // Signed pick token from POST /portal/co-signers/lookup (never a raw client id).
   coSignerToken: Joi.string().allow(null, ''),

@@ -78,6 +78,29 @@ function validateAmountAgainstProduct(amount, product) {
 }
 
 /**
+ * Ensures the requested repayment term is a whole number of months within the
+ * product's allowed range.
+ * @param {number} termMonths
+ * @param {Object} product - LoanProduct instance
+ * @returns {number} The validated term
+ */
+function validateTermAgainstProduct(termMonths, product) {
+  const term = Number(termMonths);
+  const min = Number(product.minRepaymentPeriodMonths);
+  const max = Number(product.maxRepaymentPeriodMonths);
+  if (!Number.isInteger(term) || term < 1) {
+    throw Object.assign(new Error('Repayment period (termMonths) must be a whole number of months'), { statusCode: 422 });
+  }
+  if (term < min || term > max) {
+    throw Object.assign(
+      new Error(`Repayment period for ${product.name} must be between ${min} and ${max} months (requested ${term})`),
+      { statusCode: 422 }
+    );
+  }
+  return term;
+}
+
+/**
  * Builds repayment-schedule DB rows from amortization data, prepending upfront
  * installments for any loan fees and/or a collected down payment.
  *
@@ -229,7 +252,6 @@ const loanService = {
    * @param {string} userAgent - Source of the action
    * @param {Object} [options]
    * @param {string}  [options.loanStatus=LoanStatus.PENDING] - Status for the new loan
-   * @param {boolean} [options.useProvidedTermMonths=false] - Honor data.termMonths over the product default
    * @param {boolean} [options.linkCreditScore=false] - Link the latest credit score to the loan
    * @param {boolean} [options.skipClientValidation=false] - Skip open-loan + eligibility checks (caller already ran them)
    * @param {Object}  [options.auditExtra=null] - Extra data merged into the CREATE audit entry
@@ -241,7 +263,6 @@ const loanService = {
   async processLoanCreation(data, createdByUser, userAgent, options = {}) {
     const {
       loanStatus = LoanStatus.PENDING,
-      useProvidedTermMonths = false,
       linkCreditScore = false,
       skipClientValidation = false,
       auditExtra = null,
@@ -273,16 +294,14 @@ const loanService = {
     if (!product) throw new Error('Invalid loan product selected');
     collateralService.validateCollateralInputAgainstProduct(product, data.collateral);
 
-    // Validate loan amount against product boundaries
+    // Validate loan amount and requested repayment period against product boundaries
     validateAmountAgainstProduct(data.principalAmount, product);
+    const termMonths = validateTermAgainstProduct(data.termMonths, product);
 
     // Apply product rules
     const interestRate = product.interestRate;
     const interestType = product.interestType;
     const interestRatePeriod = product.interestRatePeriod || 'annual';
-    const termMonths = useProvidedTermMonths
-      ? (data.termMonths || product.repaymentPeriodMonths)
-      : product.repaymentPeriodMonths;
     const loanCurrency = product.currency || 'KES';
     const fees = product.fees || 0;
 
@@ -477,6 +496,12 @@ const loanService = {
       if (!data.loanProductId) throw new Error('loanProductId is required');
       if (!data.principalAmount) throw new Error('principalAmount is required');
       if (!data.startDate) throw new Error('startDate is required');
+      if (!data.termMonths) throw new Error('termMonths is required');
+
+      // Reject an out-of-range term before scoring so no credit score is saved for it
+      const product = await LoanProduct.findByPk(data.loanProductId);
+      if (!product) throw new Error('Invalid loan product selected');
+      validateTermAgainstProduct(data.termMonths, product);
 
       // Gate: ensure client has no conflicting open loans and is eligible before scoring
       await validateClientOpenLoans(data.clientId);
@@ -488,7 +513,7 @@ const loanService = {
         creatorId,
         userAgent,
         {
-          requestedTenure: data.termMonths || 12,
+          requestedTenure: Number(data.termMonths),
           ...(portalClient ? { auditActor: { id: portalClient.id, type: 'CLIENT' } } : {}),
         }
       );
@@ -514,7 +539,6 @@ const loanService = {
 
       const newLoan = await this.processLoanCreation(data, createdByUser, userAgent, {
         loanStatus,
-        useProvidedTermMonths: true,
         linkCreditScore: true,
         skipClientValidation: true,
         portalClient,
@@ -558,6 +582,19 @@ const loanService = {
       }
       if (coSignerChanged && !data.coSignerId) {
         data.coSignerConsentStatus = null;
+      }
+
+      if (data.termMonths !== undefined && Number(data.termMonths) !== Number(loan.termMonths)) {
+        if (loan.repaymentSchedules?.length) {
+          throw Object.assign(
+            new Error('Repayment period cannot be changed after the repayment schedule has been generated'),
+            { statusCode: 422 }
+          );
+        }
+        const product = await LoanProduct.findByPk(data.loanProductId || loan.loanProductId);
+        if (!product) throw new Error('Invalid loan product selected');
+        data.termMonths = validateTermAgainstProduct(data.termMonths, product);
+        data.endDate = calculateEndDate(data.startDate || loan.startDate, data.termMonths);
       }
 
       // Recalculate if key fields changed

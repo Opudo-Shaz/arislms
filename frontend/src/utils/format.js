@@ -67,3 +67,28 @@ export const formatPercent = (value) => {
   if (Number.isNaN(num)) return '—'
   return `${num}%`
 }
+
+/**
+ * Format a loan product's repayment period range, e.g. "3–12 months" or "6 months".
+ * @param {number|string|null|undefined} min
+ * @param {number|string|null|undefined} max
+ * @returns {string}
+ */
+export const formatTermRange = (min, max) => {
+  const lo = Number(min)
+  const hi = Number(max)
+  if (!hi) return '—'
+  const unit = hi === 1 ? 'month' : 'months'
+  return lo && lo !== hi ? `${lo}–${hi} ${unit}` : `${hi} ${unit}`
+}
+
+/**
+ * List the whole-month terms a product allows, from min to max inclusive.
+ * @param {{minRepaymentPeriodMonths?: number, maxRepaymentPeriodMonths?: number}|null|undefined} product
+ * @returns {number[]}
+ */
+export const termOptions = (product) => {
+  const lo = Math.max(1, Number(product?.minRepaymentPeriodMonths) || 1)
+  const hi = Number(product?.maxRepaymentPeriodMonths) || 0
+  return hi >= lo ? Array.from({ length: hi - lo + 1 }, (_, i) => lo + i) : []
+}

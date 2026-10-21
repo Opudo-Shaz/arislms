@@ -35,7 +35,7 @@ import { cilCheckCircle, cilWarning } from '@coreui/icons'
 import CreditScoreGauge from '../../components/CreditScoreGauge'
 import CoSignerPicker from '../../components/portal/CoSignerPicker'
 import { usePortalDashboard, usePortalMe, usePublicLoanProducts, useSubmitLoanRequest } from '../../hooks/usePortal'
-import { formatCurrency } from '../../utils/format'
+import { formatCurrency, formatTermRange, termOptions } from '../../utils/format'
 
 // Mirrors loanService.validateClientOpenLoans — one open loan at a time.
 const OPEN_STATUSES = ['approved', 'disbursed', 'in_review', 'active', 'under_review', 'pending']
@@ -121,7 +121,7 @@ const LoanRequestForm = () => {
       const res = await submit.mutateAsync({
         loanProductId: Number(productId),
         principalAmount: Number(amount),
-        ...(termMonths ? { termMonths: Number(termMonths) } : {}),
+        termMonths: Number(termMonths),
         ...(product?.requiresCoSigner && coSigner ? { coSignerToken: coSigner.coSignerToken } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       })
@@ -195,19 +195,22 @@ const LoanRequestForm = () => {
               </CCol>
               <CCol md={6}>
                 <CFormLabel htmlFor="lr-term">Repayment period</CFormLabel>
-                <CFormSelect id="lr-term" value={termMonths} onChange={(e) => setTermMonths(e.target.value)} disabled={!product}>
-                  <option value="">
-                    {product ? `${product.repaymentPeriodMonths} months (standard)` : 'Select a product first'}
-                  </option>
-                  {product
-                    ? Array.from({ length: Math.max(0, product.repaymentPeriodMonths - 1) }, (_, i) => i + 1).map((m) => (
-                        <option key={m} value={m}>{m} month{m === 1 ? '' : 's'}</option>
-                      ))
-                    : null}
+                <CFormSelect
+                  id="lr-term"
+                  value={termMonths}
+                  onChange={(e) => setTermMonths(e.target.value)}
+                  disabled={!product}
+                  required
+                >
+                  <option value="">{product ? 'Select number of months…' : 'Select a product first'}</option>
+                  {termOptions(product).map((m) => (
+                    <option key={m} value={m}>{m} month{m === 1 ? '' : 's'}</option>
+                  ))}
                 </CFormSelect>
                 {product ? (
                   <div className="form-text">
-                    Interest {product.interestRate}% {product.interestRatePeriod === 'monthly' ? 'per month' : 'per year'}
+                    {formatTermRange(product.minRepaymentPeriodMonths, product.maxRepaymentPeriodMonths)} allowed
+                    {' · '}Interest {product.interestRate}% {product.interestRatePeriod === 'monthly' ? 'per month' : 'per year'}
                     {Number(product.fees) > 0 ? ` · fees ${formatCurrency(product.fees, product.currency)}` : ''}
                     {Number(product.minimumDownPayment) > 0
                       ? ` · down payment ${product.downPaymentType === 'percentage' ? `${product.minimumDownPayment}%` : formatCurrency(product.minimumDownPayment, product.currency)}`
@@ -230,7 +233,7 @@ const LoanRequestForm = () => {
               <CButton
                 color="primary"
                 type="submit"
-                disabled={submit.isPending || !product || !amount || (product.requiresCoSigner && !coSigner)}
+                disabled={submit.isPending || !product || !amount || !termMonths || (product.requiresCoSigner && !coSigner)}
               >
                 {submit.isPending ? <CSpinner size="sm" /> : 'Submit request'}
               </CButton>

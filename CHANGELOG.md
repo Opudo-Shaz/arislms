@@ -48,6 +48,20 @@ into the next dated release section below when that version ships.
 
 ### Changed
 
+- **Loan products have a repayment period range; applicants choose the term** —
+  the single `repaymentPeriodMonths` on loan products is replaced by
+  `minRepaymentPeriodMonths` and `maxRepaymentPeriodMonths` (API and product
+  form). When creating a loan (staff `POST /api/loans`, `POST /api/loans/without-scoring`
+  and portal `POST /api/portal/loan-requests`), `termMonths` is now **required**
+  and must fall within the product's range. The chosen term drives the instalment,
+  end date and the repayment schedule generated at disbursement; it is no longer
+  taken from the product. The staff loan application and portal request forms
+  now have a repayment-period picker limited to the product's range. Updating a
+  loan's `termMonths` is validated against the range and is blocked once a
+  repayment schedule exists. Existing installs **must run
+  `node scripts/addRepaymentPeriodRangeToLoanProducts.js` before starting the
+  server** — it sets min = 1 and max = the old repayment period for existing
+  products and drops the old column.
 - **System config categories come from the backend** — `GET /api/system-configs`
   now returns a `categories` array (from `SYSTEM_CONFIG_CATEGORIES`), and the
   admin UI uses it for the category filter, form dropdown and badges. The

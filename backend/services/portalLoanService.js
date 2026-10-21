@@ -54,7 +54,7 @@ function toClientError(error) {
 const portalLoanService = {
   /**
    * @param {number} clientId - authenticated client (req.client.id)
-   * @param {{loanProductId: number, principalAmount: number, termMonths?: number, notes?: string}} dto
+   * @param {{loanProductId: number, principalAmount: number, termMonths: number, notes?: string}} dto
    * @returns {Promise<{loan, scorePassed: boolean, riskScore: number, riskGrade: string,
    *   creditLimit: number, message: string}>}
    */
@@ -74,9 +74,11 @@ const portalLoanService = {
       ? coSignerConsentService.resolvePickToken(clientId, dto.coSignerToken)
       : undefined;
 
-    const termMonths = dto.termMonths || product.repaymentPeriodMonths;
-    if (dto.termMonths && dto.termMonths > product.repaymentPeriodMonths) {
-      throw unprocessable(`The maximum term for ${product.name} is ${product.repaymentPeriodMonths} months.`);
+    const termMonths = Number(dto.termMonths);
+    const minTerm = Number(product.minRepaymentPeriodMonths);
+    const maxTerm = Number(product.maxRepaymentPeriodMonths);
+    if (!termMonths || termMonths < minTerm || termMonths > maxTerm) {
+      throw unprocessable(`The repayment period for ${product.name} must be between ${minTerm} and ${maxTerm} months.`);
     }
 
     let result;

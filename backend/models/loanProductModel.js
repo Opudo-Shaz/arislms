@@ -39,7 +39,17 @@ const LoanProduct = sequelize.define('LoanProduct', {
     field: 'down_payment_type',
     comment: 'How minimumDownPayment is applied: amount | percentage'
   },
-  repaymentPeriodMonths: { type: DataTypes.INTEGER, allowNull: false },
+  // Allowed repayment duration range; the actual term is chosen per loan request.
+  minRepaymentPeriodMonths: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    field: 'min_repayment_period_months'
+  },
+  maxRepaymentPeriodMonths: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    field: 'max_repayment_period_months'
+  },
 
   maxLoanAmount: { type: DataTypes.DECIMAL(14,2), defaultValue: null },
   minLoanAmount: { type: DataTypes.DECIMAL(14,2), defaultValue: null },

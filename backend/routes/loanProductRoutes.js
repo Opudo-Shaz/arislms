@@ -22,7 +22,8 @@ const router = express.Router();
  *             name: Personal Loan
  *             interestRate: 5.5
  *             maxAmount: 50000
- *             termMonths: 36
+ *             minRepaymentPeriodMonths: 3
+ *             maxRepaymentPeriodMonths: 36
  *     responses:
  *       201:
  *         description: Loan product created successfully
@@ -33,7 +34,8 @@ const router = express.Router();
  *               name: Personal Loan
  *               interestRate: 5.5
  *               maxAmount: 50000
- *               termMonths: 36
+ *               minRepaymentPeriodMonths: 3
+ *               maxRepaymentPeriodMonths: 36
  */
 router.post('/', authenticate, requirePermission('loan_products:create'), controller.create);
 
@@ -56,12 +58,14 @@ router.post('/', authenticate, requirePermission('loan_products:create'), contro
  *                 name: Home Loan
  *                 interestRate: 4.2
  *                 maxAmount: 250000
- *                 termMonths: 240
+ *                 minRepaymentPeriodMonths: 12
+ *                 maxRepaymentPeriodMonths: 240
  *               - id: 2
  *                 name: Car Loan
  *                 interestRate: 6.1
  *                 maxAmount: 80000
- *                 termMonths: 60
+ *                 minRepaymentPeriodMonths: 6
+ *                 maxRepaymentPeriodMonths: 60
  */
 router.get('/', authenticate, controller.getAll);
 
@@ -91,7 +95,8 @@ router.get('/', authenticate, controller.getAll);
  *               name: Car Loan
  *               interestRate: 6.1
  *               maxAmount: 80000
- *               termMonths: 60
+ *               minRepaymentPeriodMonths: 6
+ *               maxRepaymentPeriodMonths: 60
  */
 router.get('/:id', authenticate, validateIdParam(), controller.getOne);
 

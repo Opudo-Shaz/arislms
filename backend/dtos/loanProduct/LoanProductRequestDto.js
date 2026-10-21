@@ -10,7 +10,8 @@ class LoanProductRequestDto {
     this.penaltyRate = data.penaltyRate ?? 0;
     this.minimumDownPayment = data.minimumDownPayment ?? 0;
     this.downPaymentType = data.downPaymentType ?? 'amount';
-    this.repaymentPeriodMonths = data.repaymentPeriodMonths;
+    this.minRepaymentPeriodMonths = data.minRepaymentPeriodMonths;
+    this.maxRepaymentPeriodMonths = data.maxRepaymentPeriodMonths;
     this.maxLoanAmount = data.maxLoanAmount;
     this.minLoanAmount = data.minLoanAmount;
     this.requiresCollateral = data.requiresCollateral ?? false;
@@ -67,11 +68,20 @@ class LoanProductRequestDto {
         'any.only': 'Down payment type must be amount or percentage'
       }),
 
-    repaymentPeriodMonths: Joi.number().integer().positive().required()
+    minRepaymentPeriodMonths: Joi.number().integer().positive().required()
       .messages({
-        'number.base': 'Repayment period must be a number',
-        'number.positive': 'Repayment period must be greater than zero',
-        'any.required': 'Repayment period is required'
+        'number.base': 'Minimum repayment period must be a number',
+        'number.integer': 'Minimum repayment period must be a whole number of months',
+        'number.positive': 'Minimum repayment period must be greater than zero',
+        'any.required': 'Minimum repayment period is required'
+      }),
+
+    maxRepaymentPeriodMonths: Joi.number().integer().positive().required()
+      .messages({
+        'number.base': 'Maximum repayment period must be a number',
+        'number.integer': 'Maximum repayment period must be a whole number of months',
+        'number.positive': 'Maximum repayment period must be greater than zero',
+        'any.required': 'Maximum repayment period is required'
       }),
 
     maxLoanAmount: Joi.number().positive().allow(null)
@@ -117,12 +127,20 @@ class LoanProductRequestDto {
         message: 'Minimum loan amount cannot exceed maximum loan amount'
       });
     }
+    if (
+      value.minRepaymentPeriodMonths != null &&
+      value.maxRepaymentPeriodMonths != null &&
+      value.minRepaymentPeriodMonths > value.maxRepaymentPeriodMonths
+    ) {
+      return helpers.message('Minimum repayment period cannot exceed maximum repayment period');
+    }
     return value;
   });
 
-  // Joi schema for updating a loan product
+  // Joi schema for updating a loan product. When only one repayment-period
+  // bound is sent, the service checks it against the stored counterpart.
   static updateSchema = LoanProductRequestDto.createSchema.fork(
-    ['name', 'interestRate', 'repaymentPeriodMonths'],
+    ['name', 'interestRate', 'minRepaymentPeriodMonths', 'maxRepaymentPeriodMonths'],
     (schema) => schema.optional()
   );
 }

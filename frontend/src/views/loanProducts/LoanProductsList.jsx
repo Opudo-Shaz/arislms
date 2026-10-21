@@ -24,7 +24,7 @@ import LoanProductForm from './LoanProductForm'
 import { useLoanProducts, useDeleteLoanProduct } from '../../hooks/useLoanProducts'
 import { useAuth } from '../../context/AuthContext'
 import { INTEREST_TYPE } from '../../constants/enums'
-import { formatCurrency, formatPercent } from '../../utils/format'
+import { formatCurrency, formatPercent, formatTermRange } from '../../utils/format'
 
 const LoanProductsList = () => {
   const { data: products = [], isLoading, error, refetch, isFetching } = useLoanProducts()
@@ -86,7 +86,7 @@ const LoanProductsList = () => {
     {
       key: 'term',
       label: 'Term',
-      render: (row) => `${row.repaymentPeriodMonths ?? '—'} mo`,
+      render: (row) => formatTermRange(row.minRepaymentPeriodMonths, row.maxRepaymentPeriodMonths),
     },
     {
       key: 'collateral',

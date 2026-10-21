@@ -415,6 +415,8 @@ router.get('/me/payments', portalController.listMyPayments);
  *       Runs the standard credit-scoring pipeline. A passing score queues the
  *       loan as under_review; otherwise it is queued as pending for manual
  *       review. Either way, users with loans:approve are notified.
+ *       `termMonths` is required and must be within the product's
+ *       minRepaymentPeriodMonths–maxRepaymentPeriodMonths range.
  *     tags:
  *       - Client Portal
  *     security:

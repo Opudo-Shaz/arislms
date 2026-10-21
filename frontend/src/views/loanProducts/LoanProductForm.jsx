@@ -44,7 +44,8 @@ const emptyForm = {
   penaltyRate: '0',
   minimumDownPayment: '0',
   downPaymentType: 'amount',
-  repaymentPeriodMonths: '',
+  minRepaymentPeriodMonths: '',
+  maxRepaymentPeriodMonths: '',
   minLoanAmount: '',
   maxLoanAmount: '',
   fees: '0',
@@ -64,7 +65,8 @@ const toForm = (p) => ({
   penaltyRate: p.penaltyRate ?? '0',
   minimumDownPayment: p.minimumDownPayment ?? '0',
   downPaymentType: p.downPaymentType || 'amount',
-  repaymentPeriodMonths: p.repaymentPeriodMonths ?? '',
+  minRepaymentPeriodMonths: p.minRepaymentPeriodMonths ?? '',
+  maxRepaymentPeriodMonths: p.maxRepaymentPeriodMonths ?? '',
   minLoanAmount: p.minLoanAmount ?? '',
   maxLoanAmount: p.maxLoanAmount ?? '',
   fees: p.fees ?? '0',
@@ -86,7 +88,8 @@ const toPayload = (form) => ({
   penaltyRate: Number(form.penaltyRate || 0),
   minimumDownPayment: Number(form.minimumDownPayment || 0),
   downPaymentType: form.downPaymentType,
-  repaymentPeriodMonths: Number(form.repaymentPeriodMonths),
+  minRepaymentPeriodMonths: Number(form.minRepaymentPeriodMonths),
+  maxRepaymentPeriodMonths: Number(form.maxRepaymentPeriodMonths),
   minLoanAmount: numberOrNull(form.minLoanAmount),
   maxLoanAmount: numberOrNull(form.maxLoanAmount),
   fees: Number(form.fees || 0),
@@ -213,15 +216,28 @@ const LoanProductForm = ({ visible, product, onClose }) => {
             </CCol>
 
             <CCol md={4}>
-              <CFormLabel>Repayment period (months) <span className="text-danger">*</span></CFormLabel>
+              <CFormLabel>Min repayment period (months) <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 type="number"
                 min="1"
+                max={form.maxRepaymentPeriodMonths || undefined}
                 step="1"
-                value={form.repaymentPeriodMonths}
-                onChange={setField('repaymentPeriodMonths')}
+                value={form.minRepaymentPeriodMonths}
+                onChange={setField('minRepaymentPeriodMonths')}
                 required
               />
+            </CCol>
+            <CCol md={4}>
+              <CFormLabel>Max repayment period (months) <span className="text-danger">*</span></CFormLabel>
+              <CFormInput
+                type="number"
+                min={form.minRepaymentPeriodMonths || 1}
+                step="1"
+                value={form.maxRepaymentPeriodMonths}
+                onChange={setField('maxRepaymentPeriodMonths')}
+                required
+              />
+              <div className="form-text">Applicants choose a term within this range.</div>
             </CCol>
             <CCol md={4}>
               <CFormLabel>Min loan amount</CFormLabel>

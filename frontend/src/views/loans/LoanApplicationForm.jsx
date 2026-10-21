@@ -2,7 +2,8 @@
  * LoanApplicationForm
  *
  * New loan application. Pick an eligible client (verified KYC + active),
- * choose a loan product, enter the principal and start date, and optionally
+ * choose a loan product, enter the principal, repayment period (within the
+ * product's min–max range) and start date, and optionally
  * attach collateral. Submitting runs the backend credit-scoring pipeline.
  *
  * @module views/loans/LoanApplicationForm
@@ -29,7 +30,7 @@ import { useCreateLoan } from '../../hooks/useLoans'
 import { useLoanProducts } from '../../hooks/useLoanProducts'
 import { useAuth } from '../../context/AuthContext'
 import { COLLATERAL_TYPE } from '../../constants/enums'
-import { formatCurrency, formatPercent } from '../../utils/format'
+import { formatCurrency, formatPercent, formatTermRange, termOptions } from '../../utils/format'
 import swal from '../../utils/useSweetAlert'
 import ClientAsyncSelect from '../../components/ClientAsyncSelect'
 
@@ -39,6 +40,7 @@ const emptyForm = {
   clientId: '',
   loanProductId: '',
   principalAmount: '',
+  termMonths: '',
   startDate: today(),
   coSignerId: '',
   collateralType: '',
@@ -56,6 +58,7 @@ const toPayload = (form) => {
     clientId: Number(form.clientId),
     loanProductId: Number(form.loanProductId),
     principalAmount: Number(form.principalAmount),
+    termMonths: Number(form.termMonths),
     startDate: form.startDate,
   }
   if (form.coSignerId) payload.coSignerId = Number(form.coSignerId)
@@ -182,7 +185,7 @@ const LoanApplicationForm = () => {
               <CFormLabel>Loan product <span className="text-danger">*</span></CFormLabel>
               <CFormSelect
                 value={form.loanProductId}
-                onChange={setField('loanProductId')}
+                onChange={(e) => setForm((f) => ({ ...f, loanProductId: e.target.value, termMonths: '' }))}
                 required
                 disabled={loadingProducts}
               >
@@ -201,7 +204,7 @@ const LoanApplicationForm = () => {
                   <div className="d-flex flex-wrap gap-4">
                     <span>
                       <span className="text-body-secondary">Term: </span>
-                      {selectedProduct.repaymentPeriodMonths ?? '—'} mo
+                      {formatTermRange(selectedProduct.minRepaymentPeriodMonths, selectedProduct.maxRepaymentPeriodMonths)}
                     </span>
                     <span>
                       <span className="text-body-secondary">Amount range: </span>
@@ -225,7 +228,7 @@ const LoanApplicationForm = () => {
               </CCol>
             )}
 
-            <CCol md={6}>
+            <CCol md={4}>
               <CFormLabel>Principal amount <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 type="number"
@@ -236,7 +239,23 @@ const LoanApplicationForm = () => {
                 required
               />
             </CCol>
-            <CCol md={6}>
+            <CCol md={4}>
+              <CFormLabel>Repayment period <span className="text-danger">*</span></CFormLabel>
+              <CFormSelect
+                value={form.termMonths}
+                onChange={setField('termMonths')}
+                required
+                disabled={!selectedProduct}
+              >
+                <option value="">{selectedProduct ? 'Select number of months…' : 'Select a product first'}</option>
+                {termOptions(selectedProduct).map((m) => (
+                  <option key={m} value={m}>
+                    {m} month{m === 1 ? '' : 's'}
+                  </option>
+                ))}
+              </CFormSelect>
+            </CCol>
+            <CCol md={4}>
               <CFormLabel>Start date <span className="text-danger">*</span></CFormLabel>
               <CFormInput type="date" value={form.startDate} onChange={setField('startDate')} required />
             </CCol>

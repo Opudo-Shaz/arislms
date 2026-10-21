@@ -28,7 +28,7 @@ import ThemeSwitcher from '../../components/header/ThemeSwitcher'
 import { useAuth } from '../../context/AuthContext'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { usePublicLoanProducts } from '../../hooks/usePortal'
-import { formatCurrency } from '../../utils/format'
+import { formatCurrency, formatTermRange } from '../../utils/format'
 
 const STEPS = [
   {
@@ -62,7 +62,7 @@ const ProductCard = ({ product }) => (
         </dd>
         <dt className="col-5 text-body-secondary fw-normal">Term</dt>
         <dd className="col-7 mb-1">
-          Up to {product.repaymentPeriodMonths} month{product.repaymentPeriodMonths === 1 ? '' : 's'}
+          {formatTermRange(product.minRepaymentPeriodMonths, product.maxRepaymentPeriodMonths)}
         </dd>
         <dt className="col-5 text-body-secondary fw-normal">Interest</dt>
         <dd className="col-7 mb-1">
