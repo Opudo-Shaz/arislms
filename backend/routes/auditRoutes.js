@@ -16,16 +16,16 @@ const router = express.Router();
  *         name: startDate
  *         schema:
  *           type: string
- *           format: date
- *         description: Start date filter (optional)
- *         example: 2026-01-01
+ *           format: date-time
+ *         description: Only entries that occurred at or after this instant (optional)
+ *         example: 2026-01-01T08:00:00.000Z
  *       - in: query
  *         name: endDate
  *         schema:
  *           type: string
- *           format: date
- *         description: End date filter (optional)
- *         example: 2026-01-20
+ *           format: date-time
+ *         description: Only entries that occurred at or before this instant (optional)
+ *         example: 2026-01-20T17:30:00.000Z
  *       - in: query
  *         name: entityType
  *         schema:

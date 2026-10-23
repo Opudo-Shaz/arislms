@@ -155,7 +155,7 @@ const ClientsList = () => {
           return <span className="text-body-secondary">—</span>
         }
         const line2 = [a.city, a.state].filter(Boolean).join(', ')
-        const line3 = [a.country, a.postalCode].filter(Boolean).join(' ')
+        const line3 = a.country || ''
         return (
           <div className="lh-sm">
             {a.street && <div>{a.street}</div>}

@@ -38,22 +38,14 @@ import PhoneInput from '../../../components/PhoneInput'
 import { CLIENT_KYC_DOCUMENT_TYPES, DOCUMENT_TYPE } from '../../../constants/enums'
 import { useResolveRegistrationLink } from '../../../hooks/useClientRegistrationLinks'
 import api from '../../../api/clientRegistrationLinkApi'
+import CountrySubdivisionFields from '../../../components/CountrySubdivisionFields'
+import { DEFAULT_COUNTRY, DEFAULT_POSTAL_CODE } from '../../../constants/countries'
 import arislmsLogoDefault from '../../../assets/brand/arislms_logo_fit.png'
 import arislmsLogoDark from '../../../assets/brand/arislms_logo_dark.png'
 
 const GENDERS = ['male', 'female', 'other']
 const CONTACT_METHODS = ['email', 'phone', 'sms']
 const ID_DOC_TYPES = ['national_id', 'passport', 'driving_license', 'alien_id']
-const COUNTRIES = [
-  'Kenya',
-  'Uganda',
-  'Tanzania',
-  'Rwanda',
-  'Burundi',
-  'South Sudan',
-  'Democratic Republic of Congo',
-  'Somalia',
-]
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
@@ -79,10 +71,8 @@ const emptyForm = {
   phone: '',
   secondaryPhone: '',
   street: '',
-  city: '',
   state: '',
-  postalCode: '',
-  country: 'Kenya',
+  country: DEFAULT_COUNTRY,
   occupation: '',
   employer: '',
   monthlyIncome: '',
@@ -100,7 +90,7 @@ const STEPS = [
   {
     id: 'address',
     title: 'Address & work',
-    fields: ['street', 'city', 'state', 'postalCode', 'country', 'occupation', 'employer', 'monthlyIncome', 'preferredContactMethod'],
+    fields: ['street', 'state', 'country', 'occupation', 'employer', 'monthlyIncome', 'preferredContactMethod'],
   },
   {
     id: 'documents',
@@ -150,8 +140,7 @@ const validateFields = (fields, form, files, verified, kycRequired = true) => {
   }
 
   if (fields.includes('street')) {
-    required('street', 'Street')
-    required('city', 'City')
+    required('street', 'Physical address')
     required('country', 'Country')
     required('occupation', 'Occupation')
     if (form.monthlyIncome === '' || Number(form.monthlyIncome) < 0) {
@@ -396,9 +385,8 @@ const ClientRegistration = () => {
     monthlyIncome: Number(form.monthlyIncome),
     address: {
       street: form.street.trim(),
-      city: form.city.trim(),
       state: form.state.trim() || null,
-      postalCode: form.postalCode.trim() || null,
+      postalCode: DEFAULT_POSTAL_CODE,
       country: form.country.trim(),
     },
     idDocumentType: form.idDocumentType,
@@ -539,10 +527,10 @@ const ClientRegistration = () => {
       {step.id === 'personal' && (
         <CRow className="g-3">
           <Field label="First name *" error={fe('firstName')}>
-            <CFormInput value={form.firstName} onChange={setField('firstName')} invalid={invalid('firstName')} autoComplete="given-name" />
+            <CFormInput value={form.firstName} onChange={setField('firstName')} placeholder="e.g. Jane" invalid={invalid('firstName')} autoComplete="given-name" />
           </Field>
           <Field label="Last name *" error={fe('lastName')}>
-            <CFormInput value={form.lastName} onChange={setField('lastName')} invalid={invalid('lastName')} autoComplete="family-name" />
+            <CFormInput value={form.lastName} onChange={setField('lastName')} placeholder="e.g. Awino" invalid={invalid('lastName')} autoComplete="family-name" />
           </Field>
           <Field label="Date of birth *" error={fe('dateOfBirth')}>
             <CFormInput type="date" max={adultCutoff()} value={form.dateOfBirth} onChange={setField('dateOfBirth')} invalid={invalid('dateOfBirth')} />
@@ -555,7 +543,7 @@ const ClientRegistration = () => {
             </FormSelect>
           </Field>
           <Field label="Email" error={fe('email')}>
-            <CFormInput type="email" value={form.email} onChange={setField('email')} invalid={invalid('email')} autoComplete="email" />
+            <CFormInput type="email" value={form.email} onChange={setField('email')} placeholder="name@example.com" invalid={invalid('email')} autoComplete="email" />
           </Field>
           <Field label="Phone *" error={fe('phone')}>
             <PhoneInput
@@ -578,35 +566,25 @@ const ClientRegistration = () => {
 
       {step.id === 'address' && (
         <CRow className="g-3">
-          <Field label="Street / estate *" error={fe('street')}>
-            <CFormInput value={form.street} onChange={setField('street')} invalid={invalid('street')} autoComplete="address-line1" />
+          <Field label="Physical address *" md={12} error={fe('street')}>
+            <CFormInput value={form.street} onChange={setField('street')} placeholder="e.g. House number, street, estate, town" invalid={invalid('street')} autoComplete="address-line1" />
           </Field>
-          <Field label="City / town *" error={fe('city')}>
-            <CFormInput value={form.city} onChange={setField('city')} invalid={invalid('city')} autoComplete="address-level2" />
-          </Field>
-          <Field label="State / county" md={4} error={fe('state')}>
-            <CFormInput value={form.state} onChange={setField('state')} />
-          </Field>
-          <Field label="Postal code" md={4} error={fe('postalCode')}>
-            <CFormInput value={form.postalCode} onChange={setField('postalCode')} />
-          </Field>
-          <Field label="Country *" md={4} error={fe('country')}>
-            <FormSelect value={form.country} onChange={setField('country')}>
-              {COUNTRIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </FormSelect>
-          </Field>
+          <CountrySubdivisionFields
+            country={form.country}
+            subdivision={form.state}
+            onChange={setValue}
+            errors={{ country: fe('country'), state: fe('state') }}
+          />
           <Field label="Occupation *" md={4} error={fe('occupation')}>
-            <CFormInput value={form.occupation} onChange={setField('occupation')} invalid={invalid('occupation')} />
+            <CFormInput value={form.occupation} onChange={setField('occupation')} placeholder="e.g. Teacher" invalid={invalid('occupation')} />
           </Field>
           <Field label="Employer" md={4} error={fe('employer')}>
-            <CFormInput value={form.employer} onChange={setField('employer')} />
+            <CFormInput value={form.employer} onChange={setField('employer')} placeholder="e.g. Company or business name" />
           </Field>
           <Field label="Monthly income *" md={4} error={fe('monthlyIncome')}>
-            <CFormInput type="number" min="0" step="0.01" value={form.monthlyIncome} onChange={setField('monthlyIncome')} invalid={invalid('monthlyIncome')} />
+            <CFormInput type="number" min="0" step="0.01" value={form.monthlyIncome} onChange={setField('monthlyIncome')} placeholder="e.g. 50000" invalid={invalid('monthlyIncome')} />
           </Field>
-          <Field label="Preferred contact" error={fe('preferredContactMethod')}>
+          <Field label="Preferred contact method" error={fe('preferredContactMethod')}>
             <FormSelect value={form.preferredContactMethod} onChange={setField('preferredContactMethod')}>
               <option value="">No preference</option>
               {CONTACT_METHODS.map((m) => (
@@ -627,7 +605,7 @@ const ClientRegistration = () => {
             </FormSelect>
           </Field>
           <Field label="ID number *" error={fe('idDocumentNumber')}>
-            <CFormInput value={form.idDocumentNumber} onChange={setField('idDocumentNumber')} invalid={invalid('idDocumentNumber')} />
+            <CFormInput value={form.idDocumentNumber} onChange={setField('idDocumentNumber')} placeholder="Enter your ID or passport number" invalid={invalid('idDocumentNumber')} />
           </Field>
           <CCol xs={12}>
             <hr className="mb-0" />
@@ -730,7 +708,7 @@ const ClientRegistration = () => {
               {otpSent && (
                 <CRow className="g-3 align-items-end mt-1">
                   <Field label="Verification code" md={4}>
-                    <CFormInput value={otpCode} onChange={(e) => setOtpCode(e.target.value)} inputMode="numeric" maxLength={10} />
+                    <CFormInput value={otpCode} onChange={(e) => setOtpCode(e.target.value)} placeholder="Enter the code" inputMode="numeric" maxLength={10} />
                   </Field>
                   <CCol md={4}>
                     <CButton color="primary" onClick={verifyOtp} disabled={otpBusy || otpCode.trim().length < 4}>
@@ -758,7 +736,7 @@ const ClientRegistration = () => {
               ['Date of birth', form.dateOfBirth],
               ['Email', form.email],
               ['Phone', `${form.phone}${link?.otpRequired ? ' (verified)' : ''}`],
-              ['Address', [form.street, form.city, form.state, form.country].filter(Boolean).join(', ')],
+              ['Address', [form.street, form.state, form.country].filter(Boolean).join(', ')],
               ['Occupation', form.occupation],
               ['Monthly income', form.monthlyIncome],
               ['ID', `${titleCase(form.idDocumentType)} — ${form.idDocumentNumber}`],

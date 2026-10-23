@@ -31,22 +31,13 @@ import { useClientRegistrationConfig } from '../../hooks/useClientRegistrationLi
 import clientApi from '../../api/clientApi'
 import { useAuth } from '../../context/AuthContext'
 import PhoneInput from '../../components/PhoneInput'
+import CountrySubdivisionFields from '../../components/CountrySubdivisionFields'
+import { DEFAULT_COUNTRY, DEFAULT_POSTAL_CODE } from '../../constants/countries'
 import swal from '../../utils/useSweetAlert'
 
 const GENDERS = ['male', 'female', 'other']
 const CONTACT_METHODS = ['email', 'phone', 'sms']
 const ID_DOC_TYPES = ['national_id', 'passport', 'driving_license', 'alien_id']
-
-const EAC_COUNTRIES = [
-  'Kenya',
-  'Uganda',
-  'Tanzania',
-  'Rwanda',
-  'Burundi',
-  'South Sudan',
-  'Democratic Republic of Congo',
-  'Somalia',
-]
 
 const adultCutoff = () => {
   const d = new Date()
@@ -67,10 +58,8 @@ const emptyForm = {
   employer: '',
   monthlyIncome: '',
   street: '',
-  city: '',
   state: '',
-  postalCode: '',
-  country: 'Kenya',
+  country: DEFAULT_COUNTRY,
   idDocumentType: 'national_id',
   idDocumentNumber: '',
   preferredContactMethod: '',
@@ -91,10 +80,8 @@ const toForm = (client) => ({
   employer: client.employer || '',
   monthlyIncome: client.monthlyIncome ?? '',
   street: client.address?.street || '',
-  city: client.address?.city || '',
   state: client.address?.state || '',
-  postalCode: client.address?.postalCode || '',
-  country: client.address?.country || 'Kenya',
+  country: client.address?.country || DEFAULT_COUNTRY,
   idDocumentType: client.idDocumentType || 'national_id',
   idDocumentNumber: client.idDocumentNumber || '',
   preferredContactMethod: client.preferredContactMethod || '',
@@ -112,9 +99,8 @@ const toPayload = (form) => {
     monthlyIncome: Number(form.monthlyIncome),
     address: {
       street: form.street.trim(),
-      city: form.city.trim(),
       state: form.state.trim() || null,
-      postalCode: form.postalCode.trim() || null,
+      postalCode: DEFAULT_POSTAL_CODE,
       country: form.country.trim(),
     },
     idDocumentType: form.idDocumentType.trim(),
@@ -335,30 +321,15 @@ const ClientForm = () => {
               <hr className="mb-0" />
               <span className="text-body-secondary small">Address</span>
             </CCol>
-            <CCol md={6}>
-              <CFormLabel>Street <span className="text-danger">*</span></CFormLabel>
+            <CCol xs={12}>
+              <CFormLabel>Physical address <span className="text-danger">*</span></CFormLabel>
               <CFormInput value={form.street} onChange={setField('street')} required />
             </CCol>
-            <CCol md={6}>
-              <CFormLabel>City <span className="text-danger">*</span></CFormLabel>
-              <CFormInput value={form.city} onChange={setField('city')} required />
-            </CCol>
-            <CCol md={4}>
-              <CFormLabel>State / County</CFormLabel>
-              <CFormInput value={form.state} onChange={setField('state')} />
-            </CCol>
-            <CCol md={4}>
-              <CFormLabel>Postal code</CFormLabel>
-              <CFormInput value={form.postalCode} onChange={setField('postalCode')} />
-            </CCol>
-            <CCol md={4}>
-              <CFormLabel>Country <span className="text-danger">*</span></CFormLabel>
-              <FormSelect value={form.country} onChange={setField('country')} required>
-                {EAC_COUNTRIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </FormSelect>
-            </CCol>
+            <CountrySubdivisionFields
+              country={form.country}
+              subdivision={form.state}
+              onChange={(key, value) => setForm((f) => ({ ...f, [key]: value }))}
+            />
 
             <CCol xs={12}>
               <hr className="mb-0" />

@@ -38,9 +38,9 @@ class ClientRegistrationRequestDto {
     monthlyIncome: Joi.number().min(0).max(1e10).required(),
     address: Joi.object({
       street: Joi.string().trim().min(1).max(255).required(),
-      city: Joi.string().trim().min(1).max(100).required(),
+      city: Joi.string().trim().max(100).allow('', null),
       state: Joi.string().trim().max(100).allow('', null),
-      postalCode: Joi.string().trim().max(20).allow('', null),
+      postalCode: Joi.string().trim().max(20).empty(['', null]).default('0000'),
       country: Joi.string().trim().min(1).max(100).required(),
     }).required(),
     idDocumentType: Joi.string().valid(...ID_DOCUMENT_TYPES).required(),

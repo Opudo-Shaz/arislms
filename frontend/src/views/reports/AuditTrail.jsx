@@ -2,7 +2,7 @@
  * AuditTrail
  *
  * Paginated, filterable view of the system audit log. Filters by entity type,
- * action, and actor type. Keyset (cursor) paginated: Previous/Next only.
+ * action, actor type, and a date + time range. Keyset (cursor) paginated: Previous/Next only.
  *
  * @module views/reports/AuditTrail
  */
@@ -15,6 +15,8 @@ import {
   CCardHeader,
   CCol,
   CFormInput,
+  CInputGroup,
+  CInputGroupText,
   CModal,
   CModalBody,
   CModalHeader,
@@ -23,10 +25,12 @@ import {
 } from '@coreui/react'
 import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
-import { cilReload } from '@coreui/icons'
+import { cilCalendar, cilReload, cilX } from '@coreui/icons'
+import { endOfDay, format } from 'date-fns'
 
 import DataTable from '../../components/DataTable'
 import CursorPager from '../../components/CursorPager'
+import DateRangePicker from '../../components/DateRangePicker'
 import StatusBadge from '../../components/StatusBadge'
 import { useAuditLogs } from '../../hooks/useAudits'
 import { useCursorPagination } from '../../hooks/useCursorPagination'
@@ -99,6 +103,11 @@ const truncateJson = (value, len = 20) => {
   return str.length > len ? str.slice(0, len) + '…' : str
 }
 
+const RANGE_FORMAT = 'dd MMM yyyy HH:mm'
+
+const rangeLabel = ({ from, to }) =>
+  from && to ? `${format(from, RANGE_FORMAT)} → ${format(to, RANGE_FORMAT)}` : ''
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -107,9 +116,18 @@ const AuditTrail = () => {
   const [entityType, setEntityType] = useState('')
   const [action, setAction] = useState('')
   const [actorType, setActorType] = useState('')
+  const [range, setRange] = useState({ from: undefined, to: undefined })
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [jsonEntry, setJsonEntry] = useState(null)
+  const today = useMemo(() => endOfDay(new Date()), [])
 
-  const filters = { entityType, action, actorType }
+  const filters = {
+    entityType,
+    action,
+    actorType,
+    startDate: range.from ? range.from.toISOString() : '',
+    endDate: range.to ? range.to.toISOString() : '',
+  }
   const { cursorParams, goTo } = useCursorPagination(filters)
   const params = { ...filters, ...cursorParams, limit: PAGE_SIZE }
   const { data, isLoading, error, refetch, isFetching } = useAuditLogs(params)
@@ -188,14 +206,14 @@ const AuditTrail = () => {
         </CCardHeader>
         <CCardBody>
           <CRow className="g-2 mb-3">
-            <CCol md={4}>
+            <CCol md={3}>
               <CFormInput
                 placeholder="Entity type (e.g. LOAN, CLIENT)"
                 value={entityType}
                 onChange={(e) => setEntityType(e.target.value)}
               />
             </CCol>
-            <CCol md={4}>
+            <CCol md={3}>
               <FormSelect value={action} onChange={(e) => setAction(e.target.value)}>
                 <option value="">All actions</option>
                 {AUDIT_ACTION.values.map((v) => (
@@ -205,7 +223,7 @@ const AuditTrail = () => {
                 ))}
               </FormSelect>
             </CCol>
-            <CCol md={4}>
+            <CCol md={3}>
               <FormSelect value={actorType} onChange={(e) => setActorType(e.target.value)}>
                 <option value="">All actor types</option>
                 {ACTOR_TYPE.values.map((v) => (
@@ -214,6 +232,54 @@ const AuditTrail = () => {
                   </option>
                 ))}
               </FormSelect>
+            </CCol>
+            <CCol md={3} className="position-relative">
+              <CInputGroup>
+                <CInputGroupText role="button" onClick={() => setPickerOpen((o) => !o)}>
+                  <CIcon icon={cilCalendar} />
+                </CInputGroupText>
+                <CFormInput
+                  readOnly
+                  placeholder="Date & time range"
+                  aria-label="Date and time range"
+                  aria-expanded={pickerOpen}
+                  className="bg-transparent text-truncate"
+                  style={{ cursor: 'pointer' }}
+                  value={rangeLabel(range)}
+                  onClick={() => setPickerOpen((o) => !o)}
+                />
+                {range.from && (
+                  <CButton
+                    color="secondary"
+                    variant="outline"
+                    aria-label="Clear date range"
+                    onClick={() => {
+                      setRange({ from: undefined, to: undefined })
+                      setPickerOpen(false)
+                    }}
+                  >
+                    <CIcon icon={cilX} size="sm" />
+                  </CButton>
+                )}
+              </CInputGroup>
+              {pickerOpen && (
+                <div
+                  className="position-absolute end-0 mt-1"
+                  style={{ zIndex: 1050, width: 'max-content', maxWidth: 'calc(100vw - 2rem)' }}
+                >
+                  <DateRangePicker
+                    withTime
+                    from={range.from}
+                    to={range.to}
+                    maxDate={today}
+                    onCancel={() => setPickerOpen(false)}
+                    onApply={(from, to) => {
+                      setRange({ from, to })
+                      setPickerOpen(false)
+                    }}
+                  />
+                </div>
+              )}
             </CCol>
           </CRow>
 

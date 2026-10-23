@@ -3,7 +3,8 @@
  *
  * Inline range-picker panel built on react-day-picker: two-month calendar with
  * month/year dropdowns, quick-range shortcuts, typed From/To inputs and an
- * explicit Apply step so consumers only receive complete ranges.
+ * explicit Apply step so consumers only receive complete ranges. With
+ * `withTime`, From/To time inputs are added and applied dates carry that time.
  * Themed through CoreUI CSS variables (light/dark).
  *
  * @module components/DateRangePicker
@@ -41,10 +42,14 @@ const shortcuts = (today) => [
   },
 ]
 
-const DateRangePicker = ({ from, to, onApply, onCancel, maxDate, startYear }) => {
+const TIME = 'HH:mm'
+
+const DateRangePicker = ({ from, to, onApply, onCancel, maxDate, startYear = 2015, withTime = false }) => {
   const today = useMemo(() => new Date(), [])
   const [range, setRange] = useState({ from, to })
   const [month, setMonth] = useState(from ?? startOfMonth(today))
+  const [fromTime, setFromTime] = useState(from ? format(from, TIME) : '00:00')
+  const [toTime, setToTime] = useState(to ? format(to, TIME) : '23:59')
   // type="date" inputs emit a full ISO value or '' — derive them from `range`.
   const fromText = range.from ? format(range.from, ISO) : ''
   const toText = range.to ? format(range.to, ISO) : ''
@@ -77,7 +82,20 @@ const DateRangePicker = ({ from, to, onApply, onCancel, maxDate, startYear }) =>
   }
 
   const complete = !!range.from
-  const apply = () => complete && onApply(range.from, clamp(range.to ?? range.from))
+  const withClock = (date, time, seconds) => {
+    if (!withTime) return date
+    const [h, m] = (time || '00:00').split(':').map(Number)
+    const d = new Date(date)
+    d.setHours(h, m, seconds, seconds ? 999 : 0)
+    return d
+  }
+  const apply = () => {
+    if (!complete) return
+    const start = withClock(range.from, fromTime, 0)
+    const end = withClock(clamp(range.to ?? range.from), toTime, 59)
+    // Same-day ranges with an inverted time window collapse to the start time.
+    onApply(start, end < start ? start : end)
+  }
 
   return (
     <div className="rdp-panel border rounded-3 bg-body shadow-sm mb-3">
@@ -131,6 +149,16 @@ const DateRangePicker = ({ from, to, onApply, onCancel, maxDate, startYear }) =>
           }}
           style={{ width: '9.5rem' }}
         />
+        {withTime && (
+          <CFormInput
+            size="sm"
+            type="time"
+            aria-label="From time"
+            value={fromTime}
+            onChange={(e) => setFromTime(e.target.value)}
+            style={{ width: '6.5rem' }}
+          />
+        )}
         <span className="text-body-secondary">→</span>
         <CFormInput
           size="sm"
@@ -143,6 +171,16 @@ const DateRangePicker = ({ from, to, onApply, onCancel, maxDate, startYear }) =>
           }}
           style={{ width: '9.5rem' }}
         />
+        {withTime && (
+          <CFormInput
+            size="sm"
+            type="time"
+            aria-label="To time"
+            value={toTime}
+            onChange={(e) => setToTime(e.target.value)}
+            style={{ width: '6.5rem' }}
+          />
+        )}
         {range.from && !range.to && (
           <small className="text-warning">Pick an end date (or Apply for a single day)</small>
         )}
@@ -166,10 +204,7 @@ DateRangePicker.propTypes = {
   onCancel: PropTypes.func.isRequired,
   maxDate: PropTypes.instanceOf(Date),
   startYear: PropTypes.number,
-}
-
-DateRangePicker.defaultProps = {
-  startYear: 2015,
+  withTime: PropTypes.bool,
 }
 
 export default DateRangePicker

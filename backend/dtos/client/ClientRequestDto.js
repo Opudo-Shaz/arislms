@@ -99,10 +99,10 @@ class ClientRequestDto {
       }),
 
     address: Joi.object({
-      street: Joi.string().trim().min(1).required().messages({ 'any.required': 'Street is required', 'string.empty': 'Street is required' }),
-      city: Joi.string().trim().min(1).required().messages({ 'any.required': 'City is required', 'string.empty': 'City is required' }),
+      street: Joi.string().trim().min(1).required().messages({ 'any.required': 'Physical address is required', 'string.empty': 'Physical address is required' }),
+      city: Joi.string().trim().allow('', null),
       state: Joi.string().allow('', null),
-      postalCode: Joi.string().allow('', null),
+      postalCode: Joi.string().trim().max(20).empty(['', null]).default('0000'),
       country: Joi.string().trim().min(1).required().messages({ 'any.required': 'Country is required', 'string.empty': 'Country is required' })
     }).required()
       .messages({

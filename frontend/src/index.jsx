@@ -10,6 +10,10 @@ import store from './store'
 import queryClient from './lib/queryClient'
 import { AuthProvider } from './context/AuthContext'
 import { ClientAuthProvider } from './context/ClientAuthContext'
+import { locationsQueryOptions } from './hooks/useLocations'
+
+// Warm the countries/subdivisions cache so address forms open ready.
+queryClient.prefetchQuery(locationsQueryOptions)
 
 createRoot(document.getElementById('root')).render(
   <Provider store={store}>

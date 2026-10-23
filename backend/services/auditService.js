@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const AuditLog = require('../models/auditLogModel');
 const User = require('../models/userModel');
 const Client = require('../models/clientModel');
@@ -142,6 +143,12 @@ class AuditService {
       if (filters.entityType) where.entity_type = filters.entityType;
       if (filters.action) where.action = filters.action.toUpperCase();
       if (filters.actorType) where.actor_type = filters.actorType.toUpperCase();
+      if (filters.startDate || filters.endDate) {
+        where.occurred_at = {
+          ...(filters.startDate ? { [Op.gte]: filters.startDate } : {}),
+          ...(filters.endDate ? { [Op.lte]: filters.endDate } : {}),
+        };
+      }
 
       const result = await paginateKeyset(AuditLog, {
         keys: [['occurred_at', 'timestamp'], ['audit_id', 'int']],

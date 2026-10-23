@@ -6,12 +6,24 @@ class AuditController {
   static async getAuditLogs(req, res) {
     try {
       const { cursor, direction, limit } = parseKeysetQuery(req.query, { defaultLimit: 100 });
-      const { entityType, action, actorType } = req.query;
+      const { entityType, action, actorType, startDate, endDate } = req.query;
 
       const filters = {};
       if (entityType) filters.entityType = entityType;
       if (action) filters.action = action;
       if (actorType) filters.actorType = actorType;
+
+      for (const [key, raw] of [['startDate', startDate], ['endDate', endDate]]) {
+        if (!raw) continue;
+        const parsed = new Date(raw);
+        if (Number.isNaN(parsed.getTime())) {
+          return res.status(400).json({ success: false, message: `Invalid ${key}` });
+        }
+        filters[key] = parsed;
+      }
+      if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
+        return res.status(400).json({ success: false, message: 'startDate must not be after endDate' });
+      }
 
       const result = await AuditService.getAuditLogs(filters, { cursor, direction, limit });
 

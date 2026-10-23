@@ -277,7 +277,6 @@ const ClientDetail = () => {
                         client.address.street,
                         client.address.city,
                         client.address.state,
-                        client.address.postalCode,
                         client.address.country,
                       ]
                         .filter(Boolean)
