@@ -6,6 +6,7 @@ const Client = require('./clientModel');
 const InterestType = require('../enums/interestType');
 const InterestRatePeriod = require('../enums/interestRatePeriod');
 const LoanStatus = require('../enums/loanStatus');
+const FeeTreatment = require('../enums/feeTreatment');
 const RepaymentSchedule = require('./repaymentScheduleModel');
 
 const Loan = sequelize.define('Loan', {
@@ -73,6 +74,13 @@ const Loan = sequelize.define('Loan', {
   missedPaymentsCount: { type: DataTypes.INTEGER, defaultValue: 0, field: 'missed_payments_count', comment: 'Number of missed/overdue payments' },
 
   fees: { type: DataTypes.DECIMAL(14,2), defaultValue: 0, field: 'fees' },
+  feeTreatment: {
+    type: DataTypes.STRING(24),
+    allowNull: false,
+    defaultValue: FeeTreatment.DEDUCTED,
+    field: 'fee_treatment',
+    comment: 'deducted (netted off disbursement) | added_to_principal (financed on top of the requested amount)'
+  },
   penalties: { type: DataTypes.DECIMAL(14,2), defaultValue: 0, field: 'penalties' },
 
   // Down payment required for this loan (snapshot resolved from the product at

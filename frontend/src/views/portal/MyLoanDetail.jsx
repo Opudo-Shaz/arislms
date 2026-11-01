@@ -29,6 +29,7 @@ import StatusBadge from '../../components/StatusBadge'
 import CoSignerPicker from '../../components/portal/CoSignerPicker'
 import ScheduleTable from '../../components/loans/ScheduleTable'
 import PaymentsTable from '../../components/loans/PaymentsTable'
+import { LoanCostSummary } from '../../components/loans/LoanCostPreview'
 import { usePortalLoan, usePortalLoanPayments, useRenominateCoSigner } from '../../hooks/usePortal'
 import { CO_SIGNER_CONSENT_STATUS, LOAN_STATUS } from '../../constants/enums'
 import toast from '../../utils/toast'
@@ -168,6 +169,12 @@ const MyLoanDetail = () => {
               ) : null}
               <Field label="Applied">{formatDate(loan.createdAt)}</Field>
             </CRow>
+            {loan.costDisclosure ? (
+              <div className="border rounded p-3 mt-2" style={{ maxWidth: 560 }}>
+                <div className="fw-semibold mb-2">Cost of credit</div>
+                <LoanCostSummary cost={loan.costDisclosure} currency={loan.currency} receiverLabel="You receive" />
+              </div>
+            ) : null}
           </CTabPane>
           <CTabPane visible={tab === 1}>
             <ScheduleTable

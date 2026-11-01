@@ -515,7 +515,32 @@ const LoanDetail = () => {
                 <Field label="Installment Amount">
                   {formatCurrency(loan.installmentAmount, loan.currency)}
                 </Field>
-                <Field label="Fees">{formatCurrency(loan.fees, loan.currency)}</Field>
+                <Field label="Fees">
+                  {formatCurrency(loan.fees, loan.currency)}
+                  {Number(loan.fees) > 0 && (
+                    <span className="text-body-secondary small">
+                      {loan.feeTreatment === 'added_to_principal' ? ' · added to principal' : ' · deducted upfront'}
+                    </span>
+                  )}
+                </Field>
+                {loan.costDisclosure && (
+                  <Field label="Client Receives">
+                    {formatCurrency(loan.costDisclosure.netDisbursement, loan.currency)}
+                  </Field>
+                )}
+                {loan.costDisclosure && (
+                  <Field label="Total to Repay">
+                    {formatCurrency(loan.costDisclosure.totalRepayable, loan.currency)}
+                  </Field>
+                )}
+                {loan.costDisclosure && (
+                  <Field label="Total Cost of Credit">
+                    {formatCurrency(loan.costDisclosure.totalCostOfCredit, loan.currency)}
+                    <span className="text-body-secondary small">
+                      {loan.costDisclosure.aprPercent != null ? ` · APR ${loan.costDisclosure.aprPercent}%` : ''}
+                    </span>
+                  </Field>
+                )}
                 <Field label="Penalties">
                   <span className={Number(loan.penalties) > 0 ? 'text-danger fw-semibold' : undefined}>
                     {formatCurrency(loan.penalties, loan.currency)}

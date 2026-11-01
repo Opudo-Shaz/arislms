@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const FeeTreatment = require('../../enums/feeTreatment');
 
 class LoanRequestDto {
   constructor(data) {
@@ -8,6 +9,7 @@ class LoanRequestDto {
     this.termMonths = data.termMonths;
     this.startDate = data.startDate;
     this.fees = data.fees || 0;
+    this.feeTreatment = data.feeTreatment;
     this.penalties = data.penalties || 0;
     this.collateral = data.collateral;
     this.coSignerId = data.coSignerId;
@@ -34,6 +36,10 @@ class LoanRequestDto {
         'number.base': 'Principal amount must be a number',
         'number.positive': 'Principal amount must be greater than zero',
         'any.required': 'Principal amount is required'
+      }),
+    feeTreatment: Joi.string().valid(...Object.values(FeeTreatment))
+      .messages({
+        'any.only': 'Fee treatment must be either deducted or added_to_principal'
       }),
     termMonths: Joi.number().integer().min(1).required()
       .messages({
@@ -115,7 +121,7 @@ class LoanRequestDto {
       'startDate'
     ],
     (schema) => schema.optional()
-  );
+  ).fork(['feeTreatment'], (schema) => schema.strip());
 }
 
 module.exports = LoanRequestDto;

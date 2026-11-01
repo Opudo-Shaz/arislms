@@ -34,6 +34,8 @@ import { cilCheckCircle, cilWarning } from '@coreui/icons'
 
 import CreditScoreGauge from '../../components/CreditScoreGauge'
 import CoSignerPicker from '../../components/portal/CoSignerPicker'
+import LoanCostPreview, { LoanCostSummary } from '../../components/loans/LoanCostPreview'
+import { FEE_TREATMENT } from '../../utils/loanCost'
 import { usePortalDashboard, usePortalMe, usePublicLoanProducts, useSubmitLoanRequest } from '../../hooks/usePortal'
 import { formatCurrency, formatTermRange, termOptions } from '../../utils/format'
 
@@ -48,6 +50,7 @@ const LoanRequestForm = () => {
 
   const [productId, setProductId] = useState('')
   const [amount, setAmount] = useState('')
+  const [feeTreatment, setFeeTreatment] = useState(FEE_TREATMENT.DEDUCTED)
   const [termMonths, setTermMonths] = useState('')
   const [notes, setNotes] = useState('')
   const [coSigner, setCoSigner] = useState(null)
@@ -95,6 +98,11 @@ const LoanRequestForm = () => {
             <CCol md={6}>
               <CreditScoreGauge score={data.riskScore} grade={data.riskGrade} creditLimit={data.creditLimit} compact />
             </CCol>
+            {data.loan.costDisclosure ? (
+              <CCol xs={12}>
+                <LoanCostSummary cost={data.loan.costDisclosure} currency={data.loan.currency} receiverLabel="You receive" />
+              </CCol>
+            ) : null}
           </CRow>
           <div className="d-flex gap-2 mt-4">
             <Link to={`/portal/loans/${data.loan.id}`}><CButton color="primary">View request</CButton></Link>
@@ -121,6 +129,7 @@ const LoanRequestForm = () => {
       const res = await submit.mutateAsync({
         loanProductId: Number(productId),
         principalAmount: Number(amount),
+        feeTreatment,
         termMonths: Number(termMonths),
         ...(product?.requiresCoSigner && coSigner ? { coSignerToken: coSigner.coSignerToken } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
@@ -133,6 +142,9 @@ const LoanRequestForm = () => {
   }
 
   const amountNum = Number(amount)
+  const principalNum = feeTreatment === FEE_TREATMENT.ADDED_TO_PRINCIPAL
+    ? amountNum + (Number(product?.fees) || 0)
+    : amountNum
   const amountHint = product
     ? `Between ${formatCurrency(product.minLoanAmount, product.currency)} and ${formatCurrency(
         creditLimit != null ? Math.min(Number(product.maxLoanAmount), Number(creditLimit)) : product.maxLoanAmount,
@@ -189,8 +201,10 @@ const LoanRequestForm = () => {
                   />
                 </CInputGroup>
                 {amountHint ? <div className="form-text">{amountHint}</div> : null}
-                {creditLimit != null && amountNum > Number(creditLimit) ? (
-                  <div className="small text-danger mt-1">This is above your credit limit of {formatCurrency(creditLimit)}.</div>
+                {creditLimit != null && principalNum > Number(creditLimit) ? (
+                  <div className="small text-danger mt-1">
+                    {principalNum !== amountNum ? 'With fees added, the loan is' : 'This is'} above your credit limit of {formatCurrency(creditLimit)}.
+                  </div>
                 ) : null}
               </CCol>
               <CCol md={6}>
@@ -228,6 +242,19 @@ const LoanRequestForm = () => {
                 <CFormLabel htmlFor="lr-notes">What is the loan for? (optional)</CFormLabel>
                 <CFormTextarea id="lr-notes" rows={2} maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)} />
               </CCol>
+              {product ? (
+                <CCol xs={12}>
+                  <LoanCostPreview
+                    product={product}
+                    amount={amount}
+                    termMonths={termMonths}
+                    feeTreatment={feeTreatment}
+                    onFeeTreatmentChange={setFeeTreatment}
+                    receiverLabel="You receive"
+                    idPrefix="lr-fee-treatment"
+                  />
+                </CCol>
+              ) : null}
             </CRow>
             <div className="d-flex flex-wrap align-items-center gap-3 mt-4">
               <CButton

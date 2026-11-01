@@ -149,6 +149,11 @@ router.get('/:id', authenticate, validateIdParam(), getLoanById);
  *                 type: number
  *                 description: Requested loan amount
  *                 example: 20000
+ *               feeTreatment:
+ *                 type: string
+ *                 enum: [deducted, added_to_principal]
+ *                 default: deducted
+ *                 description: "deducted: product fees are netted off the disbursement. added_to_principal: fees are added to the principal so the client receives the full requested amount."
  *               startDate:
  *                 type: string
  *                 format: date

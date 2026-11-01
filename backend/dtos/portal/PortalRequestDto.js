@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const { phoneSchema } = require('../../utils/phone');
+const FeeTreatment = require('../../enums/feeTreatment');
 
 /**
  * Request schemas for the client self-service portal (/api/portal). None of
@@ -30,6 +31,9 @@ const loanRequestSchema = Joi.object({
   principalAmount: Joi.number().positive().precision(2).required().messages({
     'number.positive': 'Amount must be greater than zero',
     'any.required': 'Amount is required',
+  }),
+  feeTreatment: Joi.string().valid(...Object.values(FeeTreatment)).messages({
+    'any.only': 'Choose whether fees are deducted or added to the loan',
   }),
   termMonths: Joi.number().integer().min(1).required().messages({
     'number.base': 'Repayment period must be a number of months',

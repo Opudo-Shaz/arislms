@@ -1,6 +1,8 @@
 // dtos/loan/LoanResponseDTO.js
 const RepaymentScheduleResponseDto = require('../repaymentSchedule/RepaymentScheduleResponseDto');
 const CreditScoreResponseDto = require('../creditScore/CreditScoreResponseDto');
+const FeeTreatment = require('../../enums/feeTreatment');
+const { disclosureForLoan } = require('../../utils/loanCostDisclosure');
 
 // Statuses whose remaining amount still contributes to what the borrower owes.
 const OUTSTANDING_SCHEDULE_STATUSES = ['pending', 'overdue', 'partial'];
@@ -49,6 +51,8 @@ function LoanResponseDto(loan) {
     amountRepaid: loan.amountRepaid,
     noOfRepayments: loan.noOfRepayments,
     fees: loan.fees,
+    feeTreatment: loan.feeTreatment ?? FeeTreatment.DEDUCTED,
+    costDisclosure: disclosureForLoan(loan),
     penalties: loan.penalties,
     downPaymentRequired: loan.downPaymentRequired,
     downPaymentPaid: loan.downPaymentPaid,

@@ -417,6 +417,9 @@ router.get('/me/payments', portalController.listMyPayments);
  *       review. Either way, users with loans:approve are notified.
  *       `termMonths` is required and must be within the product's
  *       minRepaymentPeriodMonths–maxRepaymentPeriodMonths range.
+ *       `feeTreatment` (optional, default `deducted`): `deducted` nets product fees
+ *       off the disbursement; `added_to_principal` adds them to the loan so the
+ *       client receives the full `principalAmount`.
  *     tags:
  *       - Client Portal
  *     security:
@@ -428,6 +431,7 @@ router.get('/me/payments', portalController.listMyPayments);
  *           example:
  *             loanProductId: 1
  *             principalAmount: 20000
+ *             feeTreatment: deducted
  *             termMonths: 6
  *             notes: School fees
  *     responses:

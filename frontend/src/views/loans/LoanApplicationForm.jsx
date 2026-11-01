@@ -33,6 +33,8 @@ import { COLLATERAL_TYPE } from '../../constants/enums'
 import { formatCurrency, formatPercent, formatTermRange, termOptions } from '../../utils/format'
 import swal from '../../utils/useSweetAlert'
 import ClientAsyncSelect from '../../components/ClientAsyncSelect'
+import LoanCostPreview from '../../components/loans/LoanCostPreview'
+import { FEE_TREATMENT } from '../../utils/loanCost'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -40,6 +42,7 @@ const emptyForm = {
   clientId: '',
   loanProductId: '',
   principalAmount: '',
+  feeTreatment: FEE_TREATMENT.DEDUCTED,
   termMonths: '',
   startDate: today(),
   coSignerId: '',
@@ -58,6 +61,7 @@ const toPayload = (form) => {
     clientId: Number(form.clientId),
     loanProductId: Number(form.loanProductId),
     principalAmount: Number(form.principalAmount),
+    feeTreatment: form.feeTreatment,
     termMonths: Number(form.termMonths),
     startDate: form.startDate,
   }
@@ -229,7 +233,7 @@ const LoanApplicationForm = () => {
             )}
 
             <CCol md={4}>
-              <CFormLabel>Principal amount <span className="text-danger">*</span></CFormLabel>
+              <CFormLabel>Requested amount <span className="text-danger">*</span></CFormLabel>
               <CFormInput
                 type="number"
                 min="1"
@@ -359,6 +363,19 @@ const LoanApplicationForm = () => {
               <CFormLabel>Notes</CFormLabel>
               <CFormTextarea rows={3} value={form.notes} onChange={setField('notes')} />
             </CCol>
+
+            {selectedProduct && (
+              <CCol xs={12}>
+                <LoanCostPreview
+                  product={selectedProduct}
+                  amount={form.principalAmount}
+                  termMonths={form.termMonths}
+                  feeTreatment={form.feeTreatment}
+                  onFeeTreatmentChange={(v) => setForm((f) => ({ ...f, feeTreatment: v }))}
+                  receiverLabel="Client receives"
+                />
+              </CCol>
+            )}
           </CRow>
 
           <div className="d-flex gap-2 mt-4">

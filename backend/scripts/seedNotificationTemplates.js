@@ -11,6 +11,26 @@ const NotificationTemplate = require('../models/notificationTemplateModel');
 const NotificationEventType = require('../enums/notificationEventType');
 const logger = require('../config/logger');
 
+// Existing rows keep their copy; apply with: node backend/scripts/seedNotificationTemplates.js --overwrite=loan_disbursed
+const LOAN_DISBURSED_COPY = {
+  emailSubject: 'Loan disbursed — {{referenceCode}}',
+  emailBody: '<p>Hi {{clientName}},</p><p>Your loan {{referenceCode}} has been disbursed.</p>'
+    + '<ul>'
+    + '<li>Loan amount: {{currency}} {{principalAmount}}</li>'
+    + '<li>Fees: {{currency}} {{fees}} ({{feeTreatmentNote}})</li>'
+    + '<li>Amount sent to you: <strong>{{currency}} {{netDisbursement}}</strong></li>'
+    + '<li>Instalment: {{currency}} {{installmentAmount}} × {{termMonths}} month(s)</li>'
+    + '<li>Total to repay: <strong>{{currency}} {{totalRepayable}}</strong></li>'
+    + '<li>Total cost of credit (interest + fees): {{currency}} {{totalCostOfCredit}} — APR {{aprPercent}}%</li>'
+    + '</ul>'
+    + '<p>Your first payment is due on {{nextPaymentDate}}.</p>',
+  smsBody: 'Loan {{referenceCode}} disbursed. Sent to you: {{currency}} {{netDisbursement}} (loan {{currency}} {{principalAmount}}, fees {{currency}} {{fees}}). Total to repay {{currency}} {{totalRepayable}}, cost of credit {{currency}} {{totalCostOfCredit}}. First payment {{currency}} {{installmentAmount}} due {{nextPaymentDate}}.',
+  pushTitle: 'Loan disbursed',
+  pushBody: '{{currency}} {{netDisbursement}} sent for loan {{referenceCode}}. Total to repay {{currency}} {{totalRepayable}}.',
+  inAppTitle: 'Loan Disbursed',
+  inAppBody: 'Loan {{referenceCode}} disbursed: {{currency}} {{netDisbursement}} sent (loan {{currency}} {{principalAmount}}, fees {{currency}} {{fees}} {{feeTreatmentNote}}). Total to repay {{currency}} {{totalRepayable}}; cost of credit {{currency}} {{totalCostOfCredit}} (APR {{aprPercent}}%). First payment due {{nextPaymentDate}}.',
+};
+
 const defaults = [
   {
     eventKey: NotificationEventType.PAYMENT_RECEIVED,
@@ -71,13 +91,7 @@ const defaults = [
   {
     eventKey: NotificationEventType.LOAN_DISBURSED,
     description: 'Sent when a loan is disbursed.',
-    emailSubject: 'Loan disbursed — {{referenceCode}}',
-    emailBody: '<p>Hi {{clientName}},</p><p>Your loan {{referenceCode}} for {{currency}} {{principalAmount}} has been disbursed. Your first payment is due on {{nextPaymentDate}}.</p>',
-    smsBody: 'Loan {{referenceCode}} for {{currency}} {{principalAmount}} has been disbursed. First payment due {{nextPaymentDate}}.',
-    pushTitle: 'Loan disbursed',
-    pushBody: 'Loan {{referenceCode}} for {{currency}} {{principalAmount}} disbursed.',
-    inAppTitle: 'Loan Disbursed',
-    inAppBody: 'Loan {{referenceCode}} for {{currency}} {{principalAmount}} has been disbursed. First payment due {{nextPaymentDate}}.',
+    ...LOAN_DISBURSED_COPY,
   },
   {
     eventKey: NotificationEventType.LOAN_DEFAULTED,

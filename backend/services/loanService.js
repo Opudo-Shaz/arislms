@@ -33,6 +33,8 @@ const NotificationEventType = require('../enums/notificationEventType');
 const { buildRecipients, safeNotify } = require('./notification/notificationTriggers');
 const coSignerConsentService = require('./coSignerConsentService');
 const CoSignerConsentStatus = require('../enums/coSignerConsentStatus');
+const FeeTreatment = require('../enums/feeTreatment');
+const { resolvePrincipal, disclosureForLoan } = require('../utils/loanCostDisclosure');
 
 // Loan statuses in which money has already left the institution (disbursed).
 const DISBURSED_STATUSES = [
@@ -59,19 +61,19 @@ function computeDownPayment(product, principalAmount) {
 
 
 // Validates that an amount falls within the product's min/max loan boundaries
-function validateAmountAgainstProduct(amount, product) {
+function validateAmountAgainstProduct(amount, product, label = 'Requested amount') {
   const value = Number.parseFloat(amount);
   const min = product.minLoanAmount ? Number.parseFloat(product.minLoanAmount) : null;
   const max = product.maxLoanAmount ? Number.parseFloat(product.maxLoanAmount) : null;
   if (min !== null && value < min) {
     throw Object.assign(
-      new Error(`Requested amount (${value}) is below the minimum allowed for this product (${min})`),
+      new Error(`${label} (${value}) is below the minimum allowed for this product (${min})`),
       { statusCode: 422 }
     );
   }
   if (max !== null && value > max) {
     throw Object.assign(
-      new Error(`Requested amount (${value}) exceeds the maximum allowed for this product (${max})`),
+      new Error(`${label} (${value}) exceeds the maximum allowed for this product (${max})`),
       { statusCode: 422 }
     );
   }
@@ -294,8 +296,17 @@ const loanService = {
     if (!product) throw new Error('Invalid loan product selected');
     collateralService.validateCollateralInputAgainstProduct(product, data.collateral);
 
+    // data.principalAmount is the amount the client asked for; financed fees sit on top of it
+    const fees = product.fees || 0;
+    const feeTreatment = data.feeTreatment || FeeTreatment.DEDUCTED;
+    const principalAmount = resolvePrincipal(data.principalAmount, fees, feeTreatment);
+
     // Validate loan amount and requested repayment period against product boundaries
-    validateAmountAgainstProduct(data.principalAmount, product);
+    validateAmountAgainstProduct(
+      principalAmount,
+      product,
+      feeTreatment === FeeTreatment.ADDED_TO_PRINCIPAL ? 'Requested amount plus fees' : 'Requested amount'
+    );
     const termMonths = validateTermAgainstProduct(data.termMonths, product);
 
     // Apply product rules
@@ -303,7 +314,6 @@ const loanService = {
     const interestType = product.interestType;
     const interestRatePeriod = product.interestRatePeriod || 'annual';
     const loanCurrency = product.currency || 'KES';
-    const fees = product.fees || 0;
 
     // Validate client eligibility (unless the caller already did) and co-signer
     if (!skipClientValidation) {
@@ -317,7 +327,7 @@ const loanService = {
     // Calculate derived values
     const endDate = calculateEndDate(data.startDate, termMonths);
     const installmentAmount = calculateMonthlyPayment(
-      data.principalAmount,
+      principalAmount,
       interestRate,
       termMonths,
       interestType,
@@ -325,13 +335,13 @@ const loanService = {
     );
 
     // Resolve the down payment required for this loan from the product rules
-    const downPaymentRequired = computeDownPayment(product, data.principalAmount);
+    const downPaymentRequired = computeDownPayment(product, principalAmount);
 
     // Build loan payload
     const loanPayload = {
       clientId: data.clientId,
       loanProductId: data.loanProductId,
-      principalAmount: data.principalAmount,
+      principalAmount,
       currency: loanCurrency,
 
       interestRate,
@@ -342,9 +352,10 @@ const loanService = {
       startDate: data.startDate,
       endDate,
       installmentAmount,
-      outstandingBalance: data.principalAmount,
+      outstandingBalance: principalAmount,
 
       fees,
+      feeTreatment,
       penalties: 0,
 
       downPaymentRequired,
@@ -524,10 +535,11 @@ const loanService = {
         `Credit scoring result for client ${data.clientId}: score=${riskScore}, grade=${riskGrade}, decision=${riskDecision}, dti=${riskDti.toFixed(2)}, limit=${creditLimit}`
       );
 
-      // Reject if requested principal exceeds computed credit limit
-      if (Number(data.principalAmount) > creditLimit) {
+      // Reject if the loan principal (incl. any financed fees) exceeds computed credit limit
+      const principalAmount = resolvePrincipal(data.principalAmount, product.fees, data.feeTreatment);
+      if (principalAmount > creditLimit) {
         throw Object.assign(
-          new Error(`Requested amount (${data.principalAmount}) exceeds client credit limit (${creditLimit})`),
+          new Error(`Requested amount (${principalAmount}) exceeds client credit limit (${creditLimit})`),
           { statusCode: 422 }
         );
       }
@@ -1231,14 +1243,26 @@ const loanService = {
 
       // Notify client + loan officer (best-effort — never blocks disbursement itself)
       const client = await Client.findByPk(loan.clientId);
+      const cost = disclosureForLoan(loan);
+      const money = (n) => Number(n ?? 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       await safeNotify(NotificationEventType.LOAN_DISBURSED, {
         recipients: buildRecipients({ client, staffUserId: loan.createdBy }),
         context: {
           clientName: client ? `${client.firstName} ${client.lastName}` : '',
           referenceCode: loan.referenceCode,
           currency: loan.currency,
-          principalAmount: loan.principalAmount,
+          principalAmount: money(loan.principalAmount),
           nextPaymentDate: loan.nextPaymentDate,
+          fees: money(cost?.fees),
+          feeTreatmentNote: loan.feeTreatment === FeeTreatment.ADDED_TO_PRINCIPAL
+            ? 'added to your loan'
+            : 'deducted from the amount sent to you',
+          netDisbursement: money(cost?.netDisbursement),
+          installmentAmount: money(cost?.installmentAmount ?? loan.installmentAmount),
+          termMonths: loan.termMonths,
+          totalRepayable: money(cost?.totalRepayable),
+          totalCostOfCredit: money(cost?.totalCostOfCredit),
+          aprPercent: cost?.aprPercent ?? '',
         },
         relatedLoanId: loan.id,
       });

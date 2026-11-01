@@ -88,6 +88,7 @@ const portalLoanService = {
           clientId,
           loanProductId: product.id,
           principalAmount: dto.principalAmount,
+          ...(dto.feeTreatment ? { feeTreatment: dto.feeTreatment } : {}),
           termMonths,
           startDate: new Date().toISOString().slice(0, 10),
           ...(coSignerId ? { coSignerId } : {}),
