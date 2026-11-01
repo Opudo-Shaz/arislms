@@ -49,18 +49,21 @@ test('notifyLoanReceivers sends in-app + email to non-actors with the actor name
   assert.equal(opts.relatedLoanId, 5);
 });
 
-test('notifyLoanReceivers skips users already notified through another path', async (t) => {
+test('notifyLoanReceivers sends nothing when nobody holds the role', async (t) => {
+  stubDb(t, { userIds: [] });
+  const notify = t.mock.method(notificationDispatcher, 'notify', async () => ({ skipped: false, rows: [] }));
+
+  const none = await notifyLoanReceivers('payment_report_submitted', { actorUserId: null });
+  assert.equal(none.reason, 'no_recipients');
+  assert.equal(notify.mock.callCount(), 0);
+});
+
+test('a client-initiated action (no actor) reaches every receiver', async (t) => {
   stubDb(t);
   const notify = t.mock.method(notificationDispatcher, 'notify', async () => ({ skipped: false, rows: [] }));
 
-  await notifyLoanReceivers('loan_application_submitted', { alreadyNotified: [{ userId: 1 }, { userId: 3 }] });
-  assert.deepEqual(notify.mock.calls[0].arguments[1].recipients.map((r) => r.userId), [2]);
-
-  const none = await notifyLoanReceivers('loan_application_submitted', {
-    alreadyNotified: [{ userId: 1 }, { userId: 2 }, { userId: 3 }],
-  });
-  assert.equal(none.reason, 'no_recipients');
-  assert.equal(notify.mock.callCount(), 1);
+  await notifyLoanReceivers('payment_report_submitted', { actorUserId: null });
+  assert.deepEqual(notify.mock.calls[0].arguments[1].recipients.map((r) => r.userId), [1, 2, 3]);
 });
 
 test('notifyLoanReceivers never throws', async (t) => {

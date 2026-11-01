@@ -66,7 +66,6 @@ async function getActorName(userId, fallback = 'A staff member') {
  * @param {number} [opts.relatedLoanId]
  * @param {number} [opts.relatedPaymentId]
  * @param {string} [opts.dedupeKey]
- * @param {Array<object>} [opts.alreadyNotified] - recipients already alerted for this event; skipped to avoid duplicates
  */
 async function notifyLoanReceivers(eventKey, {
   actorUserId = null,
@@ -75,13 +74,13 @@ async function notifyLoanReceivers(eventKey, {
   relatedLoanId = null,
   relatedPaymentId = null,
   dedupeKey = null,
-  alreadyNotified = [],
 } = {}) {
   try {
-    const receivers = await getLoanNotificationReceivers({ excludeUserId: actorUserId });
-    const skip = new Set(alreadyNotified.map((r) => Number(r.userId)));
-    const recipients = receivers.filter((r) => !skip.has(Number(r.userId)));
-    if (!recipients.length) return { skipped: true, reason: 'no_recipients' };
+    const recipients = await getLoanNotificationReceivers({ excludeUserId: actorUserId });
+    if (!recipients.length) {
+      logger.info(`[loanNotificationReceivers] no ${LOAN_NOTIFICATIONS_RECEIVER} users to notify for ${eventKey}`);
+      return { skipped: true, reason: 'no_recipients' };
+    }
 
     return await safeNotify(eventKey, {
       recipients,

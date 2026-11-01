@@ -6,9 +6,6 @@ const Client = require('../models/clientModel');
 const PaymentReportStatus = require('../enums/paymentReportStatus');
 const LoanStatus = require('../enums/loanStatus');
 const NotificationEventType = require('../enums/notificationEventType');
-const NotificationChannel = require('../enums/notificationChannel');
-const { PERMISSIONS } = require('../constants/permissions');
-const { getActiveUsersWithPermission } = require('../utils/permissionUtils');
 const { buildRecipients, safeNotify } = require('./notification/notificationTriggers');
 const { notifyLoanReceivers } = require('./notification/loanNotificationReceivers');
 const { paginateKeyset } = require('../utils/keysetPagination');
@@ -120,21 +117,7 @@ const paymentReportService = {
       paymentMethod: values.paymentMethod,
       referenceCode: loan.referenceCode,
     };
-    const reviewers = await getActiveUsersWithPermission(PERMISSIONS.PAYMENT_REPORTS.REVIEW);
-    if (reviewers.length) {
-      await safeNotify(NotificationEventType.PAYMENT_REPORT_SUBMITTED, {
-        recipients: reviewers,
-        channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL],
-        context: reportContext,
-        relatedLoanId: loan.id,
-        dedupeKey: `payment-report:${report.id}`,
-      });
-    } else {
-      logger.warn(`[paymentReport] no active users hold ${PERMISSIONS.PAYMENT_REPORTS.REVIEW}; report ${report.id} queued without alerts`);
-    }
-    // loan_notifications_receiver users who weren't already alerted as reviewers
     await notifyLoanReceivers(NotificationEventType.PAYMENT_REPORT_SUBMITTED, {
-      alreadyNotified: reviewers,
       context: reportContext,
       relatedLoanId: loan.id,
       dedupeKey: `payment-report:${report.id}`,

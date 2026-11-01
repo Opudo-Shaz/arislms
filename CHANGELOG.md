@@ -20,7 +20,10 @@ into the next dated release section below when that version ships.
   be a user's only role, renamed or deleted) to a main role to receive staff-side
   loan alerts in-app + by email — loan created, loan request submitted, approved,
   rejected, disbursed, payment received, payment report submitted — except for
-  actions the user performed. Co-signer responses reach them in-app only.
+  actions the user performed. Co-signer responses reach them in-app only. These
+  admin-side alerts (request submitted, payment report submitted, co-signer response)
+  now go **only** to receivers — they are no longer sent to everyone holding the
+  `loans:approve` / `payment_reports:review` permissions.
   **Upgrade:** run `node scripts/migrateUserRoles.js` *before* starting the server
   (backfills `user_roles` and invitations, creates the role), then
   `node scripts/seedNotificationTemplates.js` for the new `loan_created` /

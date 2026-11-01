@@ -3,9 +3,6 @@ const LoanProduct = require('../models/loanProductModel');
 const loanService = require('./loanService');
 const coSignerConsentService = require('./coSignerConsentService');
 const NotificationEventType = require('../enums/notificationEventType');
-const NotificationChannel = require('../enums/notificationChannel');
-const { PERMISSIONS } = require('../constants/permissions');
-const { getActiveUsersWithPermission } = require('../utils/permissionUtils');
 const { buildRecipients, safeNotify } = require('./notification/notificationTriggers');
 const { notifyLoanReceivers } = require('./notification/loanNotificationReceivers');
 const logger = require('../config/logger');
@@ -120,7 +117,7 @@ const portalLoanService = {
     return { loan, scorePassed, riskScore, riskGrade, creditLimit, message };
   },
 
-  /** Alert every active user who can approve loans, plus a receipt to the client. */
+  /** Alert loan_notifications_receiver users, plus a receipt to the client. */
   async notifyApprovers({ loan, clientId, product, riskScore, riskGrade, scorePassed }) {
     const client = await Client.findByPk(clientId);
     const clientName = [client?.firstName, client?.lastName].filter(Boolean).join(' ');
@@ -142,22 +139,7 @@ const portalLoanService = {
         : 'NEEDS MANUAL REVIEW — score below the auto-approval threshold.',
     };
 
-    const approvers = await getActiveUsersWithPermission(PERMISSIONS.LOANS.APPROVE);
-    if (approvers.length) {
-      await safeNotify(NotificationEventType.LOAN_APPLICATION_SUBMITTED, {
-        recipients: approvers,
-        channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL],
-        context: submittedContext,
-        relatedLoanId: loan.id,
-        dedupeKey: `loan-submitted:${loan.id}`,
-      });
-    } else {
-      logger.warn(`[portal] no active users hold ${PERMISSIONS.LOANS.APPROVE}; loan ${loan.id} queued without alerts`);
-    }
-
-    // loan_notifications_receiver users who weren't already alerted as approvers
     await notifyLoanReceivers(NotificationEventType.LOAN_APPLICATION_SUBMITTED, {
-      alreadyNotified: approvers,
       context: submittedContext,
       relatedLoanId: loan.id,
       dedupeKey: `loan-submitted:${loan.id}`,
