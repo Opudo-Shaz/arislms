@@ -11,7 +11,7 @@ const RepaymentSchedule = require('../models/repaymentScheduleModel');
 const CreditScore = require('../models/creditScoreModel');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../config/logger');
-const { calculateEndDate,isAdmin, CURRENCY_EPSILON } = require('../utils/helpers'); 
+const { calculateEndDate, isAdmin, hasBuiltInRole, CURRENCY_EPSILON } = require('../utils/helpers'); 
 const LoanStatus = require('../enums/loanStatus');
 const AuditLogger = require('../utils/auditLogger');
 const { generateAmortizationSchedule, calculateMonthlyPayment } = require('../utils/loanCalculator');
@@ -31,6 +31,7 @@ const MemberContribution = require('../models/memberContributionModel');
 const systemConfigService = require('./systemConfigService');
 const NotificationEventType = require('../enums/notificationEventType');
 const { buildRecipients, safeNotify } = require('./notification/notificationTriggers');
+const { notifyLoanReceivers } = require('./notification/loanNotificationReceivers');
 const coSignerConsentService = require('./coSignerConsentService');
 const CoSignerConsentStatus = require('../enums/coSignerConsentStatus');
 const FeeTreatment = require('../enums/feeTreatment');
@@ -212,9 +213,9 @@ const loanService = {
     }
   },
 
-  async getLoanById(id, role, userId) {
+  async getLoanById(id, roles, userId) {
     try {
-      logger.info(`loanService.getLoanById called for loan ${id} by user ${userId} role ${role}`);
+      logger.info(`loanService.getLoanById called for loan ${id} by user ${userId} roles ${roles}`);
       const loan = await Loan.findByPk(id, {
         include: [
           { association: 'repaymentSchedules', required: false },
@@ -226,8 +227,7 @@ const loanService = {
       });
       if (!loan) return null;
 
-      const numRole = Number(role);
-      if (numRole !== 1 && numRole !== 2 && numRole !== 3 && loan.clientId !== userId) {
+      if (!hasBuiltInRole(roles) && loan.clientId !== userId) {
         return 403; // Access denied
       }
 
@@ -277,8 +277,7 @@ const loanService = {
         throw new Error('Clients may only apply for loans for themselves');
       }
     } else {
-      const role = Number(createdByUser?.role_id ?? createdByUser?.role);
-      if (!isAdmin(role)) {
+      if (!isAdmin(createdByUser?.roles)) {
         throw new Error('User not authorized to create loans');
       }
     }
@@ -436,6 +435,24 @@ const loanService = {
       `Loan created: id=${newLoan.id} reference=${newLoan.referenceCode} status=${loanStatus} by user ${creatorId}`
     );
 
+    // Staff-created loans alert loan_notifications_receiver users (portal
+    // applications use LOAN_APPLICATION_SUBMITTED instead). Best-effort.
+    if (!portalClient) {
+      const loanClient = await Client.findByPk(newLoan.clientId, { attributes: ['id', 'firstName', 'lastName'] });
+      await notifyLoanReceivers(NotificationEventType.LOAN_CREATED, {
+        actorUserId: creatorId,
+        context: {
+          clientName: loanClient ? `${loanClient.firstName} ${loanClient.lastName}` : '',
+          referenceCode: newLoan.referenceCode,
+          currency: newLoan.currency,
+          principalAmount: Number(newLoan.principalAmount).toLocaleString(),
+          status: newLoan.status,
+        },
+        relatedLoanId: newLoan.id,
+        dedupeKey: `loan-created:${newLoan.id}`,
+      });
+    }
+
     // Every co-signed loan needs the co-signer's consent before approval.
     // A delivery failure must not undo the application — staff can resend.
     if (newLoan.coSignerId) {
@@ -475,8 +492,7 @@ const loanService = {
    * @returns {Promise<Object>} Created loan with risk assessment data
    */
   async createLoan(data, createdByUser, userAgent = 'unknown') {
-    const role = Number(createdByUser?.role_id ?? createdByUser?.role);
-    if (!isAdmin(role)) {
+    if (!isAdmin(createdByUser?.roles)) {
       throw new Error('User not authorized to create loans');
     }
     logger.info(`loanService.createLoan (with credit scoring) called by user ${createdByUser?.id || null}`);
@@ -815,6 +831,17 @@ const loanService = {
         },
         relatedLoanId: loan.id,
       });
+      await notifyLoanReceivers(NotificationEventType.STAFF_LOAN_APPROVED, {
+        actorUserId: approverId,
+        context: {
+          clientName: client ? `${client.firstName} ${client.lastName}` : '',
+          referenceCode: loan.referenceCode,
+          currency: loan.currency,
+          principalAmount: Number(loan.principalAmount).toLocaleString(),
+          approvalDate: approval.toISOString().split('T')[0],
+        },
+        relatedLoanId: loan.id,
+      });
 
       return loan;
 
@@ -875,6 +902,15 @@ const loanService = {
       const client = await Client.findByPk(loan.clientId);
       await safeNotify(NotificationEventType.LOAN_REJECTED, {
         recipients: buildRecipients({ client, staffUserId: loan.createdBy }),
+        context: {
+          clientName: client ? `${client.firstName} ${client.lastName}` : '',
+          referenceCode: loan.referenceCode,
+          rejectionNote: rejectionNote ? ` ${rejectionNote}` : '',
+        },
+        relatedLoanId: loan.id,
+      });
+      await notifyLoanReceivers(NotificationEventType.STAFF_LOAN_REJECTED, {
+        actorUserId: rejectorId,
         context: {
           clientName: client ? `${client.firstName} ${client.lastName}` : '',
           referenceCode: loan.referenceCode,
@@ -1263,6 +1299,17 @@ const loanService = {
           totalRepayable: money(cost?.totalRepayable),
           totalCostOfCredit: money(cost?.totalCostOfCredit),
           aprPercent: cost?.aprPercent ?? '',
+        },
+        relatedLoanId: loan.id,
+      });
+      await notifyLoanReceivers(NotificationEventType.STAFF_LOAN_DISBURSED, {
+        actorUserId: actorId,
+        context: {
+          clientName: client ? `${client.firstName} ${client.lastName}` : '',
+          referenceCode: loan.referenceCode,
+          currency: loan.currency,
+          principalAmount: money(loan.principalAmount),
+          netDisbursement: money(cost?.netDisbursement),
         },
         relatedLoanId: loan.id,
       });

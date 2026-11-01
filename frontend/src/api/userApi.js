@@ -24,7 +24,7 @@ export const getUser = async (id) => {
 
 /**
  * Create a user.
- * @param {object} payload { first_name, middle_name?, last_name, email, phone?, role, id_number, password }
+ * @param {object} payload { first_name, middle_name?, last_name, email, phone?, roles: number[], id_number, password }
  * @returns {Promise<object>}
  */
 export const createUser = async (payload) => http.post('/users', payload)

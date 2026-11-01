@@ -241,7 +241,10 @@ const UserProfile = () => {
     ? [profile.first_name, profile.middle_name, profile.last_name].filter(Boolean).join(' ').trim()
     : authUser?.name || authUser?.email || '—'
 
-  const roleName = ROLE_LABELS[profile?.role] ?? ROLE_LABELS[authUser?.role] ?? `Role ${authUser?.role ?? '?'}`
+  const roleIds = profile?.roles ?? authUser?.roles ?? []
+  const roleName = roleIds.length
+    ? roleIds.map((id) => ROLE_LABELS[id] ?? `Role ${id}`).join(', ')
+    : '—'
 
   if (isLoading) {
     return (

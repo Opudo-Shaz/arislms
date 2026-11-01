@@ -18,7 +18,6 @@ import {
   CFormInput,
   CFormLabel,
   CInputGroup,
-  CInputGroupText,
   CModal,
   CModalBody,
   CModalFooter,
@@ -27,13 +26,13 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
-import FormSelect from '../../components/FormSelect'
 import { Eye, EyeOff } from 'lucide-react'
 
 import { useCreateUser, useUpdateUser } from '../../hooks/useUsers'
 import { useRoles } from '../../hooks/useRoles'
 import { useAuth } from '../../context/AuthContext'
 import PhoneInput from '../../components/PhoneInput'
+import RoleSelector, { toRoleIds, validateRoleSelection } from '../../components/RoleSelector'
 
 const emptyForm = {
   first_name: '',
@@ -41,7 +40,7 @@ const emptyForm = {
   last_name: '',
   email: '',
   phone: '',
-  role: '',
+  roles: [],
   id_number: '',
   password: '',
 }
@@ -52,7 +51,7 @@ const toForm = (u) => ({
   last_name: u.last_name || '',
   email: u.email || '',
   phone: u.phone || '',
-  role: u.role ?? '',
+  roles: (u.roles ?? []).map(String),
   id_number: u.id_number || '',
   password: '',
 })
@@ -68,17 +67,16 @@ const UserForm = ({ visible, user, onClose }) => {
   // Only a Super Admin (wildcard `'*'` permission) may create/promote/demote another Super Admin.
   const canAssignSuperAdmin = hasPermission('*')
 
+  const isSuperAdminRole = (r) => Array.isArray(r.permissions) && r.permissions.includes('*')
+  const userRoleIds = (user?.roles ?? []).map(Number)
   const targetIsCurrentSuperAdmin =
-    isEdit &&
-    roles.some(
-      (r) => Number(r.id) === Number(user?.role) && Array.isArray(r.permissions) && r.permissions.includes('*'),
-    )
+    isEdit && roles.some((r) => userRoleIds.includes(Number(r.id)) && isSuperAdminRole(r))
   const roleLocked = targetIsCurrentSuperAdmin && !canAssignSuperAdmin
   const assignableRoles = roles.filter(
     (r) =>
       canAssignSuperAdmin ||
-      !(Array.isArray(r.permissions) && r.permissions.includes('*')) ||
-      (roleLocked && Number(r.id) === Number(user?.role)),
+      !isSuperAdminRole(r) ||
+      (roleLocked && userRoleIds.includes(Number(r.id))),
   )
 
   const [form, setForm] = useState(emptyForm)
@@ -99,13 +97,19 @@ const UserForm = ({ visible, user, onClose }) => {
     e.preventDefault()
     setError(null)
 
+    const roleError = validateRoleSelection(form.roles, roles)
+    if (roleError) {
+      setError({ message: roleError })
+      return
+    }
+
     const base = {
       first_name: form.first_name.trim(),
       middle_name: form.middle_name.trim() || null,
       last_name: form.last_name.trim(),
       email: form.email.trim(),
       phone: form.phone.trim() || null,
-      role: Number(form.role),
+      roles: toRoleIds(form.roles),
       id_number: form.id_number.trim() || null,
     }
 
@@ -191,21 +195,19 @@ const UserForm = ({ visible, user, onClose }) => {
                 maxLength={50}
               />
             </CCol>
-            <CCol md={4}>
-              <CFormLabel>Role <span className="text-danger">*</span></CFormLabel>
-              <FormSelect value={form.role} onChange={setField('role')} required disabled={roleLocked}>
-                <option value="">Select role…</option>
-                {assignableRoles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </FormSelect>
-              {roleLocked && (
-                <div className="form-text">Only a Super Admin can change a Super Admin's role.</div>
-              )}
-            </CCol>
-            <CCol md={4}>
+            <RoleSelector
+              roles={assignableRoles}
+              value={form.roles}
+              onChange={(nextRoles) => setForm((f) => ({ ...f, roles: nextRoles }))}
+              disabled={roleLocked}
+              md={8}
+            />
+            {roleLocked && (
+              <CCol xs={12}>
+                <div className="form-text mt-0">Only a Super Admin can change a Super Admin's roles.</div>
+              </CCol>
+            )}
+            <CCol xs={12} md={6}>
               <CFormLabel>{isEdit ? 'New password' : <>Password <span className="text-danger">*</span></>}</CFormLabel>
               <CInputGroup>
                 <CFormInput
@@ -216,14 +218,17 @@ const UserForm = ({ visible, user, onClose }) => {
                   autoComplete="new-password"
                   placeholder={isEdit ? 'Leave blank to keep' : ''}
                 />
-                <CInputGroupText
-                  role="button"
+                <CButton
+                  type="button"
+                  color="secondary"
+                  variant="outline"
                   title={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
                   onClick={() => setShowPassword((v) => !v)}
-                  style={{ cursor: 'pointer' }}
                 >
                   {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
-                </CInputGroupText>
+                </CButton>
               </CInputGroup>
             </CCol>
           </CRow>

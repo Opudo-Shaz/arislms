@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
-const Role = require('../models/roleModel');
+const { getRoleIdsForUser, getPermissionsForRoleIds } = require('../utils/userRoles');
 const UserStatus = require('../enums/userStatus');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
@@ -25,8 +25,9 @@ const issueSession = async (user, userAgent = 'unknown') => {
   // Generate JWT token. tokenVersion is embedded so it can be compared
   // against the current DB value on every request (see authMiddleware) —
   // bumping user.token_version invalidates this token before it expires.
+  const roles = await getRoleIdsForUser(user.id);
   const token = jwt.sign(
-    { id: user.id, role: user.role_id, tokenVersion: user.token_version },
+    { id: user.id, roles, tokenVersion: user.token_version },
     jwtSecret(),
     { expiresIn: '1d' }
   );
@@ -36,19 +37,18 @@ const issueSession = async (user, userAgent = 'unknown') => {
     entityType: 'LOGIN',
     entityId: user.id,
     action: 'CREATE',
-    data: { email: user.email, role: user.role_id },
+    data: { email: user.email, roles },
     actorId: user.id,
     options: { actorType: 'USER', source: userAgent },
   });
 
   logger.info(`User ${user.id} (${user.email}) successfully logged in`);
 
-  // Resolve the role's permission list for the client, straight from the
+  // Union of the permissions of every role the user holds, straight from the
   // roles table — no hardcoded role id. Whichever role was seeded/assigned
   // the wildcard `'*'` permission acts as Super Admin, so the frontend
-  // `hasPermission()` short-circuits to true for that role.
-  const role = await Role.findByPk(user.role_id, { attributes: ['permissions'] });
-  const permissions = role?.permissions || [];
+  // `hasPermission()` short-circuits to true for that user.
+  const permissions = await getPermissionsForRoleIds(roles);
 
   return {
     token,
@@ -57,7 +57,7 @@ const issueSession = async (user, userAgent = 'unknown') => {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role_id,
+      roles,
       permissions,
     },
   };

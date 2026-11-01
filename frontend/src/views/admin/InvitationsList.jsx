@@ -45,7 +45,7 @@ const InvitationsList = () => {
     () => [
       { key: 'name', label: 'Name', render: (row) => <span className="fw-semibold">{fullName(row)}</span> },
       { key: 'email', label: 'Email' },
-      { key: 'role_name', label: 'Role', render: (row) => row.role_name || `Role ${row.role}` },
+      { key: 'role_names', label: 'Roles', render: (row) => (row.role_names?.length ? row.role_names.join(', ') : '—') },
       {
         key: 'status',
         label: 'Status',

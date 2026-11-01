@@ -3,6 +3,7 @@
  *
  * Wrap a screen with `<RequireRole roles={[1, 2]}>...</RequireRole>` to
  * restrict it to specific backend role ids (1=admin, 2=manager, 3=limited).
+ * A user holding several roles passes when ANY of them is listed.
  * Unauthorized users are redirected to a 403/unauthorized view.
  *
  * @module components/RequireRole
@@ -14,9 +15,9 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const RequireRole = ({ roles, children }) => {
-  const { role } = useAuth()
+  const { roles: userRoles } = useAuth()
 
-  if (roles && roles.length && !roles.includes(role)) {
+  if (roles && roles.length && !userRoles.some((r) => roles.includes(r))) {
     return <Navigate to="/unauthorized" replace />
   }
 

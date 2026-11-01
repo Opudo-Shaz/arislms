@@ -484,7 +484,15 @@ export const ROLES = {
   ADMIN: 1,
   MANAGER: 2,
   LIMITED: 3,
-}/** Convenience role groups for `RequireRole`. */
+}
+
+/**
+ * Name of the companion role that makes a user receive admin-side loan
+ * notifications. It is attached alongside a main role and can't stand alone.
+ */
+export const LOAN_NOTIFICATIONS_RECEIVER_ROLE = 'loan_notifications_receiver'
+
+/** Convenience role groups for `RequireRole`. */
 export const ROLE_GROUPS = {
   /** Admin + manager (privileged write operations). */
   STAFF: [ROLES.ADMIN, ROLES.MANAGER],

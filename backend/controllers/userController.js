@@ -1,7 +1,7 @@
 const userService = require('../services/userService');
 const logger = require('../config/logger');
 const { validateSync } = require('../utils/validationMiddleware');
-const { getUserId, getUserFullName } = require('../utils/helpers');
+const { getUserId, getUserFullName, isLimitedOnly } = require('../utils/helpers');
 const UserResponseDto = require('../dtos/user/UserResponseDto');
 const UserRequestDto = require('../dtos/user/UserRequestDto');
 
@@ -78,11 +78,11 @@ const updateUser = async (req, res) => {
   try {
     const userId = getUserId(req);
     const userAgent = req.headers['user-agent'];
-    const actorRole = req.user?.role;
+    const actorRoles = req.user?.roles || [];
     const targetId = Number(req.params.id);
 
-    // Role 3 (limited) may only update their OWN record with restricted fields.
-    if (actorRole === 3) {
+    // Limited users (role 3, no admin/manager role) may only update their OWN record with restricted fields.
+    if (isLimitedOnly(actorRoles)) {
       if (userId !== targetId) {
         return res.status(403).json({ success: false, message: 'Access denied: you can only update your own profile' });
       }

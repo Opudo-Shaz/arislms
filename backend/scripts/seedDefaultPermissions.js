@@ -7,7 +7,10 @@
  *                      (users:delete, roles:delete, users:reset_password)
  *   Role 3 (Limited) → read-only permissions (every `*:read`)
  *
- * Only updates roles that already exist. Safe to re-run — it overwrites the
+ * Also ensures the `loan_notifications_receiver` companion role exists (no
+ * permissions — it only marks users who receive staff-side loan notifications).
+ *
+ * Only updates roles 1-3 that already exist. Safe to re-run — it overwrites the
  * permissions array for these three roles with the computed defaults.
  *
  * Usage:
@@ -16,6 +19,7 @@
 
 const Role = require('../models/roleModel');
 const { ALL_PERMISSIONS } = require('../constants/permissions');
+const { LOAN_NOTIFICATIONS_RECEIVER, LOAN_NOTIFICATIONS_RECEIVER_DESCRIPTION } = require('../constants/roles');
 
 const MANAGER_EXCLUDED = ['users:delete', 'roles:delete', 'users:reset_password', 'system_config:reveal_secret'];
 
@@ -38,6 +42,14 @@ async function seedDefaultPermissions() {
     console.log(`  role ${roleId} (${role.name}): set ${permissions.length} permission(s)`);
     results.push({ roleId: Number(roleId), roleName: role.name, permissionCount: permissions.length, status: 'updated' });
   }
+
+  const [receiver, created] = await Role.findOrCreate({
+    where: { name: LOAN_NOTIFICATIONS_RECEIVER },
+    defaults: { description: LOAN_NOTIFICATIONS_RECEIVER_DESCRIPTION, permissions: [], isActive: true },
+  });
+  console.log(`  role ${receiver.id} (${receiver.name}): ${created ? 'created' : 'already exists'}`);
+  results.push({ roleId: receiver.id, roleName: receiver.name, status: created ? 'created' : 'exists' });
+
   return { results };
 }
 

@@ -6,8 +6,8 @@ class InvitationResponseDto {
     this.middle_name = invitation.middleName;
     this.last_name = invitation.lastName;
     this.phone = invitation.phone;
-    this.role = invitation.roleId;
-    this.role_name = invitation.role?.name || null;
+    this.roles = invitation.roleIds || [];
+    this.role_names = (invitation.roleDetails || []).map((r) => r.name);
     this.status = invitation.status;
     this.expires_at = invitation.expiresAt;
     this.accepted_at = invitation.acceptedAt;

@@ -12,6 +12,7 @@ import { Navigate } from 'react-router-dom'
 import {
   CButton,
   CCard,
+  CBadge,
   CCardBody,
   CCardHeader,
   CCol,
@@ -73,7 +74,7 @@ const UsersList = () => {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
     return users.filter((u) => {
-      if (roleFilter && String(u.role) !== String(roleFilter)) return false
+      if (roleFilter && !(u.roles ?? []).some((id) => String(id) === String(roleFilter))) return false
       if (term) {
         const haystack = [fullName(u), u.email, u.phone, u.id_number]
           .filter(Boolean)
@@ -99,7 +100,17 @@ const UsersList = () => {
     { key: 'name', label: 'Name', render: (row) => <span className="fw-semibold">{fullName(row)}</span> },
     { key: 'email', label: 'Email' },
     { key: 'phone', label: 'Phone', render: (row) => row.phone || '—' },
-    { key: 'role', label: 'Role', render: (row) => roleName(row.role) },
+    {
+      key: 'roles',
+      label: 'Roles',
+      render: (row) => (
+        <div className="d-flex flex-wrap gap-1">
+          {(row.roles ?? []).map((id) => (
+            <CBadge key={id} color="info">{roleName(id)}</CBadge>
+          ))}
+        </div>
+      ),
+    },
     { key: 'status', label: 'Status', render: (row) => <StatusBadge enumDef={USER_STATUS} value={row.status} /> },
     { key: 'created_at', label: 'Created', render: (row) => formatDate(row.created_at) },
   ]

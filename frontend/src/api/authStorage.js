@@ -12,7 +12,7 @@ import config from '../config'
 /**
  * Read the persisted auth session.
  * @param {string} [key] - storage key (defaults to the staff session key)
- * @returns {{ token: string, user: object, role: number|null } | null}
+ * @returns {{ token: string, user: object, roles: number[] } | null}
  */
 export const getStoredAuth = (key = config.authStorageKey) => {
   try {
@@ -25,7 +25,7 @@ export const getStoredAuth = (key = config.authStorageKey) => {
 
 /**
  * Persist the auth session.
- * @param {{ token: string, user: object, role: number|null }} auth
+ * @param {{ token: string, user: object, roles: number[] }} auth
  * @param {string} [key] - storage key (defaults to the staff session key)
  */
 export const setStoredAuth = (auth, key = config.authStorageKey) => {
@@ -56,7 +56,7 @@ export const isTokenExpired = (token) => {
 
 /**
  * Decode the payload of a JWT without verifying its signature.
- * Used only to read non-sensitive claims (id, role) on the client.
+ * Used only to read non-sensitive claims (id, roles) on the client.
  * @param {string} token
  * @returns {object | null}
  */

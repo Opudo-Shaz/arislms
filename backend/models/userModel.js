@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/sequalize_db');
-const Role = require('./roleModel');
 const UserStatus = require('../enums/userStatus');
 
 const User = sequelize.define(
@@ -40,12 +39,6 @@ const User = sequelize.define(
     id_number: {
       type: DataTypes.STRING(50),
       allowNull: true,
-    },
-
-    role_id: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      field: 'role_id',
     },
 
     password: {

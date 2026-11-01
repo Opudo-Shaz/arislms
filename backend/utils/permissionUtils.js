@@ -9,6 +9,7 @@
 const { Op } = require('sequelize');
 const Role = require('../models/roleModel');
 const User = require('../models/userModel');
+const UserRole = require('../models/userRoleModel');
 const UserStatus = require('../enums/userStatus');
 
 /** True if a resolved permissions array grants the wildcard super-admin bypass. */
@@ -28,7 +29,18 @@ async function roleIdIsSuperAdmin(roleId) {
 }
 
 /**
- * Active staff users whose role grants `permission` (explicitly or via the
+ * True if ANY of the given role ids carries the wildcard permission.
+ * @param {Array<number>} roleIds
+ */
+async function roleIdsIncludeSuperAdmin(roleIds) {
+  const ids = (roleIds || []).filter((id) => id !== undefined && id !== null);
+  if (!ids.length) return false;
+  const roles = await Role.findAll({ where: { id: ids }, attributes: ['permissions'] });
+  return roles.some((r) => hasWildcardPermission(r.permissions));
+}
+
+/**
+ * Active staff users with a role that grants `permission` (explicitly or via the
  * wildcard), shaped as notificationDispatcher recipients. Used to alert
  * whoever can act on a queue item (e.g. `loans:approve`) without hardcoding roles.
  * @param {string} permission e.g. 'loans:approve'
@@ -47,11 +59,18 @@ async function getActiveUsersWithPermission(permission) {
   });
   if (!roles.length) return [];
 
+  const links = await UserRole.findAll({
+    where: { roleId: roles.map((r) => r.id) },
+    attributes: ['userId'],
+  });
+  const userIds = [...new Set(links.map((l) => l.userId))];
+  if (!userIds.length) return [];
+
   const users = await User.findAll({
-    where: { role_id: roles.map((r) => r.id), status: UserStatus.ACTIVE },
+    where: { id: userIds, status: UserStatus.ACTIVE },
     attributes: ['id', 'email'],
   });
   return users.map((u) => ({ userId: u.id, ...(u.email ? { email: u.email } : {}) }));
 }
 
-module.exports = { hasWildcardPermission, roleIdIsSuperAdmin, getActiveUsersWithPermission };
+module.exports = { hasWildcardPermission, roleIdIsSuperAdmin, roleIdsIncludeSuperAdmin, getActiveUsersWithPermission };

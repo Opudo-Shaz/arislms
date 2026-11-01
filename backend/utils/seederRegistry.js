@@ -16,7 +16,7 @@ const SEEDERS = {
   'default-permissions': {
     key: 'default-permissions',
     name: 'Default Role Permissions',
-    description: 'Assigns the default permission sets to the built-in roles (Admin/Manager/Limited).',
+    description: 'Assigns the default permission sets to the built-in roles (Admin/Manager/Limited) and creates the loan_notifications_receiver companion role.',
     fn: require('../scripts/seedDefaultPermissions'),
   },
   'system-config': {

@@ -185,8 +185,8 @@ const AcceptInvite = () => {
                         <CFormInput value={invitation.email} readOnly disabled />
                       </CCol>
                       <CCol md={6}>
-                        <label className="form-label">Role</label>
-                        <CFormInput value={invitation.role_name || `Role ${invitation.role}`} readOnly disabled />
+                        <label className="form-label">Roles</label>
+                        <CFormInput value={invitation.role_names?.join(', ') || '—'} readOnly disabled />
                       </CCol>
 
                       <CCol md={4}>

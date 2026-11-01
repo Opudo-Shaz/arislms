@@ -3,6 +3,7 @@ const sequelize = require('../config/sequalize_db');
 // Import models so they are registered with Sequelize
 const Role = require('./roleModel');
 const User = require('./userModel');
+const UserRole = require('./userRoleModel');
 const Loan = require('./loanModel');
 const Client = require('./clientModel');
 const LoanProduct = require('./loanProductModel');
@@ -58,14 +59,16 @@ if (User !== undefined && Payment !== undefined) {
   Payment.belongsTo(User, { foreignKey: 'processed_by' });
 
 }
-//user and role association
-if (User !== undefined && Role !== undefined) {
-  User.belongsTo(Role, { foreignKey: 'role_id', targetKey: 'id' });
-}
+// user <-> role: many-to-many so a user can hold a main role plus extra roles
+// (e.g. loan_notifications_receiver)
+User.belongsToMany(Role, { through: UserRole, foreignKey: 'userId', otherKey: 'roleId', as: 'roles', onDelete: 'CASCADE' });
+Role.belongsToMany(User, { through: UserRole, foreignKey: 'roleId', otherKey: 'userId', as: 'users', onDelete: 'CASCADE' });
+UserRole.belongsTo(User, { foreignKey: 'userId', onDelete: 'CASCADE' });
+UserRole.belongsTo(Role, { foreignKey: 'roleId', onDelete: 'CASCADE' });
+User.hasMany(UserRole, { foreignKey: 'userId', as: 'userRoles', onDelete: 'CASCADE' });
+Role.hasMany(UserRole, { foreignKey: 'roleId', as: 'userRoles', onDelete: 'CASCADE' });
 
 if (User !== undefined && AuditLog !== undefined) {
-  Role.hasMany(User, { foreignKey: 'role_id', sourceKey: 'id' });
-  User.belongsTo(Role, { foreignKey: 'role_id', targetKey: 'id' });
   AuditLog.belongsTo(User, { foreignKey: 'actor_id', as: 'actor', constraints: false });
 }
 
@@ -161,7 +164,6 @@ NotificationOutbox.belongsTo(Loan, { foreignKey: 'related_loan_id', as: 'loan', 
 NotificationOutbox.belongsTo(Payment, { foreignKey: 'related_payment_id', as: 'payment', constraints: false });
 
 // User invitation associations — invite pre-fills role; inviter/createdUser both User FKs
-UserInvitation.belongsTo(Role, { foreignKey: 'role_id', as: 'role' });
 UserInvitation.belongsTo(User, { foreignKey: 'invited_by', as: 'inviter', constraints: false });
 UserInvitation.belongsTo(User, { foreignKey: 'created_user_id', as: 'createdUser', constraints: false });
 
@@ -197,6 +199,7 @@ module.exports = {
   CoSignerConsent,
   Role,
   User,
+  UserRole,
   Loan,
   Client,
   Payment,

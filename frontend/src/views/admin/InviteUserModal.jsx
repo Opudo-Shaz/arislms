@@ -27,7 +27,7 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
-import FormSelect from '../../components/FormSelect'
+import RoleSelector, { toRoleIds, validateRoleSelection } from '../../components/RoleSelector'
 
 import { useCreateInvitation } from '../../hooks/useInvitations'
 import { useRoles } from '../../hooks/useRoles'
@@ -40,7 +40,7 @@ const emptyForm = {
   middle_name: '',
   last_name: '',
   phone: '',
-  role: '',
+  roles: [],
 }
 
 const InviteUserModal = ({ visible, onClose }) => {
@@ -80,9 +80,15 @@ const InviteUserModal = ({ visible, onClose }) => {
       return
     }
 
+    const roleError = validateRoleSelection(form.roles, roles)
+    if (roleError) {
+      setError({ message: roleError })
+      return
+    }
+
     const payload = {
       email: form.email.trim(),
-      role: Number(form.role),
+      roles: toRoleIds(form.roles),
       ...(form.first_name.trim() ? { first_name: form.first_name.trim() } : {}),
       ...(form.middle_name.trim() ? { middle_name: form.middle_name.trim() } : {}),
       ...(form.last_name.trim() ? { last_name: form.last_name.trim() } : {}),
@@ -168,17 +174,12 @@ const InviteUserModal = ({ visible, onClose }) => {
                 <CFormLabel>Email <span className="text-danger">*</span></CFormLabel>
                 <CFormInput type="email" value={form.email} onChange={setField('email')} required />
               </CCol>
-              <CCol md={6}>
-                <CFormLabel>Role <span className="text-danger">*</span></CFormLabel>
-                <FormSelect value={form.role} onChange={setField('role')} required>
-                  <option value="">Select role…</option>
-                  {assignableRoles.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </FormSelect>
-              </CCol>
+              <RoleSelector
+                roles={assignableRoles}
+                value={form.roles}
+                onChange={(nextRoles) => setForm((f) => ({ ...f, roles: nextRoles }))}
+                md={6}
+              />
 
               <CCol md={4}>
                 <CFormLabel>First name</CFormLabel>

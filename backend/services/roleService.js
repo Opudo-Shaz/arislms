@@ -1,5 +1,6 @@
 const Role = require('../models/roleModel');
-const User = require('../models/userModel');
+const UserRole = require('../models/userRoleModel');
+const { LOAN_NOTIFICATIONS_RECEIVER } = require('../constants/roles');
 const AuditLogger = require('../utils/auditLogger');
 const { invalidateAuthUser } = require('../utils/authUserCache');
 const logger = require('../config/logger');
@@ -12,11 +13,11 @@ const logger = require('../config/logger');
  */
 async function invalidateRoleUsers(roleId) {
   try {
-    const users = await User.findAll({
-      where: { role_id: roleId },
-      attributes: ['id'],
+    const users = await UserRole.findAll({
+      where: { roleId },
+      attributes: ['userId'],
     });
-    users.forEach((u) => invalidateAuthUser(u.id));
+    users.forEach((u) => invalidateAuthUser(u.userId));
     if (users.length) {
       logger.info(`Auth cache invalidated for ${users.length} user(s) of role ${roleId}`);
     }
@@ -24,6 +25,12 @@ async function invalidateRoleUsers(roleId) {
     logger.error(`RoleService.invalidateRoleUsers Error: ${error.message}`);
   }
 }
+
+const systemRoleError = (message) => {
+  const err = new Error(message);
+  err.status = 400;
+  return err;
+};
 
 const roleService = {
 
@@ -117,6 +124,10 @@ const roleService = {
     try {
       const role = await Role.findByPk(id);
       if (!role) throw new Error('Role not found');
+
+      if (role.name === LOAN_NOTIFICATIONS_RECEIVER && data.name && data.name !== role.name) {
+        throw systemRoleError(`The "${LOAN_NOTIFICATIONS_RECEIVER}" system role cannot be renamed`);
+      }
 
       await role.update(data);
 
@@ -243,11 +254,16 @@ const roleService = {
       const role = await Role.findByPk(id);
       if (!role) throw new Error('Role not found');
 
+      if (role.name === LOAN_NOTIFICATIONS_RECEIVER) {
+        throw systemRoleError(`The "${LOAN_NOTIFICATIONS_RECEIVER}" system role cannot be deleted`);
+      }
+      const assigned = await UserRole.count({ where: { roleId: id } });
+      if (assigned > 0) {
+        throw systemRoleError(`Role is assigned to ${assigned} user(s); reassign them before deleting it`);
+      }
+
       const deletedData = role.toJSON();
       await role.destroy();
-
-      // Refresh any lingering sessions bound to the removed role.
-      await invalidateRoleUsers(id);
 
       // Log to audit table after successful deletion
       await AuditLogger.log({

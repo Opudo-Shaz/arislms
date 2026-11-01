@@ -48,8 +48,8 @@ const options = {
             middle_name: { type: 'string', nullable: true, example: null },
             last_name: { type: 'string', nullable: true, example: 'Doe' },
             phone: { type: 'string', nullable: true, example: '254700123456' },
-            role: { type: 'integer', example: 2 },
-            role_name: { type: 'string', nullable: true, example: 'Manager' },
+            roles: { type: 'array', items: { type: 'integer' }, example: [2, 4] },
+            role_names: { type: 'array', items: { type: 'string' }, example: ['Manager', 'loan_notifications_receiver'] },
             status: { $ref: '#/components/schemas/InvitationStatus' },
             expires_at: { type: 'string', format: 'date-time', example: '2026-08-24T12:00:00.000Z' },
             accepted_at: { type: 'string', format: 'date-time', nullable: true, example: null },
@@ -61,10 +61,10 @@ const options = {
         },
         InvitationCreateRequest: {
           type: 'object',
-          required: ['email', 'role'],
+          required: ['email', 'roles'],
           properties: {
             email: { type: 'string', format: 'email', example: 'invitee@example.com' },
-            role: { type: 'integer', example: 2 },
+            roles: { type: 'array', items: { type: 'integer' }, minItems: 1, example: [2, 4], description: 'Main role plus optional companion roles (e.g. loan_notifications_receiver)' },
             first_name: { type: 'string', nullable: true, example: 'Jane' },
             middle_name: { type: 'string', nullable: true, example: 'A' },
             last_name: { type: 'string', nullable: true, example: 'Doe' },
@@ -117,7 +117,7 @@ const options = {
               properties: {
                 id: { type: 'integer', example: 101 },
                 email: { type: 'string', format: 'email', example: 'invitee@example.com' },
-                role: { type: 'integer', example: 2 }
+                roles: { type: 'array', items: { type: 'integer' }, example: [2, 4] }
               }
             }
           }

@@ -114,7 +114,13 @@ function getUserFullName(first_name, middle_name, last_name){
       .join(' ');
 }
 
+/**
+ * True when the role (or, for users holding several roles, ANY of the roles)
+ * is an admin/manager role. Accepts a single id/name or an array of them.
+ */
 function isAdmin(role) {
+  if (Array.isArray(role)) return role.some(isAdmin);
+
   const numericRole = Number(role);
   if (!Number.isNaN(numericRole)) {
     return numericRole === 2 || numericRole === 1;
@@ -126,6 +132,18 @@ function isAdmin(role) {
   }
 
   return false;
+}
+
+/** True when the user holds the built-in limited role (3) and no admin/manager role. */
+function isLimitedOnly(roles) {
+  const list = Array.isArray(roles) ? roles : [roles];
+  return !isAdmin(list) && list.some((r) => Number(r) === 3);
+}
+
+/** True when any of the user's roles is one of the built-in staff roles (1, 2, 3). */
+function hasBuiltInRole(roles) {
+  const list = Array.isArray(roles) ? roles : [roles];
+  return list.some((r) => [1, 2, 3].includes(Number(r)));
 }
 
 /**
@@ -190,5 +208,7 @@ module.exports = {
   calculateEndDate,
   getUserFullName,
   isAdmin,
+  isLimitedOnly,
+  hasBuiltInRole,
   CURRENCY_EPSILON
 };

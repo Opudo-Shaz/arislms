@@ -19,9 +19,12 @@ class InvitationRequestDto {
         'any.required': 'Email is required'
       }),
 
-    role: Joi.number().integer().required()
+    roles: Joi.array().items(Joi.number().integer().positive()).min(1).unique().required()
       .messages({
-        'any.required': 'Role is required',
+        'any.required': 'At least one role is required',
+        'array.base': 'Roles must be an array of role IDs',
+        'array.min': 'At least one role is required',
+        'array.unique': 'Roles must not contain duplicates',
         'number.base': 'Role must be a number'
       }),
 

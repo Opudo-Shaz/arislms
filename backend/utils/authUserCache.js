@@ -13,17 +13,18 @@
 const cache = require('./appCache');
 const { getOrSet } = require('./cacheAside');
 const User = require('../models/userModel');
-const Role = require('../models/roleModel');
+const { getRoleIdsForUser, getPermissionsForRoleIds } = require('./userRoles');
 
 const cacheKey = (id) => `auth:user:${id}`;
 
 /**
- * Returns { id, role_id, status, token_version, permissions } for the given
+ * Returns { id, roles, status, token_version, permissions } for the given
  * user id, or null if the user no longer exists. Cached; falls back to a DB
  * read on cache miss/expiry.
  *
- * `permissions` is the resolved permission list attached to the user's role,
- * straight from the roles table . Because this is cached, every
+ * `roles` is the array of role ids the user holds and `permissions` is the
+ * union of the permissions of all those roles, straight from the roles table.
+ * Because this is cached, every
  * role write path must call invalidateAuthUser() for the affected users (see
  * roleService) so permission changes take effect immediately.
  * @param {number} id
@@ -31,16 +32,14 @@ const cacheKey = (id) => `auth:user:${id}`;
 async function getCachedAuthUser(id) {
   return getOrSet(cache, cacheKey(id), undefined, async () => {
     const user = await User.findByPk(id, {
-      attributes: ['id', 'role_id', 'status', 'token_version'],
+      attributes: ['id', 'status', 'token_version'],
     });
     if (!user) return null;
 
     const plain = user.toJSON();
 
-    const role = await Role.findByPk(plain.role_id, {
-      attributes: ['permissions'],
-    });
-    plain.permissions = role?.permissions || [];
+    plain.roles = await getRoleIdsForUser(plain.id);
+    plain.permissions = await getPermissionsForRoleIds(plain.roles);
 
     return plain;
   });

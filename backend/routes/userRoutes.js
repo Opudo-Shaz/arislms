@@ -33,7 +33,7 @@ const router = express.Router();
  *               - id: 1
  *                 name: John Doe
  *                 email: john@test.com
- *                 role: admin
+ *                 roles: [1, 4]
  */
 router.get('/', authenticate, getUsers);
 
@@ -62,7 +62,7 @@ router.get('/', authenticate, getUsers);
  *               id: 1
  *               name: Jane Doe
  *               email: jane@test.com
- *               role: user
+ *               roles: [3]
  */
 router.get('/:id', authenticate, validateIdParam(), getUser);
 
@@ -91,7 +91,7 @@ router.get('/:id', authenticate, validateIdParam(), getUser);
  *               id: 10
  *               name: Alice
  *               email: alice@test.com
- *               role: admin
+ *               roles: [1]
  */
 /**
  * @openapi

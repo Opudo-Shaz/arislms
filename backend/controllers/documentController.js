@@ -1,6 +1,6 @@
 const documentService = require('../services/documentService');
 const logger = require('../config/logger');
-const { getUserId } = require('../utils/helpers');
+const { getUserId, isLimitedOnly } = require('../utils/helpers');
 const { validateSync } = require('../utils/validationMiddleware');
 const DocumentRequestDto = require('../dtos/document/DocumentRequestDto');
 
@@ -10,7 +10,7 @@ const documentController = {
   async uploadDocument(req, res) {
     try {
       const actorId = getUserId(req);
-      const actorRole = req.user?.role;
+      const actorRoles = req.user?.roles || [];
 
       if (!req.file) {
         return res.status(400).json({ success: false, message: 'No file provided' });
@@ -25,8 +25,8 @@ const documentController = {
         return res.status(400).json({ success: false, message: 'At least one of clientId, loanId, collateralId, or userId is required' });
       }
 
-      // Role 3 (limited): may only upload user_photo for their own userId.
-      if (actorRole === 3) {
+      // Limited users (role 3, no admin/manager role): may only upload user_photo for their own userId.
+      if (isLimitedOnly(actorRoles)) {
         if (documentType !== 'user_photo') {
           return res.status(403).json({ success: false, message: 'Access denied: you may only upload a user_photo document' });
         }

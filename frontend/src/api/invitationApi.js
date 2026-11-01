@@ -12,7 +12,7 @@ import http from './http'
 
 /**
  * Create (send) a new invitation.
- * @param {object} payload { email, role, first_name?, middle_name?, last_name?, phone? }
+ * @param {object} payload { email, roles: number[], first_name?, middle_name?, last_name?, phone? }
  * @returns {Promise<{ invitation: object, inviteUrl: string, warnings: string[] }>}
  */
 export const createInvitation = async (payload) => {

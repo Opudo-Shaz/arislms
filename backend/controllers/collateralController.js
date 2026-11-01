@@ -30,7 +30,7 @@ module.exports = {
       const userId = getUserId(req);
       const status = parseStatus(req.body.status);
 
-      if (!isAdmin(req.user.role)) {
+      if (!isAdmin(req.user.roles)) {
         return res.status(403).json({
           success: false,
           message: 'User not authorized to manage collateral'
@@ -72,7 +72,7 @@ module.exports = {
     try {
       const userId = getUserId(req);
 
-      if (!isAdmin(req.user.role)) {
+      if (!isAdmin(req.user.roles)) {
         return res.status(403).json({
           success: false,
           message: 'User not authorized to edit collateral'

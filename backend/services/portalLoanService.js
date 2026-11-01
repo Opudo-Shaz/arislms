@@ -7,6 +7,7 @@ const NotificationChannel = require('../enums/notificationChannel');
 const { PERMISSIONS } = require('../constants/permissions');
 const { getActiveUsersWithPermission } = require('../utils/permissionUtils');
 const { buildRecipients, safeNotify } = require('./notification/notificationTriggers');
+const { notifyLoanReceivers } = require('./notification/loanNotificationReceivers');
 const logger = require('../config/logger');
 
 /**
@@ -133,24 +134,34 @@ const portalLoanService = {
       riskGrade,
     };
 
+    const submittedContext = {
+      ...baseContext,
+      needsManualReview: !scorePassed,
+      reviewNote: scorePassed
+        ? 'Passed automatic scoring.'
+        : 'NEEDS MANUAL REVIEW — score below the auto-approval threshold.',
+    };
+
     const approvers = await getActiveUsersWithPermission(PERMISSIONS.LOANS.APPROVE);
     if (approvers.length) {
       await safeNotify(NotificationEventType.LOAN_APPLICATION_SUBMITTED, {
         recipients: approvers,
         channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL],
-        context: {
-          ...baseContext,
-          needsManualReview: !scorePassed,
-          reviewNote: scorePassed
-            ? 'Passed automatic scoring.'
-            : 'NEEDS MANUAL REVIEW — score below the auto-approval threshold.',
-        },
+        context: submittedContext,
         relatedLoanId: loan.id,
         dedupeKey: `loan-submitted:${loan.id}`,
       });
     } else {
       logger.warn(`[portal] no active users hold ${PERMISSIONS.LOANS.APPROVE}; loan ${loan.id} queued without alerts`);
     }
+
+    // loan_notifications_receiver users who weren't already alerted as approvers
+    await notifyLoanReceivers(NotificationEventType.LOAN_APPLICATION_SUBMITTED, {
+      alreadyNotified: approvers,
+      context: submittedContext,
+      relatedLoanId: loan.id,
+      dedupeKey: `loan-submitted:${loan.id}`,
+    });
 
     await safeNotify(NotificationEventType.LOAN_APPLICATION_RECEIVED, {
       recipients: buildRecipients({ client }),

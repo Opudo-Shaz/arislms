@@ -1,7 +1,7 @@
 /**
  * Authentication context.
  *
- * Holds the current session (token + user + role), exposes `login`/`logout`,
+ * Holds the current session (token + user + roles), exposes `login`/`logout`,
  * persists to localStorage, and wires the HTTP client's 401/403 handler so
  * expired/invalid sessions are cleared automatically.
  *
@@ -30,20 +30,26 @@ const loadStoredSession = () => {
     clearStoredAuth()
     return null
   }
+  // Sessions saved before multi-role support carry a single `role` — force a fresh login.
+  if (stored && !Array.isArray(stored.roles)) {
+    clearStoredAuth()
+    return null
+  }
   return stored
 }
 
 /**
- * Derive the numeric role id. Prefers the JWT claim (reliable) and falls back
- * to the user object returned by the login endpoint.
+ * Derive the numeric role ids a user holds (a user can have several, e.g. a
+ * main role plus loan_notifications_receiver). Prefers the JWT claim
+ * (reliable) and falls back to the user object returned by the login endpoint.
  * @param {string} token
  * @param {object} user
- * @returns {number|null}
+ * @returns {number[]}
  */
-const resolveRole = (token, user) => {
+const resolveRoles = (token, user) => {
   const claims = decodeToken(token)
-  const role = claims?.role ?? user?.role ?? user?.role_id
-  return role === undefined || role === null ? null : Number(role)
+  const roles = claims?.roles ?? user?.roles ?? []
+  return Array.isArray(roles) ? roles.map(Number).filter(Number.isFinite) : []
 }
 
 export const AuthProvider = ({ children }) => {
@@ -85,7 +91,7 @@ export const AuthProvider = ({ children }) => {
     const session = {
       token: result.token,
       user: result.user,
-      role: resolveRole(result.token, result.user),
+      roles: resolveRoles(result.token, result.user),
       permissions: Array.isArray(result.user?.permissions) ? result.user.permissions : [],
       expiresIn: result.expiresIn,
     }
@@ -133,7 +139,7 @@ export const AuthProvider = ({ children }) => {
       isAuthenticated: Boolean(auth?.token),
       token: auth?.token ?? null,
       user: auth?.user ?? null,
-      role: auth?.role ?? null,
+      roles: auth?.roles ?? [],
       permissions: auth?.permissions ?? [],
       hasPermission,
       login,
@@ -153,7 +159,7 @@ AuthProvider.propTypes = {
 /**
  * Access the auth context.
  * @returns {{ isAuthenticated: boolean, token: string|null, user: object|null,
- *   role: number|null, login: Function, logout: Function }}
+ *   roles: number[], login: Function, logout: Function }}
  */
 export const useAuth = () => {
   const ctx = useContext(AuthContext)

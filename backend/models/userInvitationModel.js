@@ -44,10 +44,12 @@ const UserInvitation = sequelize.define(
       allowNull: true,
     },
 
-    roleId: {
-      type: DataTypes.INTEGER,
+    // Array of role ids the invitee will receive (a user can hold several roles)
+    roleIds: {
+      type: DataTypes.JSONB,
       allowNull: false,
-      field: 'role_id',
+      defaultValue: [],
+      field: 'role_ids',
     },
 
     // SHA-256 hash of the raw token sent in the email/SMS — never store raw tokens

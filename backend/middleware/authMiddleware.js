@@ -54,7 +54,7 @@ const authenticate = async (req, res, next) => {
 
     req.user = {
       id: user.id,
-      role: user.role_id,
+      roles: user.roles || [],
       status: user.status,
       permissions: user.permissions || [],
     };
@@ -68,8 +68,8 @@ const authenticate = async (req, res, next) => {
 const authorize = (roles = []) => {
   if (typeof roles === 'string') roles = [roles];
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      logger?.warn(`Access denied: role "${req.user?.role}" not authorized`);
+    if (!req.user || !(req.user.roles || []).some((r) => roles.includes(r))) {
+      logger?.warn(`Access denied: roles "${req.user?.roles}" not authorized`);
       return res.status(403).json({ message: 'Access denied' });
     }
     next();
@@ -77,7 +77,7 @@ const authorize = (roles = []) => {
 };
 
 /**
- * Permission-based authorization. Passes when the authenticated user's role
+ * Permission-based authorization. Passes when any of the authenticated user's roles
  * carries the given permission, or the wildcard `'*'` (admin). Must run after
  * `authenticate`, which attaches `req.user.permissions`.
  * @param {string} permission e.g. 'clients:read'

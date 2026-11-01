@@ -42,7 +42,7 @@ exports.getLoanById = async (req, res) => {
 
     const loan = await loanService.getLoanById(
       loanId,
-      req.user.role,
+      req.user.roles,
       userId
     );
 
@@ -202,7 +202,7 @@ exports.approveLoan = async (req, res) => {
     const { approvalDate } = req.body;
     logger.info(JSON.stringify(req.user));
 
-    if(!isAdmin(req.user.role)) {
+    if(!isAdmin(req.user.roles)) {
       return res.status(403).json({
         success: false,
         message: 'User not authorized to approve loans'
@@ -276,7 +276,7 @@ exports.rejectLoan = async (req, res) => {
     const loanId = req.params.id;
     const { rejectionNote } = req.body;
 
-    if (!isAdmin(req.user.role)) {
+    if (!isAdmin(req.user.roles)) {
       return res.status(403).json({
         success: false,
         message: 'User not authorized to reject loans'
@@ -422,7 +422,7 @@ exports.updatePrincipalAmount = async (req, res) => {
     const loanId = req.params.id;
     const { newPrincipalAmount } = req.body;
 
-    if (!isAdmin(req.user.role)) {
+    if (!isAdmin(req.user.roles)) {
       return res.status(403).json({
         success: false,
         message: 'User not authorized to update loan principal amount'
@@ -469,7 +469,7 @@ exports.writeOffLoan = async (req, res) => {
     const loanId = req.params.id;
     const { writeOffAmount, reason } = req.body;
 
-    if (!isAdmin(req.user.role)) {
+    if (!isAdmin(req.user.roles)) {
       return res.status(403).json({
         success: false,
         message: 'User not authorized to write off loans'

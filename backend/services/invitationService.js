@@ -11,6 +11,8 @@ const userService = require('./userService');
 const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
 const { hasWildcardPermission } = require('../utils/permissionUtils');
+const { normalizeRoleIds } = require('../utils/userRoles');
+const { LOAN_NOTIFICATIONS_RECEIVER } = require('../constants/roles');
 
 /** Invite link TTL in hours */
 const TOKEN_EXPIRY_HOURS = 72;
@@ -23,12 +25,24 @@ const buildInviteUrl = (rawToken) => {
   return `${frontendUrl}/accept-invite?token=${rawToken}`;
 };
 
+/** Attaches `roleDetails` ([{id, name}]) to each invitation for response DTOs. */
+async function attachRoleDetails(invitations) {
+  const list = Array.isArray(invitations) ? invitations : [invitations];
+  const ids = [...new Set(list.flatMap((i) => i.roleIds || []))];
+  const roles = ids.length ? await Role.findAll({ where: { id: ids }, attributes: ['id', 'name'] }) : [];
+  const byId = new Map(roles.map((r) => [r.id, { id: r.id, name: r.name }]));
+  list.forEach((i) => {
+    i.roleDetails = (i.roleIds || []).map((id) => byId.get(id)).filter(Boolean);
+  });
+  return invitations;
+}
+
 /**
  * Sends (or re-sends) the invitation email/SMS via the notification module,
  * and reports back whether the email channel is currently disabled so the
  * caller (controller) can surface a warning to the inviting admin.
  */
-async function dispatchInvite(invitation, role, rawToken) {
+async function dispatchInvite(invitation, roles, rawToken) {
   const inviteUrl = buildInviteUrl(rawToken);
   const name = [invitation.firstName, invitation.lastName].filter(Boolean).join(' ') || invitation.email;
   const appName = process.env.APP_NAME || 'ARISLMS';
@@ -47,7 +61,7 @@ async function dispatchInvite(invitation, role, rawToken) {
       name,
       inviteUrl,
       expiresHours: TOKEN_EXPIRY_HOURS,
-      roleName: role?.name || 'user',
+      roleName: (roles || []).map((r) => r.name).join(', ') || 'user',
       appName,
     },
     // Fresh dedupeKey per send so a resend always queues a new outbox row
@@ -85,14 +99,21 @@ async function createInvitation(data, inviterId = null, userAgent = 'unknown', a
     throw err;
   }
 
-  const role = await Role.findByPk(data.role);
-  if (!role) {
+  const roleIds = normalizeRoleIds(data.roles);
+  const roles = roleIds.length ? await Role.findAll({ where: { id: roleIds } }) : [];
+  if (!roleIds.length || roles.length !== roleIds.length) {
     const err = new Error('Invalid role');
     err.status = 400;
     throw err;
   }
 
-  if (hasWildcardPermission(role.permissions) && !hasWildcardPermission(actorPermissions)) {
+  if (roles.every((r) => r.name === LOAN_NOTIFICATIONS_RECEIVER)) {
+    const err = new Error(`"${LOAN_NOTIFICATIONS_RECEIVER}" must accompany a main role; select at least one other role`);
+    err.status = 400;
+    throw err;
+  }
+
+  if (roles.some((r) => hasWildcardPermission(r.permissions)) && !hasWildcardPermission(actorPermissions)) {
     const err = new Error('Only a Super Admin can invite another Super Admin');
     err.status = 403;
     throw err;
@@ -133,26 +154,26 @@ async function createInvitation(data, inviterId = null, userAgent = 'unknown', a
     middleName: data.middle_name || null,
     lastName: data.last_name || null,
     phone: data.phone || null,
-    roleId: data.role,
+    roleIds,
     tokenHash,
     expiresAt,
     invitedBy: inviterId,
   });
 
-  const { inviteUrl, warnings } = await dispatchInvite(invitation, role, rawToken);
+  const { inviteUrl, warnings } = await dispatchInvite(invitation, roles, rawToken);
 
   await AuditLogger.log({
     entityType: 'USER_INVITATION',
     entityId: invitation.id,
     action: 'CREATE',
-    data: { email, role: data.role },
+    data: { email, roles: roleIds },
     actorId: inviterId || 'system',
     options: { actorType: 'USER', source: userAgent },
   });
 
   logger.info(`[invitationService] Invitation created id=${invitation.id} email=${email} by user ${inviterId}`);
 
-  invitation.role = role;
+  invitation.roleDetails = roles.map((r) => ({ id: r.id, name: r.name }));
   return { invitation, inviteUrl, warnings };
 }
 
@@ -160,11 +181,11 @@ async function createInvitation(data, inviterId = null, userAgent = 'unknown', a
 async function listInvitations({ status } = {}) {
   const where = {};
   if (status) where.status = status;
-  return UserInvitation.findAll({
+  const invitations = await UserInvitation.findAll({
     where,
-    include: [{ model: Role, as: 'role', attributes: ['id', 'name'] }],
     order: [['created_at', 'DESC']],
   });
+  return attachRoleDetails(invitations);
 }
 
 /** Marks stale PENDING invitations as EXPIRED and returns the freshest status. */
@@ -182,10 +203,7 @@ async function markExpiredIfDue(invitation) {
  */
 async function getInvitationByToken(rawToken) {
   const tokenHash = hashToken(rawToken);
-  const invitation = await UserInvitation.findOne({
-    where: { tokenHash },
-    include: [{ model: Role, as: 'role', attributes: ['id', 'name'] }],
-  });
+  const invitation = await UserInvitation.findOne({ where: { tokenHash } });
 
   if (!invitation) {
     const err = new Error('Invalid invitation link');
@@ -206,7 +224,7 @@ async function getInvitationByToken(rawToken) {
     throw err;
   }
 
-  return invitation;
+  return attachRoleDetails(invitation);
 }
 
 /**
@@ -234,7 +252,7 @@ async function completeInvitation(rawToken, data, userAgent = 'unknown') {
     last_name: data.last_name,
     email: invitation.email,
     phone,
-    role: invitation.roleId,
+    roles: invitation.roleIds,
     id_number: data.id_number || null,
     password: data.password,
   }, null, userAgent, [], { skipSuperAdminGuard: true });
@@ -260,9 +278,7 @@ async function completeInvitation(rawToken, data, userAgent = 'unknown') {
 
 /** Regenerate the token/expiry for a still-pending invite and re-send it. */
 async function resendInvitation(id, actorId = null, userAgent = 'unknown') {
-  const invitation = await UserInvitation.findByPk(id, {
-    include: [{ model: Role, as: 'role', attributes: ['id', 'name'] }],
-  });
+  const invitation = await UserInvitation.findByPk(id);
   if (!invitation) {
     const err = new Error('Invitation not found');
     err.status = 404;
@@ -279,7 +295,8 @@ async function resendInvitation(id, actorId = null, userAgent = 'unknown') {
   const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
   await invitation.update({ tokenHash, expiresAt });
 
-  const { inviteUrl, warnings } = await dispatchInvite(invitation, invitation.role, rawToken);
+  await attachRoleDetails(invitation);
+  const { inviteUrl, warnings } = await dispatchInvite(invitation, invitation.roleDetails, rawToken);
 
   await AuditLogger.log({
     entityType: 'USER_INVITATION',
@@ -309,6 +326,7 @@ async function revokeInvitation(id, actorId = null, userAgent = 'unknown') {
   }
 
   await invitation.update({ status: InvitationStatus.REVOKED, revokedAt: new Date() });
+  await attachRoleDetails(invitation);
 
   await AuditLogger.log({
     entityType: 'USER_INVITATION',

@@ -16,7 +16,7 @@ const paymentController = {
       const { method } = req.query;
 
       const result = await paymentService.getAllPayments({
-        role: req.user.role,
+        roles: req.user.roles,
         userId,
         cursor,
         direction,

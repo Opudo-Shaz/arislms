@@ -4,7 +4,12 @@ const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
 const UserStatus = require('../enums/userStatus');
 const { invalidateAuthUser } = require('../utils/authUserCache');
-const { hasWildcardPermission, roleIdIsSuperAdmin } = require('../utils/permissionUtils');
+const sequelize = require('../config/sequalize_db');
+const Role = require('../models/roleModel');
+const UserRole = require('../models/userRoleModel');
+const { hasWildcardPermission, roleIdsIncludeSuperAdmin } = require('../utils/permissionUtils');
+const { normalizeRoleIds, getRoleIdsForUser, getRoleIdsForUsers, setUserRoles } = require('../utils/userRoles');
+const { LOAN_NOTIFICATIONS_RECEIVER } = require('../constants/roles');
 
 const buildFullName = (user) =>
   [user.first_name, user.middle_name, user.last_name]
@@ -13,14 +18,55 @@ const buildFullName = (user) =>
 
 
 
+const badRequest = (message, status = 400) => {
+  const err = new Error(message);
+  err.status = status;
+  return err;
+};
+
+/** Attaches the user's role ids (non-persisted) so UserResponseDto can expose them. */
+const withRoles = async (user) => {
+  user.roleIds = await getRoleIdsForUser(user.id);
+  return user;
+};
+
+/**
+ * Pulls the requested role ids off the payload (accepts `roles` or legacy
+ * single `role`) and removes both keys so they never reach User.create/update.
+ * Returns undefined when the payload doesn't touch roles.
+ */
+const extractRoleIds = (data) => {
+  const raw = data.roles !== undefined ? data.roles : data.role !== undefined ? [data.role] : undefined;
+  delete data.roles;
+  delete data.role;
+  return raw === undefined ? undefined : normalizeRoleIds(raw);
+};
+
+/**
+ * A user needs at least one role besides the companion
+ * loan_notifications_receiver role, and every role must exist and be active.
+ */
+const validateRoleAssignment = async (roleIds) => {
+  if (!roleIds.length) throw badRequest('At least one role is required');
+  const roles = await Role.findAll({ where: { id: roleIds }, attributes: ['id', 'name', 'isActive'] });
+  if (roles.length !== roleIds.length) throw badRequest('One or more roles do not exist');
+  if (roles.some((r) => r.isActive === false)) throw badRequest('One or more roles are inactive');
+  if (roles.every((r) => r.name === LOAN_NOTIFICATIONS_RECEIVER)) {
+    throw badRequest(`"${LOAN_NOTIFICATIONS_RECEIVER}" must accompany a main role; assign at least one other role`);
+  }
+};
+
 const getAllUsers = async () => {
-  return await User.findAll();
+  const users = await User.findAll();
+  const roleMap = await getRoleIdsForUsers(users.map((u) => u.id));
+  users.forEach((u) => { u.roleIds = roleMap.get(u.id) || []; });
+  return users;
 };
 
 const getUserById = async (id) => {
   const user = await User.findByPk(id);
   if (!user) throw new Error('User not found');
-  return user;
+  return withRoles(user);
 };
 
 const createUser = async (data, creatorId = null, userAgent = 'unknown', actorPermissions = [], options = {}) => {
@@ -41,12 +87,10 @@ const createUser = async (data, creatorId = null, userAgent = 'unknown', actorPe
       data.password = await bcrypt.hash(data.password, salt);
     }
 
-    if (data.role !== undefined) {
-      data.role_id = data.role;
-      delete data.role;
-    }
+    const roleIds = extractRoleIds(data);
+    await validateRoleAssignment(roleIds || []);
 
-    if (!options.skipSuperAdminGuard && (await roleIdIsSuperAdmin(data.role_id)) && !hasWildcardPermission(actorPermissions)) {
+    if (!options.skipSuperAdminGuard && (await roleIdsIncludeSuperAdmin(roleIds)) && !hasWildcardPermission(actorPermissions)) {
       const err = new Error('Only a Super Admin can create another Super Admin');
       err.status = 403;
       throw err;
@@ -56,7 +100,12 @@ const createUser = async (data, creatorId = null, userAgent = 'unknown', actorPe
       data.createdBy = creatorId;
     }
 
-    const newUser = await User.create(data);
+    const newUser = await sequelize.transaction(async (transaction) => {
+      const created = await User.create(data, { transaction });
+      await setUserRoles(created.id, roleIds, transaction);
+      return created;
+    });
+    newUser.roleIds = roleIds;
 
     // Validate the created user before logging
     if (!newUser || !newUser.id) {
@@ -69,7 +118,7 @@ const createUser = async (data, creatorId = null, userAgent = 'unknown', actorPe
       entityType: 'USER',
       entityId: newUser.id,
       action: 'CREATE',
-      data,
+      data: { ...data, roles: roleIds },
       actorId: creatorId || 'system',
       options: {
         actorType: 'USER',
@@ -102,28 +151,35 @@ const updateUser = async (id, data, updatorId = null, userAgent = 'unknown', act
       data.password = await bcrypt.hash(data.password, salt);
     }
 
-    if (data.role !== undefined) {
-      data.role_id = data.role;
-      delete data.role;
+    const roleIds = extractRoleIds(data);
+    const currentRoleIds = await getRoleIdsForUser(user.id);
+
+    const rolesChanged =
+      roleIds !== undefined &&
+      (roleIds.length !== currentRoleIds.length || roleIds.some((r) => !currentRoleIds.includes(r)));
+
+    if (roleIds !== undefined) {
+      await validateRoleAssignment(roleIds);
     }
 
-    if (
-      data.role_id !== undefined &&
-      Number(data.role_id) !== Number(user.role_id) &&
-      !hasWildcardPermission(actorPermissions)
-    ) {
-      const [targetRoleIsSuperAdmin, currentRoleIsSuperAdmin] = await Promise.all([
-        roleIdIsSuperAdmin(data.role_id),
-        roleIdIsSuperAdmin(user.role_id),
+    if (rolesChanged && !hasWildcardPermission(actorPermissions)) {
+      const [targetHasSuperAdmin, currentHasSuperAdmin] = await Promise.all([
+        roleIdsIncludeSuperAdmin(roleIds),
+        roleIdsIncludeSuperAdmin(currentRoleIds),
       ]);
-      if (targetRoleIsSuperAdmin || currentRoleIsSuperAdmin) {
+      if (targetHasSuperAdmin || currentHasSuperAdmin) {
         const err = new Error("Only a Super Admin can change another Super Admin's role");
         err.status = 403;
         throw err;
       }
     }
 
-    await user.update(data);
+    await sequelize.transaction(async (transaction) => {
+      await user.update(data, { transaction });
+      if (rolesChanged) await setUserRoles(user.id, roleIds, transaction);
+    });
+    user.roleIds = rolesChanged ? roleIds : currentRoleIds;
+    if (rolesChanged) invalidateAuthUser(user.id);
 
 
     // Log to audit table after successful update
@@ -131,7 +187,7 @@ const updateUser = async (id, data, updatorId = null, userAgent = 'unknown', act
       entityType: 'USER',
       entityId: id,
       action: 'UPDATE',
-      data: { changes: data },
+      data: { changes: rolesChanged ? { ...data, roles: roleIds } : data },
       actorId: updatorId || 'system',
       options: {
         actorType: 'USER',
@@ -156,8 +212,12 @@ const deleteUser = async (id, deletorId = null, userAgent = 'unknown') => {
     const user = await User.findByPk(id);
     if (!user) throw new Error('User not found');
 
-    const deletedData = user.toJSON();
-    await user.destroy();
+    await withRoles(user);
+    const deletedData = { ...user.toJSON(), roles: user.roleIds };
+    await sequelize.transaction(async (transaction) => {
+      await UserRole.destroy({ where: { userId: user.id }, transaction });
+      await user.destroy({ transaction });
+    });
 
     invalidateAuthUser(id);
 
@@ -225,7 +285,7 @@ const updateUserStatus = async (id, status, actorId = null, userAgent = 'unknown
     logger.info(
       `User status updated: id=${id} name=${buildFullName(user)} ${previousStatus} -> ${status} by user ${actorId}`
     );
-    return user;
+    return withRoles(user);
   } catch (error) {
     logger.error(`Error in updateUserStatus (${id}): ${error.message}`);
     throw error;
@@ -260,7 +320,7 @@ const resetUserPassword = async (userId, email, newPassword, actorId = null, use
     });
 
     logger.warn(`Password reset for user id=${userId} (${email}) by actor ${actorId}`);
-    return user;
+    return withRoles(user);
   } catch (error) {
     logger.error(`Error in resetUserPassword (${userId}): ${error.message}`);
     throw error;

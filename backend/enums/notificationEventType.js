@@ -19,4 +19,10 @@ module.exports = Object.freeze({
   CO_SIGNER_CONSENT_RESPONDED: 'co_signer_consent_responded',
   CLIENT_WELCOME: 'client_welcome',
   CLIENT_KYC_REVERIFICATION_REQUESTED: 'client_kyc_reverification_requested',
+  // Staff-facing events for users holding the loan_notifications_receiver role
+  LOAN_CREATED: 'loan_created',
+  STAFF_LOAN_APPROVED: 'staff_loan_approved',
+  STAFF_LOAN_REJECTED: 'staff_loan_rejected',
+  STAFF_LOAN_DISBURSED: 'staff_loan_disbursed',
+  STAFF_PAYMENT_RECEIVED: 'staff_payment_received',
 });

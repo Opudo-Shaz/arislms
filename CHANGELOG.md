@@ -12,6 +12,20 @@ into the next dated release section below when that version ships.
 
 ### Added
 
+- **`loan_notifications_receiver` role + multi-role users** — a user can now hold
+  several roles (new `user_roles` join table; `users.role_id` is gone, API fields
+  `role` → `roles: number[]` on users, invitations and login; JWT claim
+  `roles`; effective permissions are the union across roles). Attach the new
+  companion role `loan_notifications_receiver` (it carries no permissions and can't
+  be a user's only role, renamed or deleted) to a main role to receive staff-side
+  loan alerts in-app + by email — loan created, loan request submitted, approved,
+  rejected, disbursed, payment received, payment report submitted — except for
+  actions the user performed. Co-signer responses reach them in-app only.
+  **Upgrade:** run `node scripts/migrateUserRoles.js` *before* starting the server
+  (backfills `user_roles` and invitations, creates the role), then
+  `node scripts/seedNotificationTemplates.js` for the new `loan_created` /
+  `staff_*` templates. Existing browser sessions are signed out once.
+
 - **Health endpoints** — public `GET /api/health` (liveness, no DB access) and
   `GET /api/health/ready` (readiness; 503 when the database is unreachable, with
   the DB check cached for 5 seconds). Responses carry `timestamp` in the server

@@ -13,6 +13,7 @@ const NotificationChannel = require('../enums/notificationChannel');
 const { PERMISSIONS } = require('../constants/permissions');
 const { getActiveUsersWithPermission } = require('../utils/permissionUtils');
 const { buildRecipients, safeNotify } = require('./notification/notificationTriggers');
+const { notifyLoanReceivers } = require('./notification/loanNotificationReceivers');
 const otpService = require('./otpService');
 const systemConfigService = require('./systemConfigService');
 const { findClientByPhone } = require('./portalAuthService');
@@ -384,6 +385,14 @@ const coSignerConsentService = {
         dedupeKey: `co-signer-consent-response:${consent.id}:staff`,
       });
     }
+    // The email copy of this template is borrower-addressed, so receivers get the in-app alert only.
+    await notifyLoanReceivers(NotificationEventType.CO_SIGNER_CONSENT_RESPONDED, {
+      alreadyNotified: approvers,
+      channels: [NotificationChannel.IN_APP],
+      context,
+      relatedLoanId: consent.loanId,
+      dedupeKey: `co-signer-consent-response:${consent.id}:staff`,
+    });
 
     logger.info(`[coSignerConsent] consent ${consent.id} ${status} by co-signer ${consent.coSignerId}`);
     return { status };

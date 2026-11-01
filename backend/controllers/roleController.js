@@ -119,7 +119,7 @@ class RoleController {
       });
     } catch (error) {
       logger.error('Error updating role:', error);
-      return res.status(error.message === 'Role not found' ? 404 : 500).json({
+      return res.status(error.status || (error.message === 'Role not found' ? 404 : 500)).json({
         success: false,
         message: error.message,
         error: error.message,
@@ -223,7 +223,7 @@ class RoleController {
       });
     } catch (error) {
       logger.error('Error deleting role:', error);
-      return res.status(error.message === 'Role not found' ? 404 : 500).json({
+      return res.status(error.status || (error.message === 'Role not found' ? 404 : 500)).json({
         success: false,
         message: error.message,
         error: error.message,

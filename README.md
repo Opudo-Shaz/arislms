@@ -30,7 +30,7 @@ Aris LMS is a full-stack application built to manage the complete lifecycle of l
 - **Financial Accounting**: Chart of accounts, ledger entries, journal management
 - **Audit Logging**: Comprehensive audit trail for all system activities
 - **Notifications**: Email and SMS notifications for important events
-- **Role-Based Access Control**: Secure role-based permission system
+- **Role-Based Access Control**: Secure role-based permission system; users can hold multiple roles (e.g. a main role plus the `loan_notifications_receiver` companion role, which receives admin-side loan notifications)
 
 ## Tech Stack
 
@@ -284,6 +284,8 @@ This interactive documentation allows you to:
    cd backend
    node scripts/seedChartOfAccounts.js
    node scripts/initAuditTable.js
+   # Upgrading an existing database to multi-role users (run before starting the server):
+   node scripts/migrateUserRoles.js
    ```
 
 ### Database Models
@@ -330,13 +332,12 @@ The project follows a layered architecture:
 
 ### Running Tests
 
-Currently, no tests are configured. To set up testing:
+Backend unit tests use Node's built-in runner:
 
 ```bash
-npm install --save-dev jest supertest
+cd backend
+npm test
 ```
-
-Then update package.json scripts section with test configuration.
 
 ### Linting (Frontend)
 

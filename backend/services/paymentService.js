@@ -17,10 +17,11 @@ const LoanTransactionType = require('../enums/loanTransactionType');
 const systemConfigService = require('./systemConfigService');
 const loanService = require('./loanService');
 const clientService = require('./clientService');
-const { CURRENCY_EPSILON } = require('../utils/helpers');
+const { CURRENCY_EPSILON, hasBuiltInRole } = require('../utils/helpers');
 const Client = require('../models/clientModel');
 const NotificationEventType = require('../enums/notificationEventType');
 const { buildRecipients, safeNotify } = require('./notification/notificationTriggers');
+const { notifyLoanReceivers } = require('./notification/loanNotificationReceivers');
 
 const paymentService = {
   /**
@@ -149,9 +150,9 @@ const paymentService = {
     }
   },
 
-  async getAllPayments({ role, userId, cursor, direction, limit = 20, method } = {}) {
+  async getAllPayments({ roles, userId, cursor, direction, limit = 20, method } = {}) {
   try {
-    logger.info(`paymentService.getAllPayments called by user ${userId} (role: ${role})`);
+    logger.info(`paymentService.getAllPayments called by user ${userId} (roles: ${roles})`);
 
     const processorInclude = {
       model: User,
@@ -159,8 +160,7 @@ const paymentService = {
       required: false,
     };
 
-    const staffRoles = [1, 2, 3];
-    const isStaff = staffRoles.includes(Number(role));
+    const isStaff = hasBuiltInRole(roles);
     const loanWhere = isStaff ? {} : { clientId: userId };
     const loanInclude = {
       model: Loan,
@@ -575,6 +575,18 @@ async createPayment(data, user, userAgent = 'unknown') {
     const client = await Client.findByPk(loan.clientId);
     await safeNotify(NotificationEventType.PAYMENT_RECEIVED, {
       recipients: buildRecipients({ client, staffUserId: loan.createdBy }),
+      context: {
+        clientName: client ? `${client.firstName} ${client.lastName}` : '',
+        referenceCode: loan.referenceCode,
+        currency: loan.currency,
+        amount: paymentAmount,
+        outstandingBalance: newBalance,
+      },
+      relatedLoanId: loan.id,
+      relatedPaymentId: payment.id,
+    });
+    await notifyLoanReceivers(NotificationEventType.STAFF_PAYMENT_RECEIVED, {
+      actorUserId: creatorId,
       context: {
         clientName: client ? `${client.firstName} ${client.lastName}` : '',
         referenceCode: loan.referenceCode,

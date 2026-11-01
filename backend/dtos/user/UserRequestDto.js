@@ -4,6 +4,20 @@ const { phoneSchema } = require('../../utils/phone');
 const { pattern: pwPattern, message: pwMessage, minLength: pwMinLength } = require('../../utils/passwordPolicy');
 const UserStatus = require('../../enums/userStatus');
 
+// A user may hold several roles (main role + companion roles such as
+// loan_notifications_receiver), sent as `roles: [ids]`.
+const rolesField = (required) => {
+  const schema = Joi.array().items(Joi.number().integer().positive()).min(1).unique()
+    .example([1, 4])
+    .messages({
+      'array.base': 'Roles must be an array of role IDs',
+      'array.min': 'At least one role is required',
+      'array.unique': 'Roles must not contain duplicates',
+      'number.base': 'Role ID must be a number'
+    });
+  return required ? schema.required().messages({ 'any.required': 'At least one role is required' }) : schema.optional();
+};
+
 class UserRequestDto {
   constructor(data) {
     this.first_name = data.first_name;
@@ -11,7 +25,7 @@ class UserRequestDto {
     this.last_name = data.last_name;
     this.email = data.email;
     this.phone = data.phone;
-    this.role = data.roleId;
+    this.roles = data.roles;
     this.id_number = data.id_number;
     this.password = data.password;
   }
@@ -52,12 +66,7 @@ class UserRequestDto {
 
     phone: phoneSchema().example('+254712345678'),
 
-    role: Joi.number().integer().required()
-      .example(1)
-      .messages({
-        'any.required': 'Role ID is required',
-        'number.base': 'Role ID must be a number'
-      }),
+    roles: rolesField(true),
 
     id_number: Joi.string().trim().min(4).max(50).allow(null, '')
       .example('ID1234')
@@ -109,11 +118,7 @@ class UserRequestDto {
 
     phone: phoneSchema().optional().example('+254712345678'),
 
-    role: Joi.number().integer().optional()
-      .example(2)
-      .messages({
-        'number.base': 'Role ID must be a number'
-      }),
+    roles: rolesField(false),
 
     id_number: Joi.string().trim().min(4).max(50).optional()
       .example('ID5678')
@@ -231,7 +236,7 @@ class UserRequestDto {
         last_name: 'Smith',
         email: 'alice@test.com',
         phone: '1234567',
-        roleId: 1,
+        roles: [1, 4],
         id_number: 'ID1234',
         password: 'Password123!'
       },
@@ -241,7 +246,7 @@ class UserRequestDto {
         last_name: 'Johnson',
         email: 'alice.updated@test.com',
         phone: '9876543',
-        roleId: 2,
+        roles: [2],
         id_number: 'ID5678',
         password: 'NewPassword456!'
       },
