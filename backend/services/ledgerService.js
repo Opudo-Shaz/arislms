@@ -123,15 +123,15 @@ async function postEntry(opts, externalTransaction) {
 // ─── auto-posting templates ───────────────────────────────────────────────────
 
 /**
- * Posts the disbursement entry for a loan.
- * DR 1100 Loans Receivable (principal)
- * CR 1001 Cash / Bank       (principal)
- * DR 1001 Cash / Bank       (fees, if any)  — fees collected upfront
- * CR 4002 Loan Service Fees  (fees, if any)
+ * Posts the disbursement entry for a loan. Fees are netted off the cash paid out.
+ * DR 1100 Loans Receivable   (principal)
+ * CR 1001 Cash / Bank         (principal − fees)
+ * CR 4002 Loan Service Fees   (fees, if any)
  */
 async function postDisbursementEntry(loan, transaction) {
   const principal = Number(loan.principalAmount);
   const fees = Number(loan.fees || 0);
+  const cashOut = Number((principal - fees).toFixed(2));
   const entryDate = loan.disbursementDate || new Date().toISOString().split('T')[0];
 
   const lines = [
@@ -142,30 +142,25 @@ async function postDisbursementEntry(loan, transaction) {
       loanId: loan.id,
       clientId: loan.clientId,
     },
-    {
-      accountCode: '1001',
-      credit: principal,
-      description: `Cash out – Loan #${loan.id} disbursement`,
-      loanId: loan.id,
-    },
   ];
 
+  if (cashOut > 0) {
+    lines.push({
+      accountCode: '1001',
+      credit: cashOut,
+      description: `Cash out – Loan #${loan.id} disbursement${fees > 0 ? ' (net of fees)' : ''}`,
+      loanId: loan.id,
+    });
+  }
+
   if (fees > 0) {
-    lines.push(
-      {
-        accountCode: '1001',
-        debit: fees,
-        description: `Origination fees collected – Loan #${loan.id}`,
-        loanId: loan.id,
-      },
-      {
-        accountCode: '4002',
-        credit: fees,
-        description: `Loan service fee income – Loan #${loan.id}`,
-        loanId: loan.id,
-        clientId: loan.clientId,
-      }
-    );
+    lines.push({
+      accountCode: '4002',
+      credit: fees,
+      description: `Loan service fee income – Loan #${loan.id}`,
+      loanId: loan.id,
+      clientId: loan.clientId,
+    });
   }
 
   return postEntry({
