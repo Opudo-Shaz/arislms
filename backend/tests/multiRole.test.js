@@ -57,7 +57,10 @@ test('invitation create schema takes roles[]', () => {
   assert.equal(validateSync(payload, InvitationRequestDto.createSchema).valid, false);
 });
 
-test('UserResponseDto exposes roles', () => {
-  assert.deepEqual(new UserResponseDto({ id: 1, roleIds: [2, 4] }).roles, [2, 4]);
+test('UserResponseDto exposes roles and role names', () => {
+  const dto = new UserResponseDto({ id: 1, roleIds: [2, 5], roleNames: ['Manager', 'loan_notifications_receiver'] });
+  assert.deepEqual(dto.roles, [2, 5]);
+  assert.deepEqual(dto.role_names, ['Manager', 'loan_notifications_receiver']);
   assert.deepEqual(new UserResponseDto({ id: 1 }).roles, []);
+  assert.deepEqual(new UserResponseDto({ id: 1 }).role_names, []);
 });

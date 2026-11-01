@@ -241,10 +241,11 @@ const UserProfile = () => {
     ? [profile.first_name, profile.middle_name, profile.last_name].filter(Boolean).join(' ').trim()
     : authUser?.name || authUser?.email || '—'
 
+  // The users API returns role names, so no roles:read permission is needed to show them.
   const roleIds = profile?.roles ?? authUser?.roles ?? []
-  const roleName = roleIds.length
-    ? roleIds.map((id) => ROLE_LABELS[id] ?? `Role ${id}`).join(', ')
-    : '—'
+  const roleNames = profile?.role_names?.length
+    ? profile.role_names
+    : roleIds.map((id) => ROLE_LABELS[id] ?? `Role ${id}`)
 
   if (isLoading) {
     return (
@@ -296,7 +297,9 @@ const UserProfile = () => {
               {/* Name + role */}
               <div>
                 <h4 className="mb-1">{fullName}</h4>
-                <CBadge color="info" className="me-2">{roleName}</CBadge>
+                {roleNames.map((name) => (
+                  <CBadge key={name} color="info" className="me-2">{name}</CBadge>
+                ))}
                 <span className="text-body-secondary small">{profile?.email ?? authUser?.email}</span>
               </div>
             </div>
@@ -406,7 +409,7 @@ const UserProfile = () => {
                       <Field label="Email">{profile?.email ?? authUser?.email}</Field>
                       <Field label="Phone">{profile?.phone}</Field>
                       <Field label="ID Number">{profile?.id_number}</Field>
-                      <Field label="Role">{roleName}</Field>
+                      <Field label="Roles">{roleNames.length ? roleNames.join(', ') : '—'}</Field>
                       <Field label="Member Since">{formatDate(profile?.created_at)}</Field>
                     </CRow>
                     <CButton

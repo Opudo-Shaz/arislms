@@ -24,9 +24,19 @@ const badRequest = (message, status = 400) => {
   return err;
 };
 
-/** Attaches the user's role ids (non-persisted) so UserResponseDto can expose them. */
+/** Sets `roleNames` (aligned with `roleIds`) so clients can show names without needing roles:read. */
+const attachRoleNames = async (users) => {
+  const ids = [...new Set(users.flatMap((u) => u.roleIds || []))];
+  const roles = ids.length ? await Role.findAll({ where: { id: ids }, attributes: ['id', 'name'] }) : [];
+  const nameById = new Map(roles.map((r) => [r.id, r.name]));
+  users.forEach((u) => { u.roleNames = (u.roleIds || []).map((id) => nameById.get(id)).filter(Boolean); });
+  return users;
+};
+
+/** Attaches the user's role ids and names (non-persisted) so UserResponseDto can expose them. */
 const withRoles = async (user) => {
   user.roleIds = await getRoleIdsForUser(user.id);
+  await attachRoleNames([user]);
   return user;
 };
 
@@ -60,7 +70,7 @@ const getAllUsers = async () => {
   const users = await User.findAll();
   const roleMap = await getRoleIdsForUsers(users.map((u) => u.id));
   users.forEach((u) => { u.roleIds = roleMap.get(u.id) || []; });
-  return users;
+  return attachRoleNames(users);
 };
 
 const getUserById = async (id) => {
@@ -106,6 +116,7 @@ const createUser = async (data, creatorId = null, userAgent = 'unknown', actorPe
       return created;
     });
     newUser.roleIds = roleIds;
+    await attachRoleNames([newUser]);
 
     // Validate the created user before logging
     if (!newUser || !newUser.id) {
@@ -179,6 +190,7 @@ const updateUser = async (id, data, updatorId = null, userAgent = 'unknown', act
       if (rolesChanged) await setUserRoles(user.id, roleIds, transaction);
     });
     user.roleIds = rolesChanged ? roleIds : currentRoleIds;
+    await attachRoleNames([user]);
     if (rolesChanged) invalidateAuthUser(user.id);
 
 
