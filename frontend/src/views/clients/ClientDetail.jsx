@@ -30,7 +30,15 @@ import { cilArrowRight, cilInfo, cilPencil, cilPlus, cilReload, cilSend, cilTras
 import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
 import ClientDocuments from './ClientDocuments'
-import { useClient, useClientAction, useDeleteClient, useSetPortalAccess } from '../../hooks/useClients'
+import TrustedDevicesCard from '../../components/TrustedDevicesCard'
+import {
+  useClient,
+  useClientAction,
+  useClientDevices,
+  useDeleteClient,
+  useRevokeClientDevice,
+  useSetPortalAccess,
+} from '../../hooks/useClients'
 import { useRefreshCreditScore } from '../../hooks/useCreditScores'
 import { useDocumentBlobUrl } from '../../hooks/useDocuments'
 import { useAuth } from '../../context/AuthContext'
@@ -117,6 +125,9 @@ const ClientDetail = () => {
   const refreshScore = useRefreshCreditScore(id)
   const { hasPermission } = useAuth()
   const canManage = hasPermission('clients:update')
+  const canManageDevices = hasPermission('clients:manage_devices')
+  const devices = useClientDevices(id, { enabled: canManageDevices })
+  const revokeDevice = useRevokeClientDevice(id)
 
   // Mirror backend rule: block new loan if client has any loan in these statuses
   const BLOCKING_LOAN_STATUSES = ['active', 'under_review', 'pending']
@@ -320,6 +331,17 @@ const ClientDetail = () => {
           </CCard>
 
           <ClientDocuments clientId={id} clientStatus={client.status} />
+
+          {canManageDevices && (
+            <TrustedDevicesCard
+              title="Portal devices"
+              description="Devices this client has used to sign in to the self-service portal. Remove one on the client's request (e.g. a lost phone); it is signed out immediately."
+              devices={devices.data}
+              isLoading={devices.isLoading}
+              error={devices.error}
+              onRemove={(device) => revokeDevice.mutateAsync(device.id)}
+            />
+          )}
         </CCol>
 
         <CCol lg={4}>

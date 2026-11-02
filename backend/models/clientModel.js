@@ -43,6 +43,11 @@ const Client = sequelize.define('Client', {
   tokenVersion: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'token_version' },
   portalEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'portal_enabled' },
   lastLoginAt: { type: DataTypes.DATE, field: 'last_login_at' },
+  // New-device step-up (national-ID digits) brute-force protection, per client
+  // so an attacker can't reset the counter by presenting fresh device ids.
+  stepUpFailedAttempts: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'step_up_failed_attempts' },
+  stepUpLastFailedAt: { type: DataTypes.DATE, field: 'step_up_last_failed_at' },
+  stepUpLockedUntil: { type: DataTypes.DATE, field: 'step_up_locked_until' },
 }, {
   tableName: 'clients',
   underscored: true,

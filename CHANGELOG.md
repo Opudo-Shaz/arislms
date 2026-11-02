@@ -12,6 +12,27 @@ into the next dated release section below when that version ships.
 
 ### Added
 
+- **Device-bound client portal login** — login codes are now tied to the browser
+  that requested them (random per-browser secret sent as `X-Device-Id`; only its
+  SHA-256 is stored), so a code read off the SMS gateway can't be redeemed from
+  another device. A device the client hasn't signed in from before must also pass a
+  step-up (last 4 characters of the ID number on file; per-client lockout via
+  `auth.device.step_up_max_attempts` / `auth.device.step_up_lock_minutes`) via the new
+  `POST /api/portal/auth/verify-device`; it is then trusted (`client_devices`) and
+  the client is emailed (never SMS). Portal sessions are bound to the device too, and
+  trusted devices can be listed/removed at `GET|DELETE /api/portal/me/devices`.
+  The portal profile has a **My devices** card for this, and staff with the new
+  `clients:manage_devices` permission get a **Portal devices** card on the admin
+  client detail page
+  (`GET /api/clients/:id/devices`, `DELETE /api/clients/:id/devices/:deviceId`) to
+  remove a device on a client's request (not granted to the Manager role by
+  default; tick it in the role editor or re-run `seedDefaultPermissions`). Removals are audit-logged and sign the
+  device out immediately.
+  Clients with no ID number on file can't sign in from a new device until staff add
+  it. **Deploy:** run `node scripts/addClientDeviceBinding.js`, re-run the system
+  config and notification template seeds; existing portal sessions end and each client
+  does the ID check once per device.
+
 - **`loan_notifications_receiver` role + multi-role users** — a user can now hold
   several roles (new `user_roles` join table; `users.role_id` is gone, API fields
   `role` → `roles: number[]` on users, invitations and login; JWT claim

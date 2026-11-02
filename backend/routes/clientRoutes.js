@@ -467,6 +467,61 @@ router.patch('/:id/portal-access', authenticate, requirePermission('clients:upda
 
 /**
  * @openapi
+ * /api/clients/{id}/devices:
+ *   get:
+ *     summary: Devices a client has trusted for the self-service portal (requires clients:manage_devices)
+ *     tags:
+ *       - Clients - Status
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Trusted devices
+ *       403:
+ *         description: Missing clients:manage_devices permission
+ *       404:
+ *         description: Client not found
+ */
+router.get('/:id/devices', authenticate, requirePermission('clients:manage_devices'), validateIdParam(), clientController.listDevices);
+
+/**
+ * @openapi
+ * /api/clients/{id}/devices/{deviceId}:
+ *   delete:
+ *     summary: Stop trusting a client's device; its portal sessions end immediately (requires clients:manage_devices)
+ *     tags:
+ *       - Clients - Status
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: deviceId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Device removed
+ *       403:
+ *         description: Missing clients:manage_devices permission
+ *       404:
+ *         description: Device not found
+ */
+router.delete('/:id/devices/:deviceId', authenticate, requirePermission('clients:manage_devices'), validateIdParam('id', 'deviceId'), clientController.revokeDevice);
+
+/**
+ * @openapi
  * /api/clients/{id}/blacklist:
  *   post:
  *     summary: Blacklist a client (admin only)

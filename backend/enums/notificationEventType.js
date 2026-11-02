@@ -11,6 +11,7 @@ module.exports = Object.freeze({
   REGISTRATION_INVITE: 'registration_invite',
   CLIENT_REGISTRATION_INVITE: 'client_registration_invite',
   OTP_VERIFICATION: 'otp_verification',
+  NEW_DEVICE_LOGIN: 'new_device_login',
   LOAN_APPLICATION_SUBMITTED: 'loan_application_submitted',
   LOAN_APPLICATION_RECEIVED: 'loan_application_received',
   PAYMENT_REPORT_SUBMITTED: 'payment_report_submitted',

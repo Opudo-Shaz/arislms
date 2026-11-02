@@ -58,6 +58,14 @@ const Otp = sequelize.define(
       field: 'used_at',
     },
 
+    // SHA-256 of the device secret that requested this code. When set, only that
+    // device can redeem it; null for flows that aren't device-bound.
+    deviceHash: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+      field: 'device_hash',
+    },
+
     // Number of verification attempts made against this code.
     attempts: {
       type: DataTypes.INTEGER,

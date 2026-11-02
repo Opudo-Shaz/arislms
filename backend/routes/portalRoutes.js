@@ -25,11 +25,24 @@ const otpRequestLimiter = rateLimit({
   max: 3,
   keyFn: (req) => String(req.body?.phone || '').replace(/\D/g, '').slice(-9),
 });
+// Per device: one browser can't spray code requests across many phone numbers.
+const otpDeviceLimiter = rateLimit({
+  name: 'portalOtpDevice',
+  windowMs: FIFTEEN_MIN,
+  max: 6,
+  keyFn: (req) => String(req.headers['x-device-id'] || req.ip).slice(0, 64),
+});
 const otpVerifyLimiter = rateLimit({
   name: 'portalOtpVerify',
   windowMs: FIFTEEN_MIN,
   max: 10,
   keyFn: (req) => String(req.body?.otpToken || '').slice(-32),
+});
+const stepUpLimiter = rateLimit({
+  name: 'portalStepUp',
+  windowMs: FIFTEEN_MIN,
+  max: 10,
+  keyFn: (req) => String(req.body?.stepUpToken || '').slice(-32),
 });
 
 /**
@@ -62,7 +75,7 @@ const otpVerifyLimiter = rateLimit({
  *       429:
  *         description: Too many requests
  */
-router.post('/auth/request-otp', otpIpLimiter, otpRequestLimiter, portalController.requestOtp);
+router.post('/auth/request-otp', otpIpLimiter, otpDeviceLimiter, otpRequestLimiter, portalController.requestOtp);
 
 /**
  * @openapi
@@ -87,6 +100,34 @@ router.post('/auth/request-otp', otpIpLimiter, otpRequestLimiter, portalControll
  *         description: Too many attempts
  */
 router.post('/auth/verify-otp', otpIpLimiter, otpVerifyLimiter, portalController.verifyOtp);
+
+/**
+ * @openapi
+ * /api/portal/auth/verify-device:
+ *   post:
+ *     summary: Confirm a new device with the last characters of the national ID
+ *     description: >
+ *       Second step of login from a device the client hasn't used before (returned as
+ *       `stepUpRequired` by verify-otp). On success the device is trusted and the
+ *       client session is issued. Requires the same X-Device-Id header.
+ *     tags:
+ *       - Client Portal
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             stepUpToken: "<stepUpToken from verify-otp>"
+ *             idLast4: "5678"
+ *     responses:
+ *       200:
+ *         description: Device trusted, client session issued
+ *       400:
+ *         description: Incorrect digits
+ *       429:
+ *         description: Too many incorrect attempts
+ */
+router.post('/auth/verify-device', otpIpLimiter, stepUpLimiter, portalController.verifyDevice);
 
 /**
  * @openapi
@@ -205,6 +246,40 @@ router.use(authenticateClient);
  */
 router.get('/me', portalController.getMe);
 router.patch('/me', portalController.updateMe);
+
+/**
+ * @openapi
+ * /api/portal/me/devices:
+ *   get:
+ *     summary: Devices trusted for the signed-in client
+ *     tags:
+ *       - Client Portal
+ *     responses:
+ *       200:
+ *         description: List of trusted devices (the current one is flagged)
+ */
+router.get('/me/devices', portalController.listDevices);
+
+/**
+ * @openapi
+ * /api/portal/me/devices/{id}:
+ *   delete:
+ *     summary: Stop trusting a device (its sessions end immediately)
+ *     tags:
+ *       - Client Portal
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Device removed
+ *       404:
+ *         description: Device not found
+ */
+router.delete('/me/devices/:id', validateIdParam(), portalController.revokeDevice);
 
 /**
  * @openapi

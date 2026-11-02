@@ -34,10 +34,15 @@ export class ApiError extends Error {
  * @param {() => (string|null)} opts.getToken - returns the bearer token to send
  * @param {(status: number, data: any) => boolean} [opts.endsSession] - which error
  *   responses end the session and trigger the unauthorized handler (default: 401)
+ * @param {() => string} [opts.getDeviceId] - when given, sent on every request as `X-Device-Id`
  * @returns {{ axiosInstance: import('axios').AxiosInstance, request: Function,
  *   http: object, setUnauthorizedHandler: Function }}
  */
-export const createApiClient = ({ getToken: readToken, endsSession = (status) => status === 401 }) => {
+export const createApiClient = ({
+  getToken: readToken,
+  endsSession = (status) => status === 401,
+  getDeviceId: readDeviceId = null,
+}) => {
   /**
    * Optional handler invoked when a response ends the session (401 by
    * default, see `endsSession`), allowing the app to clear the session and
@@ -64,6 +69,7 @@ export const createApiClient = ({ getToken: readToken, endsSession = (status) =>
         requestConfig.headers.Authorization = `Bearer ${token}`
       }
     }
+    if (readDeviceId) requestConfig.headers['X-Device-Id'] = readDeviceId()
     return requestConfig
   })
 

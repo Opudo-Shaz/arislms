@@ -1,4 +1,7 @@
 const clientService = require('../services/clientService');
+const clientDeviceService = require('../services/clientDeviceService');
+const Client = require('../models/clientModel');
+const ClientDeviceResponseDto = require('../dtos/clientDevice/ClientDeviceResponseDto');
 const logger = require('../config/logger');
 const { getUserId } = require('../utils/helpers');
 const { validateSync } = require('../utils/validationMiddleware');
@@ -292,6 +295,37 @@ const clientController = {
     } catch (error) {
       logger.error(`Set Portal Access Error: ${error.message}`);
       return res.status(error.statusCode || 400).json({ success: false, message: error.message });
+    }
+  },
+
+  /** Devices a client has trusted for the self-service portal. */
+  async listDevices(req, res) {
+    try {
+      const client = await Client.findByPk(req.params.id, { attributes: ['id'] });
+      if (!client) return res.status(404).json({ success: false, message: 'Client not found' });
+      const devices = await clientDeviceService.listDevices(client.id);
+      return res.status(200).json({ success: true, data: devices.map((d) => ClientDeviceResponseDto(d)) });
+    } catch (error) {
+      logger.error(`List Client Devices Error: ${error.message}`);
+      return res.status(500).json({ success: false, message: 'Could not load devices.' });
+    }
+  },
+
+  /** Stop trusting one of a client's devices (ends its portal sessions). */
+  async revokeDevice(req, res) {
+    try {
+      const userId = getUserId(req);
+      const revoked = await clientDeviceService.revokeDevice(
+        Number(req.params.id),
+        Number(req.params.deviceId),
+        { actorId: userId, actorType: 'USER', userAgent: req.headers['user-agent'] }
+      );
+      if (!revoked) return res.status(404).json({ success: false, message: 'Device not found' });
+      logger.info(`User ${userId} revoked device ${req.params.deviceId} of client ${req.params.id}`);
+      return res.status(200).json({ success: true, message: 'Device removed.' });
+    } catch (error) {
+      logger.error(`Revoke Client Device Error: ${error.message}`);
+      return res.status(500).json({ success: false, message: 'Could not remove the device.' });
     }
   },
 

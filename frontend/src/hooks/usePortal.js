@@ -23,6 +23,7 @@ export const portalKeys = {
   paymentReports: (params) => [...portalKeys.all, 'paymentReports', params],
   products: () => [...portalKeys.all, 'products'],
   documents: () => [...portalKeys.all, 'documents'],
+  devices: () => [...portalKeys.all, 'devices'],
 }
 
 export const usePortalMe = () => useQuery({ queryKey: portalKeys.me(), queryFn: portalApi.getMe })
@@ -71,6 +72,17 @@ export const usePortalPaymentReports = (params = {}) =>
 /** Active loan products (public endpoint — also used by the home page). */
 export const usePublicLoanProducts = () =>
   useQuery({ queryKey: portalKeys.products(), queryFn: portalApi.listPublicLoanProducts, staleTime: 5 * 60 * 1000 })
+
+export const usePortalDevices = () =>
+  useQuery({ queryKey: portalKeys.devices(), queryFn: portalApi.listMyDevices })
+
+export const useRevokePortalDevice = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => portalApi.revokeMyDevice(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: portalKeys.devices() }),
+  })
+}
 
 export const useUpdatePortalMe = () => {
   const qc = useQueryClient()

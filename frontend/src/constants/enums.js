@@ -518,6 +518,7 @@ export const PERMISSIONS = {
     CREATE: 'clients:create',
     UPDATE: 'clients:update',
     DELETE: 'clients:delete',
+    MANAGE_DEVICES: 'clients:manage_devices',
   },
   LOANS: {
     READ: 'loans:read',
@@ -653,6 +654,7 @@ const ACTION_LABELS = {
   manage_templates: 'Manage Templates',
   manage_outbox: 'Manage Outbox',
   manage: 'Manage',
+  manage_devices: 'Manage Portal Devices',
   reveal_secret: 'Reveal Secret',
   review: 'Review (amend / apply / reject)',
   verify: 'Verify / Flag KYC Files',

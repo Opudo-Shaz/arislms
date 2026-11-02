@@ -525,6 +525,26 @@ const defaults = [
     isBoolean: false,
     isActive: true,
     isReadOnly: false,
+  },
+  {
+    key: 'auth.device.step_up_max_attempts',
+    label: 'Portal New-Device ID Check Max Attempts',
+    value: '5',
+    category: 'auth',
+    description: 'Incorrect national-ID digit entries allowed per client when signing in from a new device before further new-device sign-ins are locked.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
+    key: 'auth.device.step_up_lock_minutes',
+    label: 'Portal New-Device ID Check Lockout (minutes)',
+    value: '30',
+    category: 'auth',
+    description: 'How long new-device sign-ins are locked for a client after too many incorrect national-ID digit entries.',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
   }
 ];
 

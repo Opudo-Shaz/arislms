@@ -100,3 +100,20 @@ export const useSetPortalAccess = () => {
     onSuccess: (_data, { id }) => qc.invalidateQueries({ queryKey: clientKeys.detail(id) }),
   })
 }
+
+/** devices a client has trusted for the portal. */
+export const useClientDevices = (id, { enabled = true } = {}) =>
+  useQuery({
+    queryKey: [...clientKeys.detail(id), 'devices'],
+    queryFn: () => clientApi.listClientDevices(id),
+    enabled: enabled && Boolean(id),
+  })
+
+/** stop trusting one of a client's devices. */
+export const useRevokeClientDevice = (id) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (deviceId) => clientApi.revokeClientDevice(id, deviceId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...clientKeys.detail(id), 'devices'] }),
+  })
+}

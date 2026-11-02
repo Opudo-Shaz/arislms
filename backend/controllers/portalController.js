@@ -18,6 +18,9 @@ const {
 const schemas = require('../dtos/portal/PortalRequestDto');
 const { validateSync } = require('../utils/validationMiddleware');
 const { parseKeysetQuery, toPaginationDto } = require('../utils/keysetPagination');
+const clientDeviceService = require('../services/clientDeviceService');
+const ClientDeviceResponseDto = require('../dtos/clientDevice/ClientDeviceResponseDto');
+const { deviceHashFromRequest } = require('../utils/deviceId');
 const logger = require('../config/logger');
 
 /**
@@ -27,6 +30,15 @@ const logger = require('../config/logger');
  */
 
 const userAgentOf = (req) => req.headers['user-agent'] || 'unknown';
+
+/** Device context for the login endpoints; a missing/malformed X-Device-Id is a 400. */
+function deviceContextOf(req) {
+  const deviceHash = deviceHashFromRequest(req);
+  if (!deviceHash) {
+    throw Object.assign(new Error('Device identification is missing. Please refresh the page and try again.'), { status: 400 });
+  }
+  return { deviceHash, ip: req.ip };
+}
 
 /** Run validation; on failure send a 400 and return null. */
 function validated(req, res, schema) {
@@ -62,7 +74,7 @@ const handle = (label, fn) => async (req, res) => {
 exports.requestOtp = handle('requestOtp', async (req, res) => {
   const body = validated(req, res, schemas.requestOtpSchema);
   if (!body) return;
-  const result = await portalAuthService.requestOtp(body, userAgentOf(req));
+  const result = await portalAuthService.requestOtp(body, userAgentOf(req), deviceContextOf(req));
   res.json({
     success: true,
     message: 'If this number is registered, a verification code has been sent. '
@@ -74,8 +86,40 @@ exports.requestOtp = handle('requestOtp', async (req, res) => {
 exports.verifyOtp = handle('verifyOtp', async (req, res) => {
   const body = validated(req, res, schemas.verifyOtpSchema);
   if (!body) return;
-  const session = await portalAuthService.verifyOtp(body, userAgentOf(req));
+  const session = await portalAuthService.verifyOtp(body, userAgentOf(req), deviceContextOf(req));
+  if (session.stepUpRequired) {
+    return res.json({
+      success: true,
+      message: 'Please confirm this new device with your ID number.',
+      ...session,
+    });
+  }
   res.json({ success: true, message: 'Login successful', ...session });
+});
+
+exports.verifyDevice = handle('verifyDevice', async (req, res) => {
+  const body = validated(req, res, schemas.verifyDeviceSchema);
+  if (!body) return;
+  const session = await portalAuthService.verifyDevice(body, userAgentOf(req), deviceContextOf(req));
+  res.json({ success: true, message: 'Login successful', ...session });
+});
+
+// ── Trusted devices (authenticated) ───────────────────────────────────
+
+exports.listDevices = handle('listDevices', async (req, res) => {
+  const currentHash = deviceHashFromRequest(req);
+  const devices = await clientDeviceService.listDevices(req.client.id);
+  res.json({ success: true, data: devices.map((d) => ClientDeviceResponseDto(d, { currentHash })) });
+});
+
+exports.revokeDevice = handle('revokeDevice', async (req, res) => {
+  const revoked = await clientDeviceService.revokeDevice(req.client.id, Number(req.params.id), {
+    actorId: req.client.id,
+    actorType: 'CLIENT',
+    userAgent: userAgentOf(req),
+  });
+  if (!revoked) return res.status(404).json({ success: false, message: 'Device not found' });
+  res.json({ success: true, message: 'Device removed' });
 });
 
 exports.getPublicLoanProducts = handle('getPublicLoanProducts', async (req, res) => {

@@ -30,6 +30,7 @@ const SmsMessage = require('./smsMessageModel');
 const SmsWebhookEvent = require('./smsWebhookEventModel');
 const UserInvitation = require('./userInvitationModel');
 const Otp = require('./otpModel');
+const ClientDevice = require('./clientDeviceModel');
 const PaymentReport = require('./paymentReportModel');
 const CoSignerConsent = require('./coSignerConsentModel');
 const ClientRegistrationLink = require('./clientRegistrationLinkModel');
@@ -172,6 +173,10 @@ Otp.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
 User.hasMany(Otp, { foreignKey: 'userId', as: 'otps' });
 Otp.belongsTo(Client, { foreignKey: 'clientId', as: 'client', constraints: false });
 
+// Trusted portal devices belong to a client
+ClientDevice.belongsTo(Client, { foreignKey: 'clientId', as: 'client' });
+Client.hasMany(ClientDevice, { foreignKey: 'clientId', as: 'devices' });
+
 // Client-reported manual payments (portal) awaiting staff confirmation
 // foreignKey names the model *attribute* (camelCase), not the column: naming the
 // column here makes Sequelize define a second attribute for the same column,
@@ -225,4 +230,5 @@ module.exports = {
   CronJobRun,
   UserInvitation,
   Otp,
+  ClientDevice,
 };

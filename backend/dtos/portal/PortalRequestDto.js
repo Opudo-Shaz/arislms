@@ -19,6 +19,13 @@ const verifyOtpSchema = Joi.object({
   }),
 });
 
+const verifyDeviceSchema = Joi.object({
+  stepUpToken: Joi.string().required(),
+  idLast4: Joi.string().trim().pattern(/^[A-Za-z0-9]{4}$/).required().messages({
+    'string.pattern.base': 'Enter the last 4 characters of your ID number',
+  }),
+});
+
 const updateProfileSchema = Joi.object({
   email: Joi.string().trim().email({ tlds: false }).max(255).allow(null, ''),
   secondaryPhone: phoneSchema({ label: 'Secondary phone' }),
@@ -124,6 +131,7 @@ module.exports = {
   consentRespondSchema,
   requestOtpSchema,
   verifyOtpSchema,
+  verifyDeviceSchema,
   updateProfileSchema,
   loanRequestSchema,
   paymentReportSchema,

@@ -24,7 +24,8 @@ import FormSelect from '../../components/FormSelect'
 import StatusBadge from '../../components/StatusBadge'
 import PhoneInput from '../../components/PhoneInput'
 import MyKycDocuments from './MyKycDocuments'
-import { usePortalMe, useUpdatePortalMe } from '../../hooks/usePortal'
+import TrustedDevicesCard from '../../components/TrustedDevicesCard'
+import { usePortalDevices, usePortalMe, useRevokePortalDevice, useUpdatePortalMe } from '../../hooks/usePortal'
 import { CLIENT_STATUS, KYC_STATUS } from '../../constants/enums'
 import { formatDate, formatDateTime } from '../../utils/format'
 import toast from '../../utils/toast'
@@ -123,6 +124,23 @@ const ContactForm = ({ me }) => {
   )
 }
 
+/** Devices signed in to this account; removing one signs it out. */
+const MyDevices = () => {
+  const { data, isLoading, error } = usePortalDevices()
+  const revoke = useRevokePortalDevice()
+  return (
+    <TrustedDevicesCard
+      title="My devices"
+      description="Devices you've used to sign in. Remove any you don't recognise or no longer use — it will be signed out straight away."
+      devices={data}
+      isLoading={isLoading}
+      error={error}
+      onRemove={(device) => revoke.mutateAsync(device.id)}
+      removeWarning="This is the device you're using now, so you'll be signed out."
+    />
+  )
+}
+
 const MyProfile = () => {
   const { data: me, isLoading, error } = usePortalMe()
 
@@ -168,6 +186,9 @@ const MyProfile = () => {
       </CCol>
       <CCol xs={12}>
         <MyKycDocuments me={me} />
+      </CCol>
+      <CCol xs={12}>
+        <MyDevices />
       </CCol>
     </CRow>
   )

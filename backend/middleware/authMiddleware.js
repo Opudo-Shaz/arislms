@@ -4,6 +4,8 @@ const UserStatus = require('../enums/userStatus');
 const { getCachedAuthUser } = require('../utils/authUserCache');
 const { getCachedAuthClient } = require('../utils/clientAuthCache');
 const { portalAccessDenialReason, PORTAL_ACCESS_DENIED } = require('../utils/portalAccess');
+const { deviceHashFromRequest } = require('../utils/deviceId');
+const clientDeviceService = require('../services/clientDeviceService');
 
 const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -142,6 +144,15 @@ const authenticateClient = async (req, res, next) => {
       return res.status(403).json({ message: denial, code: PORTAL_ACCESS_DENIED });
     }
     if ((decoded.tokenVersion || 0) !== (client.tokenVersion || 0)) {
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+
+    // The session is bound to the device that signed in: a stolen token is
+    // useless elsewhere, and removing a trusted device ends its sessions.
+    const deviceHash = deviceHashFromRequest(req);
+    if (!decoded.dh || !deviceHash || decoded.dh !== deviceHash
+        || !(await clientDeviceService.isTrusted(client.id, deviceHash))) {
+      logger?.warn(`Unauthorized: client ${decoded.id} session presented from an unbound or untrusted device`);
       return res.status(401).json({ message: 'Invalid or expired token' });
     }
 

@@ -130,10 +130,11 @@ function resolveSubject({ user, client, target }) {
  * @param {string[]} [params.channels] - Restrict delivery to a subset of channels (default: template-enabled)
  * @param {object} [params.auditContext] - Extra fields stored with the audit entry so the OTP
  *   can be traced to what it authorised (e.g. `{ loanId, consentId }`)
+ * @param {string} [params.deviceHash] - SHA-256 of the requesting device's secret; when set, only that device can redeem the code
  * @param {string} [params.userAgent]
  * @returns {Promise<{expiresAt: Date, ttlMinutes: number}>}
  */
-async function generateAndSend({ user, client, target, purpose, channels = null, auditContext = null, userAgent = 'unknown' }) {
+async function generateAndSend({ user, client, target, purpose, channels = null, auditContext = null, deviceHash = null, userAgent = 'unknown' }) {
   if (!purpose) throw new Error('generateAndSend requires a purpose');
   const subject = resolveSubject({ user, client, target });
 
@@ -149,7 +150,7 @@ async function generateAndSend({ user, client, target, purpose, channels = null,
   const codeHash = hashCode(code);
   const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
 
-  const otp = await Otp.create({ ...subject.ownerWhere, purpose, codeHash, expiresAt, maxAttempts });
+  const otp = await Otp.create({ ...subject.ownerWhere, purpose, codeHash, expiresAt, maxAttempts, deviceHash });
 
   if (shouldLogRawOtp()) {
     const to = [subject.recipient.phone, subject.recipient.email].filter(Boolean).join(' / ') || 'no address';
@@ -191,6 +192,7 @@ async function generateAndSend({ user, client, target, purpose, channels = null,
  * @param {number} [params.userId]
  * @param {number} [params.clientId]
  * @param {string} [params.target] - the `target.key` the code was issued for
+ * @param {string} [params.deviceHash] - device the code was issued to; must match exactly (null for non-device-bound codes)
  * @param {string} params.purpose
  * @param {string} params.code
  * @param {object} [params.auditContext] - Extra fields stored with the audit entry (see generateAndSend)
@@ -198,7 +200,7 @@ async function generateAndSend({ user, client, target, purpose, channels = null,
  * @returns {Promise<boolean>} true on success
  * @throws {Error} with .status 400 (invalid/expired) or 429 (too many attempts)
  */
-async function verify({ userId, clientId, target, purpose, code, auditContext = null, userAgent = 'unknown' }) {
+async function verify({ userId, clientId, target, purpose, code, deviceHash = null, auditContext = null, userAgent = 'unknown' }) {
   const ownerWhere = clientId ? { clientId } : userId ? { userId } : target ? { target } : null;
   if (!ownerWhere || !purpose || !code) {
     const err = new Error('Invalid or expired verification code');
@@ -211,6 +213,9 @@ async function verify({ userId, clientId, target, purpose, code, auditContext = 
     where: {
       ...ownerWhere,
       purpose,
+      // Strict both ways: a device-bound code is invisible to any other device
+      // (or to a request without a device), and vice versa.
+      deviceHash,
       usedAt: null,
       expiresAt: { [Op.gt]: new Date() },
     },
@@ -268,14 +273,29 @@ async function verify({ userId, clientId, target, purpose, code, auditContext = 
  * @param {{userId?: number, clientId?: number, purpose: string}} params
  */
 async function secondsSinceLastIssued({ userId, clientId, target, purpose }) {
+  const last = await latestIssued({ userId, clientId, target, purpose });
+  return last ? last.secondsAgo : null;
+}
+
+/**
+ * Newest OTP for (owner, purpose): how long ago it was issued and which device
+ * it is bound to, or null if none. Lets callers apply a resend cooldown only
+ * to the device that already holds the pending code.
+ * @param {{userId?: number, clientId?: number, purpose: string}} params
+ * @returns {Promise<{secondsAgo: number, deviceHash: string|null}|null>}
+ */
+async function latestIssued({ userId, clientId, target, purpose }) {
   const ownerWhere = clientId ? { clientId } : target ? { target } : { userId };
   const last = await Otp.findOne({
     where: { ...ownerWhere, purpose },
     order: [['created_at', 'DESC']],
-    attributes: ['created_at'],
+    attributes: ['created_at', 'deviceHash'],
   });
   if (!last) return null;
-  return (Date.now() - new Date(last.get('created_at')).getTime()) / 1000;
+  return {
+    secondsAgo: (Date.now() - new Date(last.get('created_at')).getTime()) / 1000,
+    deviceHash: last.deviceHash || null,
+  };
 }
 
-module.exports = { generateAndSend, verify, secondsSinceLastIssued, OTP_OUTBOX_PRIORITY };
+module.exports = { generateAndSend, verify, secondsSinceLastIssued, latestIssued, OTP_OUTBOX_PRIORITY };

@@ -4,6 +4,10 @@ const { Sequelize } = require('sequelize');
 const Client = require('../models/clientModel');
 const NotificationChannel = require('../enums/notificationChannel');
 const otpService = require('./otpService');
+const clientDeviceService = require('./clientDeviceService');
+const { safeNotify } = require('./notification/notificationTriggers');
+const NotificationEventType = require('../enums/notificationEventType');
+const { lastFourOfId, idLast4Matches } = require('../utils/deviceId');
 const systemConfigService = require('./systemConfigService');
 const AuditLogger = require('../utils/auditLogger');
 const { phoneMatchCandidates } = require('../utils/helpers');
@@ -16,10 +20,21 @@ const logger = require('../config/logger');
  * Clients are a separate principal from staff users: their session token
  * carries `typ: 'client'` and is only accepted by
  * authMiddleware.authenticateClient (staff `authenticate` rejects it).
+ *
+ * Device binding: every login code is tied to the device (see utils/deviceId)
+ * that requested it, so a code copied from the SMS gateway is useless on any
+ * other device. Because an insider can also *request* a code from their own
+ * device, a device the client hasn't used before must additionally pass a
+ * step-up (last digits of the national ID on file) before it is trusted.
+ * The session token is bound to the device too.
  */
 
 const OTP_PURPOSE_PORTAL_LOGIN = 'portal_login';
 const RESEND_COOLDOWN_SECONDS = 60;
+
+const STEP_UP_TOKEN_TTL_MINUTES = 5;
+const GENERIC_CODE_ERROR = 'Invalid or expired verification code';
+const DEVICE_STEP_UP_REQUIRED = 'DEVICE_STEP_UP_REQUIRED';
 
 const jwtSecret = () => process.env.JWT_SECRET || 'secretkey';
 const isValidEmail = (email) => !Joi.string().email({ tlds: false }).validate(email).error;
@@ -49,8 +64,27 @@ async function findClientByPhone(phone) {
   return matches[0] || null;
 }
 
-const signChallenge = (clientId, ttlMinutes) =>
-  jwt.sign({ id: clientId, typ: 'client_otp' }, jwtSecret(), { expiresIn: `${ttlMinutes}m` });
+const signChallenge = (clientId, ttlMinutes, deviceHash) =>
+  jwt.sign({ id: clientId, typ: 'client_otp', dh: deviceHash }, jwtSecret(), { expiresIn: `${ttlMinutes}m` });
+
+const signStepUpToken = (clientId, deviceHash) =>
+  jwt.sign({ id: clientId, typ: 'client_device_stepup', dh: deviceHash }, jwtSecret(), {
+    expiresIn: `${STEP_UP_TOKEN_TTL_MINUTES}m`,
+  });
+
+/** Verify a short-lived challenge JWT of the given type that was issued to this device. */
+function readDeviceBoundToken(token, typ, deviceHash, expiredMessage) {
+  let payload;
+  try {
+    payload = jwt.verify(token, jwtSecret());
+  } catch {
+    throw httpError(expiredMessage, 401);
+  }
+  if (payload?.typ !== typ) throw httpError('Invalid verification session.', 401);
+  // A challenge replayed from another device gets the same answer as a wrong code.
+  if (!deviceHash || payload.dh !== deviceHash) throw httpError(GENERIC_CODE_ERROR, 400);
+  return payload;
+}
 
 /**
  * Step 1: send a login code to the client's phone (SMS) or saved email.
@@ -68,13 +102,14 @@ const signChallenge = (clientId, ttlMinutes) =>
  * @param {{phone: string, channel: 'sms'|'email'}} params
  * @returns {Promise<{otpToken: string, channel: string, ttlMinutes: number}>}
  */
-async function requestOtp({ phone, channel }, userAgent = 'unknown') {
+async function requestOtp({ phone, channel }, userAgent = 'unknown', { deviceHash } = {}) {
+  if (!deviceHash) throw httpError('Device identification is missing. Please refresh the page and try again.', 400);
   const ttlMinutes = await systemConfigService.getConfigValue('auth.otp.ttl_minutes', 'number', 10);
   const client = await findClientByPhone(phone);
 
   if (!client) {
     logger.info(`[portalAuth] OTP requested for unknown phone — generic response returned`);
-    return { otpToken: signChallenge(0, ttlMinutes), channel, ttlMinutes };
+    return { otpToken: signChallenge(0, ttlMinutes, deviceHash), channel, ttlMinutes };
   }
 
   // Email delivery needs a valid address on file; otherwise fall back to SMS.
@@ -85,70 +120,149 @@ async function requestOtp({ phone, channel }, userAgent = 'unknown') {
     : channel;
 
   // Resend cooldown: skip sending, but still hand back a valid challenge so the
-  // previously sent code keeps working. No distinguishable error.
-  const since = await otpService.secondsSinceLastIssued({ clientId: client.id, purpose: OTP_PURPOSE_PORTAL_LOGIN });
-  if (since !== null && since < RESEND_COOLDOWN_SECONDS) {
+  // previously sent code keeps working. No distinguishable error. The cooldown
+  // only protects a code held by *this* device: a request from another device
+  // always issues a fresh code (which voids the pending one), so one device can
+  // never ride on a code sent for a different one.
+  const latest = await otpService.latestIssued({ clientId: client.id, purpose: OTP_PURPOSE_PORTAL_LOGIN });
+  if (latest && latest.deviceHash === deviceHash && latest.secondsAgo < RESEND_COOLDOWN_SECONDS) {
     logger.info(`[portalAuth] OTP resend for client ${client.id} within cooldown — not re-sent`);
   } else {
     await otpService.generateAndSend({
       client,
       purpose: OTP_PURPOSE_PORTAL_LOGIN,
       channels: [deliveryChannel],
+      deviceHash,
       userAgent,
     });
   }
 
-  return { otpToken: signChallenge(client.id, ttlMinutes), channel, ttlMinutes };
+  return { otpToken: signChallenge(client.id, ttlMinutes, deviceHash), channel, ttlMinutes };
 }
 
 /**
- * Step 2: verify the code and issue a client session.
- * @returns {Promise<{token: string, expiresIn: number, client: object}>}
+ * Step 2: verify the code. On a trusted device this issues the client session;
+ * on any other device it returns a short-lived `stepUpToken` and the caller
+ * must finish with verifyDevice().
+ * @returns {Promise<{token, expiresIn, client}|{stepUpRequired: true, stepUpToken: string}>}
  */
-async function verifyOtp({ otpToken, code }, userAgent = 'unknown') {
-  let payload;
-  try {
-    payload = jwt.verify(otpToken, jwtSecret());
-  } catch {
-    throw httpError('Your verification session has expired. Please request a new code.', 401);
-  }
-  if (payload?.typ !== 'client_otp') throw httpError('Invalid verification session.', 401);
+async function verifyOtp({ otpToken, code }, userAgent = 'unknown', { deviceHash, ip } = {}) {
+  const payload = readDeviceBoundToken(
+    otpToken, 'client_otp', deviceHash,
+    'Your verification session has expired. Please request a new code.'
+  );
 
   // Unknown-phone challenges (id 0) fall through to the same error as a wrong code.
-  if (!payload.id) throw httpError('Invalid or expired verification code', 400);
+  if (!payload.id) throw httpError(GENERIC_CODE_ERROR, 400);
 
   const client = await Client.findByPk(payload.id);
-  if (!client) throw httpError('Invalid or expired verification code', 400);
+  if (!client) throw httpError(GENERIC_CODE_ERROR, 400);
 
-  await otpService.verify({ clientId: client.id, purpose: OTP_PURPOSE_PORTAL_LOGIN, code, userAgent });
+  await otpService.verify({ clientId: client.id, purpose: OTP_PURPOSE_PORTAL_LOGIN, code, deviceHash, userAgent });
+  assertPortalAccess(client);
 
-  // The code proves they own the number, so it's now safe to say why they
-  // can't sign in — instead of a misleading "wrong code".
+  if (await clientDeviceService.isTrusted(client.id, deviceHash)) {
+    return completeLogin(client, { deviceHash, userAgent, ip, newDevice: false });
+  }
+
+  // Unknown device: fail closed when there is nothing on file to step up with.
+  if (!lastFourOfId(client.idDocumentNumber)) {
+    logger.warn(`[portalAuth] client ${client.id} has no usable ID number on file — new-device login refused`);
+    throw Object.assign(
+      httpError('We could not verify this new device. Please contact the office to update your ID details.', 403),
+      { code: 'DEVICE_STEP_UP_UNAVAILABLE' }
+    );
+  }
+
+  logger.info(`[portalAuth] client ${client.id} verified code from an unrecognised device — step-up required`);
+  return { stepUpRequired: true, code: DEVICE_STEP_UP_REQUIRED, stepUpToken: signStepUpToken(client.id, deviceHash) };
+}
+
+/**
+ * Step 3 (new devices only): prove it is the account holder by entering the
+ * last digits of the national ID on file, then trust the device and sign in.
+ * Attempts are counted per client (not per device) and lock out after
+ * auth.device.step_up_max_attempts, so rotating device ids doesn't help.
+ */
+async function verifyDevice({ stepUpToken, idLast4 }, userAgent = 'unknown', { deviceHash, ip } = {}) {
+  const payload = readDeviceBoundToken(
+    stepUpToken, 'client_device_stepup', deviceHash,
+    'Your verification session has expired. Please sign in again.'
+  );
+
+  const client = payload.id ? await Client.findByPk(payload.id) : null;
+  if (!client) throw httpError(GENERIC_CODE_ERROR, 400);
+  assertPortalAccess(client);
+  clientDeviceService.assertNotLocked(client);
+
+  const { attempt, maxAttempts } = await clientDeviceService.reserveStepUpAttempt(client.id);
+  if (attempt > maxAttempts) {
+    throw Object.assign(
+      httpError('Too many incorrect attempts. Please try again later or contact the office.', 429),
+      { code: 'DEVICE_STEP_UP_LOCKED' }
+    );
+  }
+
+  if (!idLast4Matches(client.idDocumentNumber, idLast4)) {
+    await AuditLogger.log({
+      entityType: 'LOGIN',
+      entityId: client.id,
+      action: 'UPDATE',
+      data: { portal: true, event: 'device_step_up_failed', attempt, deviceHash: deviceHash.slice(0, 12), ip },
+      actorId: client.id,
+      options: { actorType: 'CLIENT', source: userAgent },
+    });
+    logger.warn(`[portalAuth] client ${client.id} failed new-device step-up (attempt ${attempt}/${maxAttempts})`);
+    if (attempt >= maxAttempts) {
+      throw Object.assign(
+        httpError('Too many incorrect attempts. Please try again later or contact the office.', 429),
+        { code: 'DEVICE_STEP_UP_LOCKED' }
+      );
+    }
+    throw Object.assign(
+      httpError(`Those ID digits don't match our records. ${maxAttempts - attempt} attempt(s) remaining.`, 400),
+      { code: 'DEVICE_STEP_UP_FAILED' }
+    );
+  }
+
+  await clientDeviceService.clearStepUpFailures(client.id);
+  await clientDeviceService.trustDevice({ clientId: client.id, deviceHash, userAgent, ip });
+  return completeLogin(client, { deviceHash, userAgent, ip, newDevice: true });
+}
+
+/** The code proves they own the number, so it's now safe to say why they can't sign in. */
+function assertPortalAccess(client) {
   const denial = portalAccessDenialReason(client);
   if (denial) {
     logger.info(`[portalAuth] client ${client.id} verified but portal access denied (status=${client.status}, portalEnabled=${client.portalEnabled})`);
     throw Object.assign(httpError(denial, 403), { code: PORTAL_ACCESS_DENIED });
   }
+}
 
+/** Issue the device-bound session token and record the login. */
+async function completeLogin(client, { deviceHash, userAgent, ip, newDevice }) {
   const expiresIn = 86400;
   const token = jwt.sign(
-    { id: client.id, typ: 'client', tokenVersion: client.tokenVersion || 0 },
+    { id: client.id, typ: 'client', tokenVersion: client.tokenVersion || 0, dh: deviceHash },
     jwtSecret(),
     { expiresIn }
   );
 
   await client.update({ lastLoginAt: new Date() });
+  if (!newDevice) await clientDeviceService.touchDevice({ clientId: client.id, deviceHash, userAgent, ip });
 
   await AuditLogger.log({
     entityType: 'LOGIN',
     entityId: client.id,
     action: 'CREATE',
-    data: { portal: true, clientId: client.id },
+    data: { portal: true, clientId: client.id, newDevice, deviceHash: deviceHash.slice(0, 12), ip },
     actorId: client.id,
     options: { actorType: 'CLIENT', source: userAgent },
   });
 
-  logger.info(`[portalAuth] client ${client.id} logged in to portal`);
+  if (newDevice) await notifyNewDevice(client, { userAgent, ip });
+
+  logger.info(`[portalAuth] client ${client.id} logged in to portal${newDevice ? ' (new device trusted)' : ''}`);
   return {
     token,
     expiresIn,
@@ -161,4 +275,24 @@ async function verifyOtp({ otpToken, code }, userAgent = 'unknown') {
   };
 }
 
-module.exports = { requestOtp, verifyOtp, findClientByPhone, OTP_PURPOSE_PORTAL_LOGIN };
+/**
+ * Tell the client by email (never SMS: that is the channel a rogue gateway
+ * employee can read) that a new device was trusted. Skipped without a valid email.
+ */
+async function notifyNewDevice(client, { userAgent, ip }) {
+  if (!isValidEmail(client.email)) return;
+  await safeNotify(NotificationEventType.NEW_DEVICE_LOGIN, {
+    recipients: [{ email: client.email }],
+    channels: [NotificationChannel.EMAIL],
+    context: {
+      name: [client.firstName, client.lastName].filter(Boolean).join(' ') || 'there',
+      appName: process.env.APP_NAME || 'ARISLMS',
+      device: String(userAgent || 'unknown').slice(0, 120),
+      ip: ip || 'unknown',
+      time: new Date().toISOString(),
+    },
+    dedupeKey: `new-device-${client.id}-${Date.now()}`,
+  });
+}
+
+module.exports = { requestOtp, verifyOtp, verifyDevice, findClientByPhone, OTP_PURPOSE_PORTAL_LOGIN };

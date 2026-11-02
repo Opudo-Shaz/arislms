@@ -77,6 +77,15 @@ export const setPortalAccess = async (id, enabled) => {
   return res?.data
 }
 
+/** devices a client has trusted for the portal. */
+export const listClientDevices = async (id) => {
+  const res = await http.get(`/clients/${id}/devices`)
+  return res?.data ?? []
+}
+
+/** stop trusting a client's device (ends its portal sessions). */
+export const revokeClientDevice = (id, deviceId) => http.delete(`/clients/${id}/devices/${deviceId}`)
+
 /** Whether creating a client requires phone verification. @returns {Promise<{otpRequired: boolean}>} */
 export const getRegistrationConfig = async () => {
   const res = await http.get('/clients/registration-config')
@@ -100,6 +109,8 @@ export default {
   requestPhoneOtp,
   verifyPhoneOtp,
   setPortalAccess,
+  listClientDevices,
+  revokeClientDevice,
   listClients,
   getClient,
   createClient,

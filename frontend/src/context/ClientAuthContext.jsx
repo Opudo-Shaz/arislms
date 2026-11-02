@@ -48,17 +48,28 @@ export const ClientAuthProvider = ({ children }) => {
     return () => setPortalUnauthorizedHandler(null)
   }, [logout])
 
-  /** Step 1 — send a login code. @returns {Promise<{otpToken, channel, ttlMinutes, message}>} */
-  const requestOtp = useCallback((phone, channel) => portalApi.requestOtp({ phone, channel }), [])
-
-  /** Step 2 — verify the code and start the session. */
-  const verifyOtp = useCallback(async (otpToken, code) => {
-    const result = await portalApi.verifyOtp({ otpToken, code })
+  const startSession = useCallback((result) => {
     const next = { token: result.token, client: result.client, expiresIn: result.expiresIn }
     setStoredAuth(next, KEY)
     setSession(next)
     return next
   }, [])
+
+  /** Step 1 — send a login code. @returns {Promise<{otpToken, channel, ttlMinutes, message}>} */
+  const requestOtp = useCallback((phone, channel) => portalApi.requestOtp({ phone, channel }), [])
+
+  /** Step 2 — verify the code. Resolves `{ stepUpRequired, stepUpToken }` on an unrecognised device, else starts the session. */
+  const verifyOtp = useCallback(async (otpToken, code) => {
+    const result = await portalApi.verifyOtp({ otpToken, code })
+    if (result.stepUpRequired) return { stepUpRequired: true, stepUpToken: result.stepUpToken }
+    return startSession(result)
+  }, [startSession])
+
+  /** Step 3 (new devices) — confirm with the last digits of the ID number, then start the session. */
+  const verifyDevice = useCallback(async (stepUpToken, idLast4) => {
+    const result = await portalApi.verifyDevice({ stepUpToken, idLast4 })
+    return startSession(result)
+  }, [startSession])
 
   const value = useMemo(
     () => ({
@@ -66,9 +77,10 @@ export const ClientAuthProvider = ({ children }) => {
       client: session?.client ?? null,
       requestOtp,
       verifyOtp,
+      verifyDevice,
       logout,
     }),
-    [session, requestOtp, verifyOtp, logout],
+    [session, requestOtp, verifyOtp, verifyDevice, logout],
   )
 
   return <ClientAuthContext.Provider value={value}>{children}</ClientAuthContext.Provider>
@@ -78,7 +90,7 @@ ClientAuthProvider.propTypes = {
   children: PropTypes.node,
 }
 
-/** @returns {{ isAuthenticated: boolean, client: object|null, requestOtp: Function, verifyOtp: Function, logout: Function }} */
+/** @returns {{ isAuthenticated: boolean, client: object|null, requestOtp: Function, verifyOtp: Function, verifyDevice: Function, logout: Function }} */
 export const useClientAuth = () => {
   const ctx = useContext(ClientAuthContext)
   if (ctx === undefined) {

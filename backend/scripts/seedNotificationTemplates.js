@@ -166,6 +166,20 @@ const defaults = [
     inAppBody: 'Your verification code is {{code}}. It expires in {{ttlMinutes}} minutes.',
   },
   {
+    eventKey: NotificationEventType.NEW_DEVICE_LOGIN,
+    description: 'Emailed to a client when a new device is trusted for their portal account. Email-only on purpose: SMS passes through the gateway that this alert guards against.',
+    smsEnabled: false,
+    pushEnabled: false,
+    inAppEnabled: false,
+    emailSubject: 'New device signed in to your {{appName}} account',
+    emailBody: '<p>Hi {{name}},</p><p>A new device was just used to sign in to your {{appName}} account.</p><p>Device: {{device}}<br/>IP address: {{ip}}<br/>Time: {{time}}</p><p>If this was you, no action is needed. If not, contact us immediately.</p>',
+    smsBody: 'New device signed in to your {{appName}} account.',
+    pushTitle: 'New device sign-in',
+    pushBody: 'A new device signed in to your {{appName}} account.',
+    inAppTitle: 'New device sign-in',
+    inAppBody: 'A new device signed in to your account.',
+  },
+  {
     eventKey: NotificationEventType.LOAN_APPLICATION_SUBMITTED,
     description: 'Sent to loan approvers when a client submits a loan request through the self-service portal.',
     // Staff-facing: in-app + email only.

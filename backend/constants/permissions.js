@@ -17,6 +17,7 @@ const PERMISSIONS = Object.freeze({
     CREATE: 'clients:create',
     UPDATE: 'clients:update',
     DELETE: 'clients:delete',
+    MANAGE_DEVICES: 'clients:manage_devices',
   },
   LOANS: {
     READ: 'loans:read',

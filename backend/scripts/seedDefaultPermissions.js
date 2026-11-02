@@ -4,7 +4,8 @@
  *   Role 1 (Admin)   → ['*']  (wildcard super-bypass; handled implicitly in
  *                              auth too, but stored for visibility in the UI)
  *   Role 2 (Manager) → everything except the destructive/admin-only actions
- *                      (users:delete, roles:delete, users:reset_password)
+ *                      (users:delete, roles:delete, users:reset_password,
+ *                      system_config:reveal_secret, clients:manage_devices)
  *   Role 3 (Limited) → read-only permissions (every `*:read`)
  *
  * Also ensures the `loan_notifications_receiver` companion role exists (no
@@ -21,7 +22,7 @@ const Role = require('../models/roleModel');
 const { ALL_PERMISSIONS } = require('../constants/permissions');
 const { LOAN_NOTIFICATIONS_RECEIVER, LOAN_NOTIFICATIONS_RECEIVER_DESCRIPTION } = require('../constants/roles');
 
-const MANAGER_EXCLUDED = ['users:delete', 'roles:delete', 'users:reset_password', 'system_config:reveal_secret'];
+const MANAGER_EXCLUDED = ['users:delete', 'roles:delete', 'users:reset_password', 'system_config:reveal_secret', 'clients:manage_devices'];
 
 const defaults = {
   1: ['*'],

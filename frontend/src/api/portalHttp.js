@@ -11,12 +11,14 @@
 import config from '../config'
 import { createApiClient } from './http'
 import { getStoredAuth } from './authStorage'
+import { getDeviceId } from './deviceId'
 
 /** Backend code sent when a signed-in client's portal access has been withdrawn. */
 export const PORTAL_ACCESS_DENIED = 'PORTAL_ACCESS_DENIED'
 
 const portalClient = createApiClient({
   getToken: () => getStoredAuth(config.portalAuthStorageKey)?.token ?? null,
+  getDeviceId,
   // Besides an expired token, a 403 PORTAL_ACCESS_DENIED (account suspended,
   // portal turned off, ...) ends the session too.
   endsSession: (status, data) => status === 401 || (status === 403 && data?.code === PORTAL_ACCESS_DENIED),

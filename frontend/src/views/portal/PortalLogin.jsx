@@ -48,7 +48,7 @@ const takeStoredNotice = () => {
 const RESEND_SECONDS = 60
 
 const PortalLogin = () => {
-  const { isAuthenticated, requestOtp, verifyOtp } = useClientAuth()
+  const { isAuthenticated, requestOtp, verifyOtp, verifyDevice } = useClientAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -56,6 +56,9 @@ const PortalLogin = () => {
   const [channel, setChannel] = useState('sms')
   const [challenge, setChallenge] = useState(null) // { otpToken, channel }
   const [code, setCode] = useState('')
+  // Set when the code was right but this device is new: { stepUpToken }
+  const [deviceCheck, setDeviceCheck] = useState(null)
+  const [idLast4, setIdLast4] = useState('')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   // Why the account can't use the portal (after a verified code, or a withdrawn session).
@@ -104,14 +107,38 @@ const PortalLogin = () => {
     setError('')
     setSubmitting(true)
     try {
-      await verifyOtp(challenge.otpToken, code)
+      const result = await verifyOtp(challenge.otpToken, code)
+      if (result?.stepUpRequired) {
+        setDeviceCheck({ stepUpToken: result.stepUpToken })
+        setIdLast4('')
+        return
+      }
       navigate(destination, { replace: true })
     } catch (err) {
-      if (err?.data?.code === PORTAL_ACCESS_DENIED) {
-        // Correct code, but the account can't use the portal — explain why.
-        setChallenge(null)
-        setCode('')
-        setInfo('')
+      if (err?.data?.code === PORTAL_ACCESS_DENIED || err?.data?.code === 'DEVICE_STEP_UP_UNAVAILABLE') {
+        // Correct code, but the account can't sign in — explain why.
+        startOver()
+        setAccessNotice(err.message)
+      } else {
+        setError(err?.message || 'Verification failed. Please try again.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeviceCheck = async (e) => {
+    e.preventDefault()
+    setError('')
+    setSubmitting(true)
+    try {
+      await verifyDevice(deviceCheck.stepUpToken, idLast4.trim())
+      navigate(destination, { replace: true })
+    } catch (err) {
+      const errCode = err?.data?.code
+      if (errCode === 'DEVICE_STEP_UP_LOCKED' || err?.status === 401) {
+        // Locked out, or the 5-minute window lapsed: start the sign-in again.
+        startOver()
         setAccessNotice(err.message)
       } else {
         setError(err?.message || 'Verification failed. Please try again.')
@@ -123,6 +150,8 @@ const PortalLogin = () => {
 
   const startOver = () => {
     setChallenge(null)
+    setDeviceCheck(null)
+    setIdLast4('')
     setCode('')
     setError('')
     setInfo('')
@@ -200,6 +229,41 @@ const PortalLogin = () => {
                       </div>
                       <CButton color="primary" type="submit" className="px-4" disabled={submitting || !phone.trim()}>
                         {submitting ? <CSpinner size="sm" /> : 'Send code'}
+                      </CButton>
+                    </CForm>
+                  ) : deviceCheck ? (
+                    <CForm key="device" onSubmit={handleDeviceCheck}>
+                      <h1 className="h2">Confirm it&apos;s you</h1>
+                      <p className="text-body-secondary">
+                        This looks like a new device. For your security, enter the last 4 characters of the
+                        ID number registered on your account.
+                      </p>
+                      {error ? (
+                        <CAlert color="danger" className="py-2" dismissible onClose={() => setError('')}>
+                          {error}
+                        </CAlert>
+                      ) : null}
+                      <CInputGroup className="mb-4">
+                        <CInputGroupText>
+                          <CIcon icon={cilLockLocked} />
+                        </CInputGroupText>
+                        <CFormInput
+                          type="text"
+                          autoComplete="off"
+                          placeholder="Last 4 characters of ID number"
+                          aria-label="Last 4 characters of ID number"
+                          value={idLast4}
+                          onChange={(e) => setIdLast4(e.target.value.replace(/[^A-Za-z0-9]/g, ''))}
+                          maxLength={4}
+                          autoFocus
+                          required
+                        />
+                      </CInputGroup>
+                      <CButton color="primary" type="submit" className="px-4" disabled={submitting || idLast4.length !== 4}>
+                        {submitting ? <CSpinner size="sm" /> : 'Confirm & sign in'}
+                      </CButton>
+                      <CButton color="link" className="px-3" type="button" onClick={startOver} disabled={submitting}>
+                        Cancel
                       </CButton>
                     </CForm>
                   ) : (

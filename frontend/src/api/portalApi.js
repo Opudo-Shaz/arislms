@@ -23,6 +23,9 @@ export const requestOtp = (payload) => portalHttp.post('/portal/auth/request-otp
 /** @param {{ otpToken: string, code: string }} payload @returns {Promise<{token, expiresIn, client}>} */
 export const verifyOtp = (payload) => portalHttp.post('/portal/auth/verify-otp', payload, { auth: false })
 
+/** @param {{ stepUpToken: string, idLast4: string }} payload @returns {Promise<{token, expiresIn, client}>} */
+export const verifyDevice = (payload) => portalHttp.post('/portal/auth/verify-device', payload, { auth: false })
+
 /** Active loan products (public). */
 export const listPublicLoanProducts = async () => {
   const res = await portalHttp.get('/portal/public/loan-products', { auth: false })
@@ -34,6 +37,10 @@ export const listPublicLoanProducts = async () => {
 export const getMe = async () => (await portalHttp.get('/portal/me'))?.data ?? null
 export const updateMe = async (payload) => (await portalHttp.patch('/portal/me', payload))?.data
 export const getDashboard = async () => (await portalHttp.get('/portal/me/dashboard'))?.data ?? null
+/** Devices trusted for the signed-in client. */
+export const listMyDevices = async () => (await portalHttp.get('/portal/me/devices'))?.data ?? []
+/** Stop trusting a device (ends its sessions, including this one if it is the current device). */
+export const revokeMyDevice = (id) => portalHttp.delete(`/portal/me/devices/${id}`)
 export const getMyCreditScore = async () => (await portalHttp.get('/portal/me/credit-score'))?.data ?? null
 
 // ── Loans ─────────────────────────────────────────────────────────────
@@ -96,10 +103,13 @@ export default {
   getMyDocumentBlob,
   requestOtp,
   verifyOtp,
+  verifyDevice,
   listPublicLoanProducts,
   getMe,
   updateMe,
   getDashboard,
+  listMyDevices,
+  revokeMyDevice,
   getMyCreditScore,
   listMyLoans,
   getMyLoan,
