@@ -9,7 +9,7 @@
  * @component
  */
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CButton,
@@ -23,7 +23,8 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilChartLine, cilMobile, cilShieldAlt, cilWallet } from '@coreui/icons'
 
-import arislmsLogo from '../../assets/brand/arislms_logo_dark.png'
+import arislmsLogoDefault from '../../assets/brand/arislms_logo_fit.png'
+import arislmsLogoDark from '../../assets/brand/arislms_logo_dark.png'
 import ThemeSwitcher from '../../components/header/ThemeSwitcher'
 import { useAuth } from '../../context/AuthContext'
 import { useClientAuth } from '../../context/ClientAuthContext'
@@ -82,6 +83,23 @@ const Home = () => {
   const { isAuthenticated: isStaff } = useAuth()
   const { isAuthenticated: isClient } = useClientAuth()
   const { data: products = [], isLoading } = usePublicLoanProducts()
+
+  const [colorScheme, setColorScheme] = useState(
+    document.documentElement.getAttribute('data-coreui-theme') || 'light',
+  )
+
+  useEffect(() => {
+    const handleColorSchemeChange = () => {
+      setColorScheme(document.documentElement.getAttribute('data-coreui-theme') || 'light')
+    }
+
+    document.documentElement.addEventListener('ColorSchemeChange', handleColorSchemeChange)
+    return () =>
+      document.documentElement.removeEventListener('ColorSchemeChange', handleColorSchemeChange)
+  }, [])
+
+  // The "dark" asset is for light backgrounds; use the light-on-dark one in dark mode.
+  const arislmsLogo = colorScheme === 'dark' ? arislmsLogoDefault : arislmsLogoDark
 
   return (
     <div className="login-page-bg min-vh-100 d-flex flex-column">
