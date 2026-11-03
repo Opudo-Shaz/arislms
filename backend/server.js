@@ -32,9 +32,13 @@ app.use((req, _res, next) => {
   next();
 });
 
-// CORS configuration
+// CORS_ORIGIN may be a comma-separated list of allowed origins.
+const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins,
   credentials: true,
   optionsSuccessStatus: 200,
 };

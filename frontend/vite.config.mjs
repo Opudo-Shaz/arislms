@@ -28,6 +28,8 @@ export default defineConfig(() => {
     },
     server: {
       port: 5173,
+      // Listen on all interfaces so other devices on the network can open the app.
+      host: true,
       proxy: {
         // https://vitejs.dev/config/server-options.html
       },
