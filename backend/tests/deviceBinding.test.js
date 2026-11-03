@@ -260,3 +260,43 @@ test('staff device routes require the clients:manage_devices permission', async 
     assert.deepEqual(await run(l, ['clients:update']), { nexted: false, status: 403 }, l.route.path);
   }
 });
+
+test('parseTrustProxy defaults to a same-host proxy and honours explicit settings', () => {
+  const { parseTrustProxy } = require('../utils/clientIp');
+  assert.equal(parseTrustProxy(undefined), 'loopback');
+  assert.equal(parseTrustProxy(''), 'loopback');
+  assert.equal(parseTrustProxy('true'), true);
+  assert.equal(parseTrustProxy('false'), false);
+  assert.equal(parseTrustProxy('0'), false);
+  assert.equal(parseTrustProxy('2'), 2);
+  assert.equal(parseTrustProxy('loopback, 10.0.0.0/8'), 'loopback, 10.0.0.0/8');
+});
+
+test('req.ip is the forwarded client IP behind a local proxy, and spoofing from a non-loopback peer is ignored', async () => {
+  const express = require('express');
+  const http = require('http');
+  const { parseTrustProxy, clientIpOf } = require('../utils/clientIp');
+
+  assert.equal(clientIpOf({ ip: '::ffff:10.1.2.3' }), '10.1.2.3');
+  assert.equal(clientIpOf({ ip: '2001:db8::1' }), '2001:db8::1');
+
+  const app = express();
+  app.set('trust proxy', parseTrustProxy(undefined));
+  app.get('/', (req, res) => res.json({ ip: clientIpOf(req) }));
+  const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
+  try {
+    const body = await new Promise((resolve) => {
+      http.get({ port: server.address().port, host: '127.0.0.1', headers: { 'x-forwarded-for': '203.0.113.7' } }, (res) => {
+        let b = ''; res.on('data', (d) => (b += d)); res.on('end', () => resolve(JSON.parse(b)));
+      });
+    });
+    assert.equal(body.ip, '203.0.113.7');
+  } finally {
+    server.close();
+  }
+
+  // A peer that is not loopback cannot choose its own IP via the header.
+  const trust = require('proxy-addr');
+  const compiled = trust.compile('loopback');
+  assert.equal(compiled('203.0.113.50', 0), false);
+});

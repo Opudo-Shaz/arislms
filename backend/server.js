@@ -8,16 +8,29 @@ const sequelize = require('./config/sequalize_db');
 const logger = require('./config/logger'); 
 const morgan = require('morgan'); 
 const { swaggerUi, swaggerSpec } = require("./swagger");
+const { parseTrustProxy } = require('./utils/clientIp');
 const requireSwaggerAuth = require('./middleware/swaggerAuthMiddleware');
 
 const app = express();
 app.disable('x-powered-by');
 
-// Needed for per-IP rate limiting behind a reverse proxy: a hop count (e.g. 1) or 'true'.
-if (process.env.TRUST_PROXY) {
-  const v = process.env.TRUST_PROXY;
-  app.set('trust proxy', v === 'true' ? true : /^\d+$/.test(v) ? Number(v) : v);
-}
+// Needed for the real client IP (audit/device records, per-IP rate limits) behind a
+// reverse proxy. Defaults to trusting a proxy on this host; see utils/clientIp.js.
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
+
+// A forwarded header that Express ignores means TRUST_PROXY doesn't match the real
+// proxy chain (e.g. a load balancer on another host), so IPs would be the proxy's.
+let warnedUntrustedForwarding = false;
+app.use((req, _res, next) => {
+  if (!warnedUntrustedForwarding && req.headers['x-forwarded-for'] && !req.ips.length) {
+    warnedUntrustedForwarding = true;
+    logger.warn(
+      `[server] X-Forwarded-For present but not trusted (peer ${req.socket.remoteAddress}); `
+      + 'client IPs will be the proxy address. Set TRUST_PROXY to the number of proxy hops or the proxy subnet.'
+    );
+  }
+  next();
+});
 
 // CORS configuration
 const corsOptions = {

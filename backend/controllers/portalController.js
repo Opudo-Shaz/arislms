@@ -21,6 +21,7 @@ const { parseKeysetQuery, toPaginationDto } = require('../utils/keysetPagination
 const clientDeviceService = require('../services/clientDeviceService');
 const ClientDeviceResponseDto = require('../dtos/clientDevice/ClientDeviceResponseDto');
 const { deviceHashFromRequest } = require('../utils/deviceId');
+const { clientIpOf } = require('../utils/clientIp');
 const logger = require('../config/logger');
 
 /**
@@ -37,7 +38,7 @@ function deviceContextOf(req) {
   if (!deviceHash) {
     throw Object.assign(new Error('Device identification is missing. Please refresh the page and try again.'), { status: 400 });
   }
-  return { deviceHash, ip: req.ip };
+  return { deviceHash, ip: clientIpOf(req) };
 }
 
 /** Run validation; on failure send a 400 and return null. */

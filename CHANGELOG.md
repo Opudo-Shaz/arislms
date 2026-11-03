@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Client IPs (audit entries, trusted portal devices, per-IP rate limits) were always
+  recorded as `127.0.0.1` behind a reverse proxy because `TRUST_PROXY` was unset.
+  The app now trusts a same-host proxy by default and logs a warning when it sees an
+  untrusted `X-Forwarded-For`; set `TRUST_PROXY` (hop count or subnet) when the proxy
+  is on another host. IPv4-mapped addresses (`::ffff:`) are stored without the prefix.
+  Previously stored IPs aren't corrected; a device's IP refreshes on its next sign-in.
+
 Features merged after v1.2.0 will be documented here as they land, then rolled
 into the next dated release section below when that version ships.
 
