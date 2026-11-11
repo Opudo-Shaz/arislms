@@ -2,7 +2,7 @@
  * NotificationTemplatesList
  *
  * Admin-only view for managing notification templates — one entry per event
- * key, with per-channel (email/SMS/push/in-app) enabled flags and content.
+ * key, with per-channel (email/SMS/WhatsApp/push/in-app) enabled flags and content.
  * Templates are looked up by `eventKey` at dispatch time; missing/inactive
  * templates simply mean no notification is sent for that event.
  *
@@ -27,6 +27,7 @@ const ACTIVE_ENUM = { colors: { true: 'success', false: 'secondary' }, labels: {
 const CHANNEL_BADGES = [
   { key: 'emailEnabled', label: 'Email' },
   { key: 'smsEnabled', label: 'SMS' },
+  { key: 'whatsappEnabled', label: 'WhatsApp' },
   { key: 'pushEnabled', label: 'Push' },
   { key: 'inAppEnabled', label: 'In-App' },
 ]

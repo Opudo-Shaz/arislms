@@ -49,13 +49,13 @@ export const revokeLink = async (id) => {
 
 const base = (token) => `/public/client-registration/${encodeURIComponent(token)}`
 
-/** @returns {Promise<{ label: string|null, expiresAt: string, otpRequired: boolean, kycDocumentsRequired: boolean }>} */
+/** @returns {Promise<{ label: string|null, expiresAt: string, otpRequired: boolean, whatsappAvailable: boolean, kycDocumentsRequired: boolean }>} */
 export const resolveLink = async (token) => {
   const res = await http.get(base(token), { auth: false })
   return res?.data
 }
 
-/** @param {{ phone: string, email?: string, name?: string, channel?: 'sms'|'email' }} payload */
+/** @param {{ phone: string, email?: string, name?: string, channel?: 'sms'|'whatsapp' }} payload */
 export const requestPublicOtp = async (token, payload) => {
   const res = await http.post(`${base(token)}/otp/request`, payload, { auth: false })
   return res?.data

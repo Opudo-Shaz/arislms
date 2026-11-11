@@ -6,12 +6,14 @@ class NotificationTemplateResponseDto {
     this.emailSubject = template.emailSubject;
     this.emailBody = template.emailBody;
     this.smsBody = template.smsBody;
+    this.whatsappBody = template.whatsappBody;
     this.pushTitle = template.pushTitle;
     this.pushBody = template.pushBody;
     this.inAppTitle = template.inAppTitle;
     this.inAppBody = template.inAppBody;
     this.emailEnabled = template.emailEnabled;
     this.smsEnabled = template.smsEnabled;
+    this.whatsappEnabled = template.whatsappEnabled;
     this.pushEnabled = template.pushEnabled;
     this.inAppEnabled = template.inAppEnabled;
     this.isActive = template.isActive;

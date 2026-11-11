@@ -9,12 +9,14 @@ const businessHours = require('../../utils/businessHours');
 
 const EmailChannel = require('./channels/EmailChannel');
 const SmsChannel = require('./channels/SmsChannel');
+const WhatsAppChannel = require('./channels/WhatsAppChannel');
 const InAppChannel = require('./channels/InAppChannel');
 const PushChannel = require('./channels/PushChannel');
 
 const ADAPTERS = {
   [NotificationChannel.EMAIL]: EmailChannel,
   [NotificationChannel.SMS]: SmsChannel,
+  [NotificationChannel.WHATSAPP]: WhatsAppChannel,
   [NotificationChannel.IN_APP]: InAppChannel,
   [NotificationChannel.PUSH]: PushChannel,
 };

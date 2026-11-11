@@ -1,7 +1,7 @@
 /**
  * Client self-service portal sign-in: phone number → one-time code.
  *
- * Step 1 sends a code by SMS (or email, if the client has a valid one on
+ * Step 1 sends a code by SMS, WhatsApp (or email, if the client has a valid one on
  * file — the backend silently falls back to SMS otherwise). Step 2 verifies
  * it and starts a client session. The backend replies identically for
  * unregistered numbers, so this page never says whether a number exists.
@@ -87,7 +87,9 @@ const PortalLogin = () => {
       setInfo(
         channel === 'email'
           ? 'If this number is registered, we sent a code to the email on your account (or by SMS if no valid email is saved).'
-          : 'If this number is registered, we sent a code by SMS.',
+          : channel === 'whatsapp'
+            ? 'If this number is registered, we sent a code on WhatsApp (or by SMS if WhatsApp is unavailable).'
+            : 'If this number is registered, we sent a code by SMS.',
       )
       setResendIn(RESEND_SECONDS)
     } catch (err) {
@@ -213,6 +215,16 @@ const PortalLogin = () => {
                             label="SMS"
                             checked={channel === 'sms'}
                             onChange={() => setChannel('sms')}
+                          />
+                          <CFormCheck
+                            type="radio"
+                            button={{ color: 'success', variant: 'outline', size: 'sm' }}
+                            name="otp-channel"
+                            id="otp-channel-whatsapp"
+                            autoComplete="off"
+                            label="WhatsApp"
+                            checked={channel === 'whatsapp'}
+                            onChange={() => setChannel('whatsapp')}
                           />
                           <CFormCheck
                             type="radio"

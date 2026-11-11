@@ -11,13 +11,17 @@ const ALL_CHANNELS = Object.values(NotificationChannel);
 const CHANNEL_FIELD = {
   [NotificationChannel.EMAIL]: { enabled: 'emailEnabled', subject: 'emailSubject', body: 'emailBody' },
   [NotificationChannel.SMS]: { enabled: 'smsEnabled', subject: null, body: 'smsBody' },
+  [NotificationChannel.WHATSAPP]: { enabled: 'whatsappEnabled', subject: null, body: 'whatsappBody', fallbackBody: 'smsBody' },
   [NotificationChannel.IN_APP]: { enabled: 'inAppEnabled', subject: 'inAppTitle', body: 'inAppBody' },
   [NotificationChannel.PUSH]: { enabled: 'pushEnabled', subject: 'pushTitle', body: 'pushBody' },
 };
 
-/** Global on/off switch for a channel, from SystemConfig `notification.channels.<ch>.enabled`. Defaults ON. */
+/** Channels that stay OFF until explicitly enabled in SystemConfig (they need provider setup first). */
+const OPT_IN_CHANNELS = new Set([NotificationChannel.WHATSAPP]);
+
+/** Global on/off switch for a channel, from SystemConfig `notification.channels.<ch>.enabled`. Defaults ON (opt-in channels OFF). */
 async function isChannelGloballyEnabled(channel) {
-  return systemConfigService.getConfigValue(`notification.channels.${channel}.enabled`, 'boolean', true);
+  return systemConfigService.getConfigValue(`notification.channels.${channel}.enabled`, 'boolean', !OPT_IN_CHANNELS.has(channel));
 }
 
 /** Pulls the destination address for a channel out of a recipient descriptor. */
@@ -25,6 +29,7 @@ function resolveDestination(channel, recipient) {
   switch (channel) {
     case NotificationChannel.EMAIL: return recipient.email || null;
     case NotificationChannel.SMS: return recipient.phone || null;
+    case NotificationChannel.WHATSAPP: return recipient.phone || null;
     case NotificationChannel.PUSH: return recipient.deviceToken || null;
     case NotificationChannel.IN_APP: return recipient.userId ? String(recipient.userId) : null;
     default: return null;
@@ -101,7 +106,7 @@ async function notify(eventKey, {
         const destination = resolveDestination(channel, recipient);
         const fields = CHANNEL_FIELD[channel];
         const renderedSubject = fields.subject ? templateRenderer.render(template[fields.subject], context) : null;
-        const renderedBody = templateRenderer.render(template[fields.body], context);
+        const renderedBody = templateRenderer.render(template[fields.body] || template[fields.fallbackBody] || null, context);
 
         if (!destination) {
           // No address/userId for this channel — record as SKIPPED for visibility, don't attempt delivery.
@@ -160,4 +165,17 @@ async function notify(eventKey, {
   }
 }
 
-module.exports = { notify, ALL_CHANNELS };
+/**
+ * True when `channel` would actually fire for `eventKey` right now: the template exists, is
+ * active and has the channel on, and the channel is globally enabled. Lets callers fall back
+ * to another channel instead of silently dropping a time-sensitive message.
+ */
+async function isChannelAvailable(eventKey, channel) {
+  const template = await NotificationTemplate.findOne({ where: { eventKey } });
+  if (!template || !template.isActive) return false;
+  const fields = CHANNEL_FIELD[channel];
+  if (!fields || !template[fields.enabled]) return false;
+  return isChannelGloballyEnabled(channel);
+}
+
+module.exports = { notify, isChannelAvailable, ALL_CHANNELS };

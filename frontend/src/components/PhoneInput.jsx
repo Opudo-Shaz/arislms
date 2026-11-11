@@ -47,6 +47,12 @@ const parse = (value) => {
   return { dial: DEFAULT_DIAL, national: cleanNational(v) }
 }
 
+/** Canonical E.164-style form of a stored/pasted number, for comparing numbers regardless of how they were saved. */
+export const canonicalPhone = (value) => {
+  const { dial, national } = parse(value)
+  return compose(dial, national)
+}
+
 const PhoneInput = ({ value, onChange, required, invalid, disabled, onKeyDown, id, placeholder }) => {
   // Remembers the chosen country while no number has been typed yet.
   const [emptyDial, setEmptyDial] = useState(DEFAULT_DIAL)

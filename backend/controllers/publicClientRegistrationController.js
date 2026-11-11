@@ -28,6 +28,7 @@ const resolveLink = async (req, res) => {
         label: link.label,
         expiresAt: link.expiresAt,
         otpRequired: await registrationOtpService.isEnabled(),
+        whatsappAvailable: await registrationOtpService.isWhatsAppAvailable(),
         kycDocumentsRequired: await selfRegistrationService.areKycDocumentsRequired(),
       },
     });

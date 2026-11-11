@@ -51,7 +51,8 @@ const stepUpLimiter = rateLimit({
  *   post:
  *     summary: Request a portal login code (client self-service)
  *     description: >
- *       Sends a one-time code to the client's registered phone (SMS) or saved email.
+ *       Sends a one-time code to the client's registered phone (SMS or WhatsApp) or saved email.
+ *       Falls back to SMS when the requested channel is unavailable.
  *       The response is identical whether or not the phone is registered.
  *     tags:
  *       - Client Portal

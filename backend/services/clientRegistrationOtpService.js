@@ -3,6 +3,8 @@ const otpService = require('./otpService');
 const systemConfigService = require('./systemConfigService');
 const NotificationChannel = require('../enums/notificationChannel');
 const { normalizePhone } = require('../utils/phone');
+const { isChannelAvailable } = require('./notification/notificationDispatcher');
+const NotificationEventType = require('../enums/notificationEventType');
 
 /**
  * Phone ownership check for new clients, used by both self-registration links
@@ -27,8 +29,14 @@ function requirePhone(phone) {
   return normalized;
 }
 
-/** Send a code by SMS only, so a verified code proves the phone number itself; never creates a client. */
-async function requestCode({ phone, name }, userAgent = 'unknown') {
+const isWhatsAppAvailable = () =>
+  isChannelAvailable(NotificationEventType.OTP_VERIFICATION, NotificationChannel.WHATSAPP);
+
+/**
+ * Send a code to the phone itself (SMS, or WhatsApp when requested and enabled), so a verified
+ * code proves the phone number; never creates a client. Falls back to SMS when WhatsApp is unavailable.
+ */
+async function requestCode({ phone, name, channel = NotificationChannel.SMS }, userAgent = 'unknown') {
   const key = requirePhone(phone);
 
   const since = await otpService.secondsSinceLastIssued({ target: key, purpose: PURPOSE });
@@ -36,13 +44,17 @@ async function requestCode({ phone, name }, userAgent = 'unknown') {
     throw httpError(`Please wait ${Math.ceil(RESEND_COOLDOWN_SECONDS - since)}s before requesting another code`, 429);
   }
 
+  const deliveryChannel = channel === NotificationChannel.WHATSAPP && (await isWhatsAppAvailable())
+    ? NotificationChannel.WHATSAPP
+    : NotificationChannel.SMS;
+
   const { ttlMinutes } = await otpService.generateAndSend({
     target: { key, phone: key, name },
     purpose: PURPOSE,
-    channels: [NotificationChannel.SMS],
+    channels: [deliveryChannel],
     userAgent,
   });
-  return { channel: NotificationChannel.SMS, ttlMinutes };
+  return { channel: deliveryChannel, ttlMinutes };
 }
 
 /** Consume the code and return a token proving this phone number was verified. */
@@ -71,4 +83,4 @@ async function assertVerified(phone, verificationToken) {
   }
 }
 
-module.exports = { isEnabled, requestCode, verifyCode, assertVerified };
+module.exports = { isEnabled, isWhatsAppAvailable, requestCode, verifyCode, assertVerified };

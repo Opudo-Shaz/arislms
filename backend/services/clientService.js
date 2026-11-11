@@ -200,7 +200,15 @@ const clientService = {
       if (!client) throw new Error('Client not found');
 
       const oldData = client.toJSON();
+      data = { ...data };
       if (data.email === '') data.email = null;
+
+      // The primary phone is the client's portal sign-in identity, so changing it needs the same
+      // proof of ownership as creating a client (only enforced when client.registration.enable_otp is on).
+      if (data.phone !== undefined && normalizePhone(data.phone) !== normalizePhone(client.phone)) {
+        await clientRegistrationOtpService.assertVerified(data.phone, data.phoneVerificationToken);
+      }
+      delete data.phoneVerificationToken;
 
       // Partial updates may send only one of the two numbers, so compare against what's stored.
       const nextPhone = data.phone !== undefined ? data.phone : client.phone;
