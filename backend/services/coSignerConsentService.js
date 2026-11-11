@@ -42,6 +42,15 @@ const RESEND_COOLDOWN_SECONDS = 60;
 
 // Loans whose co-signer can still be (re)nominated / asked for consent.
 const AWAITING_DECISION = [LoanStatus.PENDING, LoanStatus.IN_REVIEW, LoanStatus.UNDER_REVIEW];
+// Submitted loans staff may still attach a co-signer to (anything before disbursement).
+const STAFF_ASSIGNABLE = [
+  LoanStatus.PENDING,
+  LoanStatus.PENDING_REVERIFICATION,
+  LoanStatus.VERIFIED,
+  LoanStatus.IN_REVIEW,
+  LoanStatus.UNDER_REVIEW,
+  LoanStatus.APPROVED,
+];
 
 const hashToken = (raw) => crypto.createHash('sha256').update(raw).digest('hex');
 const httpError = (message, statusCode) => Object.assign(new Error(message), { statusCode });
@@ -240,6 +249,34 @@ const coSignerConsentService = {
     return this.requestConsent(loan, { requestedBy: 'portal', userAgent });
   },
 
+  /**
+   * Staff: add or replace the co-signer on a submitted, not-yet-disbursed
+   * loan and send the new co-signer a consent request.
+   */
+  async assignByStaff(loanId, coSignerId, userId, userAgent = 'unknown') {
+    const loan = await Loan.findByPk(loanId);
+    if (!loan) throw httpError('Loan not found', 404);
+    if (!STAFF_ASSIGNABLE.includes(loan.status) || loan.disbursementDate) {
+      throw httpError(`A co-signer can only be added before the loan is disbursed (status: ${loan.status}).`, 409);
+    }
+    if (Number(loan.coSignerId) === Number(coSignerId)) {
+      throw httpError('This client is already the co-signer on this loan.', 409);
+    }
+    await this.validateCoSigner(coSignerId, loan.clientId);
+
+    const previousCoSignerId = loan.coSignerId ?? null;
+    await loan.update({ coSignerId });
+    await AuditLogger.log({
+      entityType: 'LOAN',
+      entityId: loan.id,
+      action: 'UPDATE',
+      data: { event: 'co_signer_assigned', previousCoSignerId, coSignerId },
+      actorId: userId,
+      options: { actorType: 'USER', source: userAgent },
+    });
+    return this.requestConsent(loan, { requestedBy: `user:${userId}`, userAgent });
+  },
+
   // ── Public consent page (by link token) ───────────────────────────────
 
   async getPublicView(rawToken) {
@@ -387,5 +424,6 @@ const coSignerConsentService = {
 };
 
 coSignerConsentService.AWAITING_DECISION = AWAITING_DECISION;
+coSignerConsentService.STAFF_ASSIGNABLE = STAFF_ASSIGNABLE;
 
 module.exports = coSignerConsentService;

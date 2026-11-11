@@ -19,6 +19,10 @@ import {
   CCardBody,
   CCardHeader,
   CCol,
+  CDropdown,
+  CDropdownItem,
+  CDropdownMenu,
+  CDropdownToggle,
   CForm,
   CFormInput,
   CFormLabel,
@@ -39,7 +43,7 @@ import {
 } from '@coreui/react'
 import FormSelect from '../../components/FormSelect'
 import CIcon from '@coreui/icons-react'
-import { cilBan, cilCash, cilCheckAlt, cilPencil, cilPlus, cilTrash, cilXCircle } from '@coreui/icons'
+import { cilBan, cilCash, cilCheckAlt, cilOptions, cilPencil, cilPlus, cilTrash, cilUserPlus, cilXCircle } from '@coreui/icons'
 
 import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
@@ -51,7 +55,9 @@ import PaymentForm from '../payments/PaymentForm'
 import PaymentDetailModal from '../payments/PaymentDetailModal'
 import CollateralStatusModal from '../collaterals/CollateralStatusModal'
 import CollateralEditModal from '../collaterals/CollateralEditModal'
+import ClientAsyncSelect from '../../components/ClientAsyncSelect'
 import {
+  useAssignCoSigner,
   useCoSignerConsent,
   useDeleteLoan,
   useLoan,
@@ -80,6 +86,8 @@ import toast from '../../utils/toast'
 
 /** Statuses still awaiting an approval decision. */
 const APPROVABLE = ['pending', 'pending_reverification', 'verified', 'in_review', 'under_review']
+/** Statuses where staff can still add/replace the co-signer (submitted, not yet disbursed). */
+const CO_SIGNER_ASSIGNABLE = [...APPROVABLE, 'approved']
 /** Statuses where the loan is finished/locked. */
 const TERMINAL = ['closed', 'cancelled', 'deleted', 'rejected']
 /** Statuses where a payment can be recorded against the loan. */
@@ -101,6 +109,7 @@ const LoanDetail = () => {
   const { data: loan, isLoading, error } = useLoan(id)
   const { data: coSignerConsent } = useCoSignerConsent(id, Boolean(loan?.coSignerId && loan?.coSignerConsentStatus))
   const resendConsent = useResendCoSignerConsent(id)
+  const assignCoSigner = useAssignCoSigner(id)
   const { data: client } = useClient(loan?.clientId)
   const { data: loanProduct } = useLoanProduct(loan?.loanProductId)
   const { data: payments = [] } = useLoanPayments(id)
@@ -132,6 +141,35 @@ const LoanDetail = () => {
   const [viewPayment, setViewPayment] = useState(null)
   const [collateralTarget, setCollateralTarget] = useState(null)
   const [collateralEditTarget, setCollateralEditTarget] = useState(null)
+  const [showCoSignerModal, setShowCoSignerModal] = useState(false)
+  const [newCoSignerId, setNewCoSignerId] = useState(null)
+  const [coSignerError, setCoSignerError] = useState(null)
+
+  const openCoSignerModal = () => {
+    setNewCoSignerId(null)
+    setCoSignerError(null)
+    setShowCoSignerModal(true)
+  }
+
+  const runAssignCoSigner = async (e) => {
+    e.preventDefault()
+    if (!newCoSignerId) {
+      setCoSignerError('Select a co-signer.')
+      return
+    }
+    if (String(newCoSignerId) === String(loan.clientId)) {
+      setCoSignerError('The co-signer cannot be the borrower.')
+      return
+    }
+    setCoSignerError(null)
+    try {
+      const res = await assignCoSigner.mutateAsync(Number(newCoSignerId))
+      toast.success(`Co-signer added. Consent request sent to ${(res?.sentTo || []).join(' / ') || 'the co-signer'}`)
+      setShowCoSignerModal(false)
+    } catch (err) {
+      setCoSignerError(err?.message || 'Could not add the co-signer.')
+    }
+  }
 
   const runAction = async (value) => {
     setActionError(null)
@@ -193,7 +231,9 @@ const LoanDetail = () => {
   const canApprove = APPROVABLE.includes(loan.status)
   const canDisburse = loan.status === 'approved'
   const canEditPrincipal = !TERMINAL.includes(loan.status) && loan.status !== 'active'
+  const canUpdatePrincipal = canUpdateLoans && canEditPrincipal
   const canWriteOff = canWriteOffLoans && WRITABLE_OFF.includes(loan.status)
+  const canAssignCoSigner = canUpdateLoans && CO_SIGNER_ASSIGNABLE.includes(loan.status) && !loan.disbursementDate
   const downPaymentRequired = Number(loan.downPaymentRequired || 0)
   const downPaymentPaid = Number(loan.downPaymentPaid || 0)
   const downPaymentDue = Math.max(0, Number((downPaymentRequired - downPaymentPaid).toFixed(2)))
@@ -408,20 +448,6 @@ const LoanDetail = () => {
                 Disburse
               </CButton>
             )}
-            {canUpdateLoans && canEditPrincipal && (
-              <CButton
-                color="warning"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setActionError(null)
-                  setActionType('principal')
-                }}
-              >
-                <CIcon icon={cilPencil} className="me-1" />
-                Principal
-              </CButton>
-            )}
             {canDeleteLoans && (
               <CButton
                 color="danger"
@@ -451,6 +477,34 @@ const LoanDetail = () => {
                 <CIcon icon={cilXCircle} className="me-1" />
                 Write Off
               </CButton>
+            )}
+            {(canUpdatePrincipal || canAssignCoSigner) && (
+              <CDropdown alignment="end">
+                <CDropdownToggle color="secondary" variant="outline" size="sm" caret={false} title="More actions">
+                  <CIcon icon={cilOptions} />
+                </CDropdownToggle>
+                <CDropdownMenu>
+                  {canUpdatePrincipal && (
+                    <CDropdownItem
+                      as="button"
+                      type="button"
+                      onClick={() => {
+                        setActionError(null)
+                        setActionType('principal')
+                      }}
+                    >
+                      <CIcon icon={cilPencil} className="me-2" />
+                      Update principal
+                    </CDropdownItem>
+                  )}
+                  {canAssignCoSigner && (
+                    <CDropdownItem as="button" type="button" onClick={openCoSignerModal}>
+                      <CIcon icon={cilUserPlus} className="me-2" />
+                      {loan.coSignerId ? 'Change co-signer' : 'Add co-signer'}
+                    </CDropdownItem>
+                  )}
+                </CDropdownMenu>
+              </CDropdown>
             )}
           </div>
         </CCardHeader>
@@ -587,7 +641,7 @@ const LoanDetail = () => {
                       ) : (
                         <span className="small text-body-secondary" title="Loan predates consent tracking">consent not tracked</span>
                       )}
-                      {canUpdateLoans && APPROVABLE.includes(loan.status) && loan.coSignerConsentStatus
+                      {canUpdateLoans && CO_SIGNER_ASSIGNABLE.includes(loan.status) && loan.coSignerConsentStatus
                         && loan.coSignerConsentStatus !== 'accepted' && (
                         <CButton
                           color="secondary"
@@ -788,6 +842,49 @@ const LoanDetail = () => {
         onConfirm={runCollateralEdit}
         onClose={() => setCollateralEditTarget(null)}
       />
+
+      <CModal visible={showCoSignerModal} onClose={() => setShowCoSignerModal(false)} alignment="center">
+        <CForm onSubmit={runAssignCoSigner}>
+          <CModalHeader>
+            <CModalTitle>{loan.coSignerId ? 'Change Co-signer' : 'Add Co-signer'}</CModalTitle>
+          </CModalHeader>
+          <CModalBody>
+            {loan.coSignerId && (
+              <p className="small text-body-secondary">
+                Replacing the current co-signer cancels their consent request. The new co-signer must consent before
+                the loan can be approved or disbursed.
+              </p>
+            )}
+            <CFormLabel htmlFor="assign-cosigner-select">Co-signer <span className="text-danger">*</span></CFormLabel>
+            <ClientAsyncSelect
+              inputId="assign-cosigner-select"
+              value={newCoSignerId}
+              onChange={setNewCoSignerId}
+              isDisabled={assignCoSigner.isPending}
+            />
+            <div className="form-text">
+              Search by name or account number. Must be a different active client. They will receive a consent link by
+              SMS/email.
+            </div>
+            {coSignerError && <CAlert color="danger" className="mt-3 mb-0">{coSignerError}</CAlert>}
+          </CModalBody>
+          <CModalFooter>
+            <CButton
+              type="button"
+              color="secondary"
+              variant="outline"
+              onClick={() => setShowCoSignerModal(false)}
+              disabled={assignCoSigner.isPending}
+            >
+              Cancel
+            </CButton>
+            <CButton type="submit" color="primary" disabled={assignCoSigner.isPending}>
+              {assignCoSigner.isPending && <CSpinner size="sm" className="me-2" />}
+              Save &amp; Notify
+            </CButton>
+          </CModalFooter>
+        </CForm>
+      </CModal>
     </>
   )
 }

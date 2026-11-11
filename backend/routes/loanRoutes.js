@@ -331,6 +331,31 @@ router.get('/:id/co-signer-consent', authenticate, requirePermission('loans:read
 
 /**
  * @openapi
+ * /api/loans/{id}/co-signer:
+ *   put:
+ *     summary: Add or replace the co-signer on a loan that hasn't been disbursed, and send them a consent request
+ *     tags:
+ *       - Loans
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             coSignerId: 42
+ *     responses:
+ *       200:
+ *         description: Co-signer set and consent request sent
+ *       409:
+ *         description: Loan already disbursed/closed, or client is already the co-signer
+ *       422:
+ *         description: Co-signer not eligible
+ */
+router.put('/:id/co-signer', authenticate, requirePermission('loans:update'), validateIdParam(), loanController.assignCoSigner);
+
+/**
+ * @openapi
  * /api/loans/{id}/co-signer-consent/resend:
  *   post:
  *     summary: Send the co-signer a fresh consent link (supersedes the previous one)

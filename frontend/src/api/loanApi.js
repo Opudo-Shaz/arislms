@@ -98,7 +98,11 @@ export const getCoSignerConsent = async (id) => (await http.get(`/loans/${id}/co
 /** Send the co-signer a fresh consent link. Resolves to `{ sentTo }`. */
 export const resendCoSignerConsent = async (id) => (await http.post(`/loans/${id}/co-signer-consent/resend`))?.data
 
+/** Add/replace the co-signer and send them a consent request. Resolves to `{ sentTo }`. */
+export const assignCoSigner = async (id, coSignerId) => (await http.put(`/loans/${id}/co-signer`, { coSignerId }))?.data
+
 export default {
+  assignCoSigner,
   getCoSignerConsent,
   resendCoSignerConsent,
   listLoans,

@@ -26,6 +26,11 @@ import { useAuth } from '../../context/AuthContext'
 import { INTEREST_TYPE } from '../../constants/enums'
 import { formatCurrency, formatPercent, formatTermRange } from '../../utils/format'
 
+const ACTIVE_ENUM = {
+  colors: { true: 'success', false: 'secondary' },
+  labels: { true: 'Active', false: 'Inactive' },
+}
+
 const LoanProductsList = () => {
   const { data: products = [], isLoading, error, refetch, isFetching } = useLoanProducts()
   const deleteMutation = useDeleteLoanProduct()
@@ -107,6 +112,11 @@ const LoanProductsList = () => {
         ) : (
           <span className="text-body-secondary">Not required</span>
         ),
+    },
+    {
+      key: 'isActive',
+      label: 'Status',
+      render: (row) => <StatusBadge enumDef={ACTIVE_ENUM} value={String(row.isActive !== false)} />,
     },
     {
       key: 'actions',

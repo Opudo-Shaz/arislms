@@ -1091,6 +1091,17 @@ const loanService = {
         throw new Error('Loan has already been disbursed');
       }
 
+      // A co-signer may be added after approval, so consent is re-checked here.
+      if (loan.coSignerId && loan.coSignerConsentStatus !== null
+        && loan.coSignerConsentStatus !== CoSignerConsentStatus.ACCEPTED) {
+        throw Object.assign(
+          new Error(
+            `Loan cannot be disbursed. The co-signer has not consented yet (consent status: ${loan.coSignerConsentStatus}).`
+          ),
+          { statusCode: 422 }
+        );
+      }
+
       // Enforce down payment collection before disbursement
       const downPaymentRequired = Number(loan.downPaymentRequired || 0);
       const downPaymentPaid = Number(loan.downPaymentPaid || 0);

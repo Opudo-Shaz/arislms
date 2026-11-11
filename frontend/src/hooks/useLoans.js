@@ -121,3 +121,15 @@ export const useResendCoSignerConsent = (id) => {
     onSuccess: () => qc.invalidateQueries({ queryKey: loanKeys.detail(id) }),
   })
 }
+
+/** Add or replace the co-signer on a not-yet-disbursed loan. */
+export const useAssignCoSigner = (id) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (coSignerId) => loanApi.assignCoSigner(id, coSignerId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: loanKeys.lists() })
+      qc.invalidateQueries({ queryKey: loanKeys.detail(id) })
+    },
+  })
+}

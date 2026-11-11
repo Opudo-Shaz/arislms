@@ -1,3 +1,4 @@
+const Joi = require('joi');
 const loanService = require('../services/loanService');
 const coSignerConsentService = require('../services/coSignerConsentService');
 const Loan = require('../models/loanModel');
@@ -535,12 +536,31 @@ exports.getCoSignerConsent = async (req, res) => {
   }
 };
 
+/** PUT /api/loans/:id/co-signer — add/replace the co-signer before disbursement and request their consent. */
+exports.assignCoSigner = async (req, res) => {
+  try {
+    const { error, value } = Joi.object({
+      coSignerId: Joi.number().integer().positive().required()
+        .messages({ 'any.required': 'Select a co-signer' }),
+    }).validate(req.body);
+    if (error) return res.status(400).json({ success: false, message: error.message });
+
+    const { sentTo } = await coSignerConsentService.assignByStaff(
+      req.params.id, value.coSignerId, getUserId(req), req.headers['user-agent']
+    );
+    return res.status(200).json({ success: true, message: 'Co-signer added and consent request sent.', data: { sentTo } });
+  } catch (error) {
+    logger.error(`AssignCoSigner Error (${req.params.id}): ${error.message}`);
+    return res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : 'Server error adding co-signer' });
+  }
+};
+
 /** POST /api/loans/:id/co-signer-consent/resend — issue a fresh consent link to the co-signer. */
 exports.resendCoSignerConsent = async (req, res) => {
   try {
     const loan = await Loan.findByPk(req.params.id);
     if (!loan) return res.status(404).json({ success: false, message: 'Loan not found' });
-    if (!coSignerConsentService.AWAITING_DECISION.includes(loan.status)) {
+    if (!coSignerConsentService.STAFF_ASSIGNABLE.includes(loan.status) || loan.disbursementDate) {
       return res.status(409).json({ success: false, message: `Consent can only be requested while the loan awaits a decision (status: ${loan.status}).` });
     }
     if (loan.coSignerConsentStatus === 'accepted') {

@@ -21,6 +21,7 @@ class LoanProductResponseDto {
     this.requiresCollateral = product.requiresCollateral;
     this.allowedCollateralTypes = product.allowedCollateralTypes || [];
     this.requiresCoSigner = product.requiresCoSigner ?? false;
+    this.isActive = product.isActive;
     this.status = product.status;
     this.createdAt = product.createdAt;
     this.updatedAt = product.updatedAt;

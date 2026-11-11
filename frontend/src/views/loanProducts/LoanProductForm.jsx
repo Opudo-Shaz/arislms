@@ -74,7 +74,7 @@ const toForm = (p) => ({
   requiresCollateral: Boolean(p.requiresCollateral),
   allowedCollateralTypes: p.allowedCollateralTypes || [],
   requiresCoSigner: Boolean(p.requiresCoSigner),
-  isActive: p.status ? p.status === 'active' : true,
+  isActive: p.isActive !== false,
 })
 
 const numberOrNull = (v) => (v === '' || v === null || v === undefined ? null : Number(v))
