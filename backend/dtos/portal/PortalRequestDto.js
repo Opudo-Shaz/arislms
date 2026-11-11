@@ -9,7 +9,7 @@ const FeeTreatment = require('../../enums/feeTreatment');
 
 const requestOtpSchema = Joi.object({
   phone: phoneSchema({ required: true, label: 'Phone number' }),
-  channel: Joi.string().valid('sms', 'email').default('sms'),
+  channel: Joi.string().valid('sms', 'email', 'whatsapp').default('sms'),
 });
 
 const verifyOtpSchema = Joi.object({
@@ -62,7 +62,7 @@ const renominateSchema = Joi.object({
 });
 
 const consentOtpSchema = Joi.object({
-  channel: Joi.string().valid('sms', 'email').default('sms'),
+  channel: Joi.string().valid('sms', 'email', 'whatsapp').default('sms'),
 });
 
 const consentRespondSchema = Joi.object({

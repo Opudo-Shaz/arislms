@@ -12,13 +12,23 @@ const NotificationChannel = require('../../enums/notificationChannel');
 const { LOAN_NOTIFICATIONS_RECEIVER } = require('../../constants/roles');
 const logger = require('../../config/logger');
 const { safeNotify } = require('./notificationTriggers');
+const systemConfigService = require('../systemConfigService');
 
-/** Channels used for staff-side loan notifications. */
+/** Default staff-side channels; override with SystemConfig `notification.staff.channels` (JSON array). */
 const STAFF_CHANNELS = [NotificationChannel.IN_APP, NotificationChannel.EMAIL];
+
+const VALID_CHANNELS = new Set(Object.values(NotificationChannel));
+
+/** Configured staff channels, ignoring unknown values; falls back to the defaults when unset/empty. */
+async function getStaffChannels() {
+  const configured = await systemConfigService.getConfigValue('notification.staff.channels', 'json', STAFF_CHANNELS);
+  const list = Array.isArray(configured) ? configured.filter((c) => VALID_CHANNELS.has(c)) : [];
+  return list.length ? list : STAFF_CHANNELS;
+}
 
 /**
  * Active users holding the loan_notifications_receiver role, as notification
- * recipients ({ userId, email }), minus the acting user.
+ * recipients ({ userId, email, phone }), minus the acting user.
  * @param {object} [opts]
  * @param {number|null} [opts.excludeUserId] - the user who performed the action
  */
@@ -36,9 +46,13 @@ async function getLoanNotificationReceivers({ excludeUserId = null } = {}) {
 
   const users = await User.findAll({
     where: { id: { [Op.in]: userIds }, status: UserStatus.ACTIVE },
-    attributes: ['id', 'email'],
+    attributes: ['id', 'email', 'phone'],
   });
-  return users.map((u) => ({ userId: u.id, ...(u.email ? { email: u.email } : {}) }));
+  return users.map((u) => ({
+    userId: u.id,
+    ...(u.email ? { email: u.email } : {}),
+    ...(u.phone ? { phone: u.phone } : {}),
+  }));
 }
 
 /** Display name of the acting user for notification copy. */
@@ -62,7 +76,7 @@ async function getActorName(userId, fallback = 'A staff member') {
  * @param {object} opts
  * @param {number|null} [opts.actorUserId] - staff user who performed the action (excluded); null for client-initiated actions
  * @param {object} [opts.context] - template context; `actorName` is added automatically
- * @param {string[]} [opts.channels]
+ * @param {string[]} [opts.channels] - defaults to SystemConfig `notification.staff.channels`
  * @param {number} [opts.relatedLoanId]
  * @param {number} [opts.relatedPaymentId]
  * @param {string} [opts.dedupeKey]
@@ -70,7 +84,7 @@ async function getActorName(userId, fallback = 'A staff member') {
 async function notifyLoanReceivers(eventKey, {
   actorUserId = null,
   context = {},
-  channels = STAFF_CHANNELS,
+  channels = null,
   relatedLoanId = null,
   relatedPaymentId = null,
   dedupeKey = null,
@@ -84,7 +98,7 @@ async function notifyLoanReceivers(eventKey, {
 
     return await safeNotify(eventKey, {
       recipients,
-      channels,
+      channels: channels || await getStaffChannels(),
       context: { actorName: await getActorName(actorUserId), ...context },
       relatedLoanId,
       relatedPaymentId,
@@ -99,5 +113,6 @@ async function notifyLoanReceivers(eventKey, {
 module.exports = {
   STAFF_CHANNELS,
   getLoanNotificationReceivers,
+  getStaffChannels,
   notifyLoanReceivers,
 };

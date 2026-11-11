@@ -15,6 +15,8 @@ const { notifyLoanReceivers } = require('./notification/loanNotificationReceiver
 const otpService = require('./otpService');
 const systemConfigService = require('./systemConfigService');
 const { findClientByPhone } = require('./portalAuthService');
+const { isChannelAvailable } = require('./notification/notificationDispatcher');
+const { getClientLinkChannels } = require('./notification/clientLinkChannels');
 const { maskName, maskPhone, maskEmail } = require('../utils/helpers');
 const AuditLogger = require('../utils/auditLogger');
 const logger = require('../config/logger');
@@ -191,7 +193,7 @@ const coSignerConsentService = {
 
     await safeNotify(NotificationEventType.CO_SIGNER_CONSENT_REQUEST, {
       recipients: buildRecipients({ client: coSigner }),
-      channels: [NotificationChannel.SMS, NotificationChannel.EMAIL],
+      channels: await getClientLinkChannels(),
       context: {
         coSignerName: coSigner.firstName,
         borrowerName: fullName(borrower),
@@ -293,6 +295,9 @@ const coSignerConsentService = {
       coSignerFirstName: coSigner?.firstName,
       otpDestinations: {
         sms: coSigner?.phone ? maskPhone(coSigner.phone) : null,
+        whatsapp: coSigner?.phone && (await isChannelAvailable(NotificationEventType.OTP_VERIFICATION, NotificationChannel.WHATSAPP))
+          ? maskPhone(coSigner.phone)
+          : null,
         email: coSigner?.email ? maskEmail(coSigner.email) : null,
       },
       borrowerName: fullName(borrower),
@@ -312,16 +317,22 @@ const coSignerConsentService = {
     };
   },
 
-  /** Send the co-signer a one-time code to their own phone (SMS) or email. */
+  /** Send the co-signer a one-time code to their own phone (SMS or WhatsApp) or email. Falls back to SMS when the chosen channel is unavailable. */
   async sendResponseOtp(rawToken, channel = NotificationChannel.SMS, userAgent = 'unknown') {
     const consent = await findByRawToken(rawToken);
     if (consent.status !== CoSignerConsentStatus.PENDING) {
       throw httpError(`This request is no longer open (${consent.status}).`, 409);
     }
     const coSigner = await Client.findByPk(consent.coSignerId);
-    const deliveryChannel = channel === NotificationChannel.EMAIL && coSigner?.email
-      ? NotificationChannel.EMAIL
-      : NotificationChannel.SMS;
+    let deliveryChannel = NotificationChannel.SMS;
+    if (channel === NotificationChannel.EMAIL && coSigner?.email) {
+      deliveryChannel = NotificationChannel.EMAIL;
+    } else if (
+      channel === NotificationChannel.WHATSAPP
+      && (await isChannelAvailable(NotificationEventType.OTP_VERIFICATION, NotificationChannel.WHATSAPP))
+    ) {
+      deliveryChannel = NotificationChannel.WHATSAPP;
+    }
 
     const purpose = otpPurposeFor(consent);
     const since = await otpService.secondsSinceLastIssued({ clientId: coSigner.id, purpose });
@@ -405,7 +416,7 @@ const coSignerConsentService = {
 
     await safeNotify(NotificationEventType.CO_SIGNER_CONSENT_RESPONDED, {
       recipients: buildRecipients({ client: borrower }),
-      channels: [NotificationChannel.SMS, NotificationChannel.EMAIL],
+      channels: await getClientLinkChannels(),
       context,
       relatedLoanId: consent.loanId,
       dedupeKey: `co-signer-consent-response:${consent.id}:borrower`,

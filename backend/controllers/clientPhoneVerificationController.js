@@ -14,7 +14,10 @@ const fail = (res, err, context) => {
 // GET /api/clients/registration-config
 const getConfig = async (_req, res) => {
   try {
-    return res.json({ success: true, data: { otpRequired: await registrationOtpService.isEnabled() } });
+    return res.json({ success: true, data: {
+        otpRequired: await registrationOtpService.isEnabled(),
+        whatsappAvailable: await registrationOtpService.isWhatsAppAvailable(),
+      }, });
   } catch (err) {
     return fail(res, err, 'Error reading client registration config');
   }

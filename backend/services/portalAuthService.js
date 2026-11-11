@@ -6,6 +6,7 @@ const NotificationChannel = require('../enums/notificationChannel');
 const otpService = require('./otpService');
 const clientDeviceService = require('./clientDeviceService');
 const { safeNotify } = require('./notification/notificationTriggers');
+const { isChannelAvailable } = require('./notification/notificationDispatcher');
 const NotificationEventType = require('../enums/notificationEventType');
 const { lastFourOfId, idLast4Matches } = require('../utils/deviceId');
 const systemConfigService = require('./systemConfigService');
@@ -87,7 +88,7 @@ function readDeviceBoundToken(token, typ, deviceHash, expiredMessage) {
 }
 
 /**
- * Step 1: send a login code to the client's phone (SMS) or saved email.
+ * Step 1: send a login code to the client's phone (SMS or WhatsApp) or saved email.
  *
  * The response is identical whether or not the phone belongs to a client (or
  * whether that client may use the portal), so the endpoint can't be used to
@@ -99,7 +100,7 @@ function readDeviceBoundToken(token, typ, deviceHash, expiredMessage) {
  * points at client id 0, which has no OTP rows and therefore always fails
  * verification.
  *
- * @param {{phone: string, channel: 'sms'|'email'}} params
+ * @param {{phone: string, channel: 'sms'|'email'|'whatsapp'}} params
  * @returns {Promise<{otpToken: string, channel: string, ttlMinutes: number}>}
  */
 async function requestOtp({ phone, channel }, userAgent = 'unknown', { deviceHash } = {}) {
@@ -112,12 +113,19 @@ async function requestOtp({ phone, channel }, userAgent = 'unknown', { deviceHas
     return { otpToken: signChallenge(0, ttlMinutes, deviceHash), channel, ttlMinutes };
   }
 
-  // Email delivery needs a valid address on file; otherwise fall back to SMS.
-  // Done silently (same response shape) so the reply never reveals whether a
-  // number is registered or has an email.
-  const deliveryChannel = channel === NotificationChannel.EMAIL && !isValidEmail(client.email)
-    ? NotificationChannel.SMS
-    : channel;
+  // Email needs a valid address on file and WhatsApp needs to be enabled (globally and
+  // on the OTP template); otherwise fall back to SMS. Done silently (same response
+  // shape) so the reply never reveals whether a number is registered or has an email.
+  let deliveryChannel = channel;
+  if (channel === NotificationChannel.EMAIL && !isValidEmail(client.email)) {
+    deliveryChannel = NotificationChannel.SMS;
+  } else if (
+    channel === NotificationChannel.WHATSAPP
+    && !(await isChannelAvailable(NotificationEventType.OTP_VERIFICATION, NotificationChannel.WHATSAPP))
+  ) {
+    logger.warn(`[portalAuth] WhatsApp login code requested for client ${client.id} but the channel is not enabled — falling back to SMS`);
+    deliveryChannel = NotificationChannel.SMS;
+  }
 
   // Resend cooldown: skip sending, but still hand back a valid challenge so the
   // previously sent code keeps working. No distinguishable error. The cooldown

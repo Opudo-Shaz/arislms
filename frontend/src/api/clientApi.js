@@ -86,13 +86,13 @@ export const listClientDevices = async (id) => {
 /** stop trusting a client's device (ends its portal sessions). */
 export const revokeClientDevice = (id, deviceId) => http.delete(`/clients/${id}/devices/${deviceId}`)
 
-/** Whether creating a client requires phone verification. @returns {Promise<{otpRequired: boolean}>} */
+/** Whether creating a client requires phone verification. @returns {Promise<{otpRequired: boolean, whatsappAvailable: boolean}>} */
 export const getRegistrationConfig = async () => {
   const res = await http.get('/clients/registration-config')
   return res?.data ?? { otpRequired: false }
 }
 
-/** Send a verification code to a prospective client's phone/email. */
+/** Send a verification code to a prospective client's phone. @param {{phone: string, name?: string, channel?: 'sms'|'whatsapp'}} payload */
 export const requestPhoneOtp = async (payload) => {
   const res = await http.post('/clients/phone-otp/request', payload)
   return res?.data

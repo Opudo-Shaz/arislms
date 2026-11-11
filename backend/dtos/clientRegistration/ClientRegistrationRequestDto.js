@@ -52,6 +52,7 @@ class ClientRegistrationRequestDto {
   static otpRequestSchema = Joi.object({
     phone: phoneSchema({ required: true, label: 'Phone' }),
     name: Joi.string().trim().max(200).allow('', null),
+    channel: Joi.string().valid('sms', 'whatsapp').default('sms'),
   });
 
   static otpVerifySchema = Joi.object({

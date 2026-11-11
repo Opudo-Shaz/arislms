@@ -17,7 +17,7 @@ const page = (res) => ({ data: res?.data ?? [], pagination: res?.pagination ?? E
 
 // ── Auth (public) ──────────────────────────────────────────────────────
 
-/** @param {{ phone: string, channel: 'sms'|'email' }} payload @returns {Promise<{otpToken, channel, ttlMinutes, message}>} */
+/** @param {{ phone: string, channel: 'sms'|'email'|'whatsapp' }} payload @returns {Promise<{otpToken, channel, ttlMinutes, message}>} */
 export const requestOtp = (payload) => portalHttp.post('/portal/auth/request-otp', payload, { auth: false })
 
 /** @param {{ otpToken: string, code: string }} payload @returns {Promise<{token, expiresIn, client}>} */

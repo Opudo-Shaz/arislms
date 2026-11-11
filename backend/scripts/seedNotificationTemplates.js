@@ -160,6 +160,8 @@ const defaults = [
     emailSubject: 'Your {{appName}} verification code',
     emailBody: '<p>Hi {{name}},</p><p>Your verification code is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px">{{code}}</p><p>This code expires in {{ttlMinutes}} minutes. If you did not try to sign in, please ignore this message.</p>',
     smsBody: '{{appName}} verification code: {{code}}. Expires in {{ttlMinutes}} minutes.',
+    whatsappEnabled: true,
+    whatsappBody: 'Your {{appName}} verification code is *{{code}}*. It expires in {{ttlMinutes}} minutes. Do not share this code with anyone.',
     pushTitle: 'Verification code',
     pushBody: 'Your {{appName}} verification code is {{code}}.',
     inAppTitle: 'Verification Code',

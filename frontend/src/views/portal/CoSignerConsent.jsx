@@ -197,6 +197,10 @@ const CoSignerConsent = () => {
                     <CFormCheck type="radio" name="cs-channel" id="cs-sms" label={`SMS to ${view.otpDestinations.sms}`}
                       checked={channel === 'sms'} onChange={() => setChannel('sms')} />
                   ) : null}
+                  {view.otpDestinations?.whatsapp ? (
+                    <CFormCheck type="radio" name="cs-channel" id="cs-whatsapp" label={`WhatsApp to ${view.otpDestinations.whatsapp}`}
+                      checked={channel === 'whatsapp'} onChange={() => setChannel('whatsapp')} />
+                  ) : null}
                   {view.otpDestinations?.email ? (
                     <CFormCheck type="radio" name="cs-channel" id="cs-email" label={`Email to ${view.otpDestinations.email}`}
                       checked={channel === 'email'} onChange={() => setChannel('email')} />

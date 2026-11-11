@@ -5,6 +5,7 @@ const Role = require('../models/roleModel');
 const User = require('../models/userModel');
 const UserRole = require('../models/userRoleModel');
 const notificationDispatcher = require('../services/notification/notificationDispatcher');
+const systemConfigService = require('../services/systemConfigService');
 const {
   getLoanNotificationReceivers,
   notifyLoanReceivers,
@@ -18,6 +19,7 @@ const stubDb = (t, { roleActive = true, userIds = [1, 2, 3] } = {}) => {
     const wanted = where.id[Object.getOwnPropertySymbols(where.id)[0]];
     return wanted.map((id) => ({ id, email: `u${id}@test.com` }));
   });
+  t.mock.method(systemConfigService, 'getConfigValue', async (_key, _type, def) => def);
   t.mock.method(User, 'findByPk', async () => ({ first_name: 'Act', last_name: 'Or' }));
 };
 
@@ -71,4 +73,19 @@ test('notifyLoanReceivers never throws', async (t) => {
   const res = await notifyLoanReceivers('loan_created', { actorUserId: 1 });
   assert.equal(res.skipped, true);
   assert.equal(res.reason, 'error');
+});
+
+test('notifyLoanReceivers uses the configured staff channels and includes phones', async (t) => {
+  stubDb(t);
+  t.mock.method(systemConfigService, 'getConfigValue', async (key) => (
+    key === 'notification.staff.channels' ? ['in_app', 'whatsapp', 'bogus'] : null
+  ));
+  t.mock.method(User, 'findAll', async () => [{ id: 2, email: 'u2@test.com', phone: '+254712345678' }]);
+  const notify = t.mock.method(notificationDispatcher, 'notify', async () => ({ skipped: false, rows: [] }));
+
+  await notifyLoanReceivers('staff_loan_approved', { actorUserId: 1 });
+
+  const [, opts] = notify.mock.calls[0].arguments;
+  assert.deepEqual(opts.channels, ['in_app', 'whatsapp']);
+  assert.equal(opts.recipients[0].phone, '+254712345678');
 });

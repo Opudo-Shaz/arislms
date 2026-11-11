@@ -8,6 +8,7 @@ const LinkStatus = require('../enums/clientRegistrationLinkStatus');
 const NotificationEventType = require('../enums/notificationEventType');
 const NotificationChannel = require('../enums/notificationChannel');
 const { safeNotify } = require('./notification/notificationTriggers');
+const { getClientLinkChannels } = require('./notification/clientLinkChannels');
 const systemConfigService = require('./systemConfigService');
 const AuditLogger = require('../utils/auditLogger');
 const { encrypt, decrypt } = require('../utils/configEncryption');
@@ -67,6 +68,10 @@ async function dispatch(link, rawToken, { emails, phones }) {
     expiresOn: new Date(link.expiresAt).toISOString().slice(0, 10),
   };
 
+  const channels = await getClientLinkChannels();
+  const emailChannels = channels.filter((c) => c === NotificationChannel.EMAIL);
+  const phoneChannels = channels.filter((c) => c !== NotificationChannel.EMAIL);
+
   const send = (recipient, channel) =>
     safeNotify(NotificationEventType.CLIENT_REGISTRATION_INVITE, {
       recipients: [recipient],
@@ -76,19 +81,25 @@ async function dispatch(link, rawToken, { emails, phones }) {
     });
 
   await Promise.all([
-    ...emails.map((email) => send({ email }, NotificationChannel.EMAIL)),
-    ...phones.map((phone) => send({ phone }, NotificationChannel.SMS)),
+    ...emails.flatMap((email) => emailChannels.map((channel) => send({ email }, channel))),
+    ...phones.flatMap((phone) => phoneChannels.map((channel) => send({ phone }, channel))),
   ]);
 
   const warnings = [];
-  if (emails.length) {
-    const on = await systemConfigService.getConfigValue('notification.channels.email.enabled', 'boolean', true);
-    if (!on) warnings.push('Email notifications are disabled system-wide, so the emails were not sent.');
-  }
-  if (phones.length) {
-    const on = await systemConfigService.getConfigValue('notification.channels.sms.enabled', 'boolean', true);
-    if (!on) warnings.push('SMS notifications are disabled system-wide, so the messages were not sent.');
-  }
+  const channelLabel = { [NotificationChannel.EMAIL]: 'Email', [NotificationChannel.SMS]: 'SMS', [NotificationChannel.WHATSAPP]: 'WhatsApp' };
+  const checkGroup = async (count, groupChannels, noun) => {
+    if (!count) return;
+    if (!groupChannels.length) {
+      warnings.push(`No channel for ${noun} is configured in notification.client_links.channels, so they were not sent.`);
+      return;
+    }
+    for (const channel of groupChannels) {
+      const on = await systemConfigService.getConfigValue(`notification.channels.${channel}.enabled`, 'boolean', channel !== NotificationChannel.WHATSAPP);
+      if (!on) warnings.push(`${channelLabel[channel]} notifications are disabled system-wide, so the ${noun} were not sent by ${channelLabel[channel]}.`);
+    }
+  };
+  await checkGroup(emails.length, emailChannels, 'emails');
+  await checkGroup(phones.length, phoneChannels, 'phone messages');
   return warnings;
 }
 

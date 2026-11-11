@@ -18,6 +18,7 @@ import {
   CCardHeader,
   CCol,
   CForm,
+  CFormCheck,
   CFormInput,
   CFormLabel,
   CFormTextarea,
@@ -30,7 +31,7 @@ import { useClient, useCreateClient, useUpdateClient } from '../../hooks/useClie
 import { useClientRegistrationConfig } from '../../hooks/useClientRegistrationLinks'
 import clientApi from '../../api/clientApi'
 import { useAuth } from '../../context/AuthContext'
-import PhoneInput from '../../components/PhoneInput'
+import PhoneInput, { canonicalPhone } from '../../components/PhoneInput'
 import CountrySubdivisionFields from '../../components/CountrySubdivisionFields'
 import { DEFAULT_COUNTRY, DEFAULT_POSTAL_CODE } from '../../constants/countries'
 import swal from '../../utils/useSweetAlert'
@@ -131,10 +132,12 @@ const ClientForm = () => {
   const [form, setForm] = useState(emptyForm)
 
   // Phone verification, enforced server-side when client.registration.enable_otp is on.
-  const { data: regConfig } = useClientRegistrationConfig(!isEdit)
-  const otpRequired = !isEdit && Boolean(regConfig?.otpRequired)
+  const { data: regConfig } = useClientRegistrationConfig()
+  // When editing, only a changed phone number needs verifying.
+  const phoneChanged = !isEdit || (Boolean(client) && canonicalPhone(form.phone) !== canonicalPhone(client.phone))
+  const otpRequired = Boolean(regConfig?.otpRequired) && phoneChanged
   const [verification, setVerification] = useState(null) // { token, phone }
-  const [otp, setOtp] = useState({ sent: false, code: '', busy: false, error: '' })
+  const [otp, setOtp] = useState({ sent: false, code: '', busy: false, error: '', channel: 'sms', sentBy: 'sms' })
   const phoneVerified = Boolean(verification && verification.phone === form.phone.trim())
 
   const patchOtp = (patch) => setOtp((o) => ({ ...o, ...patch }))
@@ -143,11 +146,12 @@ const ClientForm = () => {
   const sendOtp = async () => {
     patchOtp({ busy: true, error: '' })
     try {
-      await clientApi.requestPhoneOtp({
+      const res = await clientApi.requestPhoneOtp({
         phone: form.phone.trim(),
         name: `${form.firstName} ${form.lastName}`.trim() || undefined,
+        channel: otp.channel,
       })
-      patchOtp({ sent: true, busy: false })
+      patchOtp({ sent: true, busy: false, sentBy: res?.channel || otp.channel })
     } catch (err) {
       patchOtp({ busy: false, error: otpErrorMessage(err) })
     }
@@ -182,7 +186,7 @@ const ClientForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (otpRequired && !phoneVerified) {
-      fireError('Verify phone number before creating the client.')
+      fireError(isEdit ? 'Verify the new phone number before saving.' : 'Verify phone number before creating the client.')
       return
     }
     if (form.dateOfBirth && form.dateOfBirth > adultCutoff()) {
@@ -376,9 +380,22 @@ const ClientForm = () => {
                   ) : (
                     <>
                       <div className="text-body-secondary small mb-2">
-                        Send a one-time code by SMS to the client and enter it here to confirm the phone number.
+                        Send a one-time code by {otp.channel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to the client and enter it here to confirm the phone number.
                         Changing the phone number requires verifying again.
                       </div>
+                      {regConfig?.whatsappAvailable && (
+                        <div className="mb-2">
+                          <CFormCheck inline type="radio" name="client-otp-channel" id="client-otp-sms" label="SMS"
+                            checked={otp.channel === 'sms'} onChange={() => patchOtp({ channel: 'sms' })} />
+                          <CFormCheck inline type="radio" name="client-otp-channel" id="client-otp-whatsapp" label="WhatsApp"
+                            checked={otp.channel === 'whatsapp'} onChange={() => patchOtp({ channel: 'whatsapp' })} />
+                        </div>
+                      )}
+                      {otp.sent && (
+                        <div className="text-body-secondary small mb-2">
+                          Code sent by {otp.sentBy === 'whatsapp' ? 'WhatsApp' : 'SMS'}.
+                        </div>
+                      )}
                       <CRow className="g-2 align-items-end">
                         <CCol md="auto">
                           <CButton

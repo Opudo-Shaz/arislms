@@ -448,10 +448,11 @@ export const NOTIFICATION_CHANNEL = buildEnum(
   {
     email: 'info',
     sms: 'primary',
+    whatsapp: 'success',
     in_app: 'secondary',
     push: 'warning',
   },
-  { email: 'Email', sms: 'SMS', in_app: 'In-App', push: 'Push' },
+  { email: 'Email', sms: 'SMS', whatsapp: 'WhatsApp', in_app: 'In-App', push: 'Push' },
 )
 
 /** Notification outbox delivery status (see backend/enums/notificationDeliveryStatus.js). */

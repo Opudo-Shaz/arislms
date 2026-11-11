@@ -25,6 +25,16 @@ const toggle = (key, label, enabled, category, description) => ({
   key, label, value: null, category, description, isBoolean: true, isActive: enabled, isReadOnly: false,
 });
 
+const staffConfigs = [
+  setting('notification.staff.channels', 'Staff Loan Alerts — Channels', '["in_app","email"]', 'notifications',
+    'JSON array of channels used to alert loan_notifications_receiver staff about loan activity (in_app, email, sms, whatsapp, push). A channel only fires if it is also enabled globally and on that alert\'s template (staff alert templates have SMS/WhatsApp off by default).'),
+];
+
+const clientLinkConfigs = [
+  setting('notification.client_links.channels', 'Client Links — Channels', '["sms","email"]', 'notifications',
+    'JSON array of channels (sms, whatsapp, email) for client-facing link messages: registration invite links, co-signer consent requests and their outcome. Email addresses are sent via email, phone numbers via sms/whatsapp. A channel only fires if it is also enabled globally and on the template.'),
+];
+
 const reminderConfigs = [
   setting('business_hours.timezone', 'Business Hours — Timezone', 'Africa/Nairobi', 'general',
     'IANA timezone used to evaluate business hours (e.g. Africa/Nairobi).'),
@@ -41,7 +51,7 @@ const reminderConfigs = [
   setting('notification.reminders.upcoming.days_before', 'Upcoming Due — Days Before', '[3,0]', 'notifications',
     'JSON array of days before the due date to remind (0 = on the due date).'),
   setting('notification.reminders.upcoming.channels', 'Upcoming Due — Channels', '["sms","email","push"]', 'notifications',
-    'JSON array of channels for upcoming-due reminders (sms, email, push, in_app).'),
+    'JSON array of channels for upcoming-due reminders (sms, whatsapp, email, push, in_app).'),
   toggle('notification.reminders.overdue.enabled', 'Overdue Reminders Enabled', true, 'notifications',
     'Send reminders for loans in the overdue days-past-due range.'),
   setting('notification.reminders.overdue.min_dpd', 'Overdue — From Day', '1', 'notifications',
@@ -361,6 +371,16 @@ const defaults = [
     isReadOnly: false,
   },
   {
+    key: 'notification.channels.whatsapp.enabled',
+    label: 'WhatsApp Notifications Enabled',
+    value: null,
+    category: 'notifications',
+    description: 'Global on/off switch for the WhatsApp notification channel (sent via Ping Africa). Off by default. Requires sms.provider.ping-africa.api_token and whatsapp.provider.ping-africa.instance_name; templates must also have WhatsApp enabled.',
+    isBoolean: true,
+    isActive: false,
+    isReadOnly: false,
+  },
+  {
     key: 'notification.channels.in_app.enabled',
     label: 'In-App Notifications Enabled',
     value: null,
@@ -435,6 +455,16 @@ const defaults = [
     isReadOnly: false,
   },
   {
+    key: 'whatsapp.provider.ping-africa.instance_name',
+    label: 'Ping Africa — WhatsApp Instance Name',
+    value: '',
+    category: 'notifications',
+    description: 'Name of the connected WhatsApp instance on your Ping Africa account that messages are sent from. The API token and base URL are shared with the SMS provider (sms.provider.ping-africa.*).',
+    isBoolean: false,
+    isActive: true,
+    isReadOnly: false,
+  },
+  {
     key: 'notification.outbox.maxAttempts',
     label: 'Notification Outbox Max Attempts',
     value: '5',
@@ -455,6 +485,8 @@ const defaults = [
     isReadOnly: false,
   },
   ...reminderConfigs,
+  ...staffConfigs,
+  ...clientLinkConfigs,
   // ── Authentication / OTP ────────────────────────────────────────────────
   {
     key: 'client.registration.enable_otp',

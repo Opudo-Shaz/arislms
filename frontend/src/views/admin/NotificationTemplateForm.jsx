@@ -43,6 +43,8 @@ const emptyForm = {
   emailBody: '',
   smsEnabled: true,
   smsBody: '',
+  whatsappEnabled: false,
+  whatsappBody: '',
   pushEnabled: true,
   pushTitle: '',
   pushBody: '',
@@ -60,6 +62,8 @@ const toForm = (t) => ({
   emailBody: t.emailBody || '',
   smsEnabled: t.smsEnabled !== false,
   smsBody: t.smsBody || '',
+  whatsappEnabled: t.whatsappEnabled === true,
+  whatsappBody: t.whatsappBody || '',
   pushEnabled: t.pushEnabled !== false,
   pushTitle: t.pushTitle || '',
   pushBody: t.pushBody || '',
@@ -98,6 +102,8 @@ const NotificationTemplateForm = ({ visible, template, onClose }) => {
       emailBody: form.emailBody.trim() || null,
       smsEnabled: form.smsEnabled,
       smsBody: form.smsBody.trim() || null,
+      whatsappEnabled: form.whatsappEnabled,
+      whatsappBody: form.whatsappBody.trim() || null,
       pushEnabled: form.pushEnabled,
       pushTitle: form.pushTitle.trim() || null,
       pushBody: form.pushBody.trim() || null,
@@ -196,6 +202,20 @@ const NotificationTemplateForm = ({ visible, template, onClose }) => {
             <CCol xs={12}>
               <CFormLabel>Body</CFormLabel>
               <CFormTextarea rows={2} value={form.smsBody} onChange={setField('smsBody')} />
+            </CCol>
+
+            {/* WhatsApp */}
+            <CCol xs={12}>
+              <hr className="my-2" />
+              <div className="d-flex align-items-center justify-content-between">
+                <CFormLabel className="mb-0 fw-semibold">WhatsApp</CFormLabel>
+                <CFormCheck label="Enabled" checked={form.whatsappEnabled} onChange={setCheck('whatsappEnabled')} />
+              </div>
+            </CCol>
+            <CCol xs={12}>
+              <CFormLabel>Body</CFormLabel>
+              <CFormTextarea rows={2} value={form.whatsappBody} onChange={setField('whatsappBody')} />
+              <div className="form-text">Leave blank to send the SMS body. The channel must also be enabled in System Config.</div>
             </CCol>
 
             {/* Push */}

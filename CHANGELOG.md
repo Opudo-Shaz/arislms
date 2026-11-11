@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- WhatsApp notification channel, sent through Ping Africa's WhatsApp API
+  (`POST /whatsapp/messages/text`). It shares the SMS provider's API token and base URL;
+  set `whatsapp.provider.ping-africa.instance_name` in System Config to your instance name and
+  turn on `notification.channels.whatsapp.enabled` (off by default). Templates gain
+  `whatsappEnabled` (off by default) and `whatsappBody` (falls back to the SMS body when blank).
+  To enable WhatsApp on the existing login-code template, run
+  `node scripts/seedNotificationTemplates.js --overwrite=otp_verification`.
+- WhatsApp is offered as a delivery method for one-time codes on client portal login, the co-signer
+  consent page, public client self-registration and staff client creation. Every flow falls back to
+  SMS when WhatsApp is not enabled.
+- `notification.staff.channels` System Config (JSON array, default `["in_app","email"]`) controls which
+  channels alert `loan_notifications_receiver` staff; it was hard-coded. Staff phone numbers are now
+  passed to the dispatcher so `sms`/`whatsapp` can be used there.
+- `notification.client_links.channels` System Config (JSON array, default `["sms","email"]`) controls the
+  channels for client registration invite links and co-signer consent requests/outcomes; these were
+  hard-coded to SMS and email.
+
+### Changed
+
+- Changing a client's primary phone number now requires OTP verification of the new number
+  (when `client.registration.enable_otp` is on), on both the API and the staff edit form.
+
 ### Fixed
 
 - Client IPs (audit entries, trusted portal devices, per-IP rate limits) were always

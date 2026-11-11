@@ -7,12 +7,14 @@ class NotificationTemplateRequestDto {
     this.emailSubject = data.emailSubject;
     this.emailBody = data.emailBody;
     this.smsBody = data.smsBody;
+    this.whatsappBody = data.whatsappBody;
     this.pushTitle = data.pushTitle;
     this.pushBody = data.pushBody;
     this.inAppTitle = data.inAppTitle;
     this.inAppBody = data.inAppBody;
     this.emailEnabled = data.emailEnabled;
     this.smsEnabled = data.smsEnabled;
+    this.whatsappEnabled = data.whatsappEnabled;
     this.pushEnabled = data.pushEnabled;
     this.inAppEnabled = data.inAppEnabled;
     this.isActive = data.isActive;
@@ -29,12 +31,14 @@ class NotificationTemplateRequestDto {
     emailSubject: Joi.string().trim().max(255).allow(null, '').optional(),
     emailBody: Joi.string().allow(null, '').optional(),
     smsBody: Joi.string().allow(null, '').optional(),
+    whatsappBody: Joi.string().allow(null, '').optional(),
     pushTitle: Joi.string().trim().max(150).allow(null, '').optional(),
     pushBody: Joi.string().allow(null, '').optional(),
     inAppTitle: Joi.string().trim().max(150).allow(null, '').optional(),
     inAppBody: Joi.string().allow(null, '').optional(),
     emailEnabled: Joi.boolean().default(true),
     smsEnabled: Joi.boolean().default(true),
+    whatsappEnabled: Joi.boolean().default(false),
     pushEnabled: Joi.boolean().default(true),
     inAppEnabled: Joi.boolean().default(true),
     isActive: Joi.boolean().default(true),

@@ -14,6 +14,8 @@ const NotificationTemplate = sequelize.define('NotificationTemplate', {
 
   smsBody: { type: DataTypes.TEXT, allowNull: true, field: 'sms_body' },
 
+  whatsappBody: { type: DataTypes.TEXT, allowNull: true, field: 'whatsapp_body' },
+
   pushTitle: { type: DataTypes.STRING(150), allowNull: true, field: 'push_title' },
   pushBody: { type: DataTypes.TEXT, allowNull: true, field: 'push_body' },
 
@@ -22,6 +24,8 @@ const NotificationTemplate = sequelize.define('NotificationTemplate', {
 
   emailEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'email_enabled' },
   smsEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'sms_enabled' },
+  // Off by default: WhatsApp is opt-in per template (and globally), unlike email/SMS.
+  whatsappEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'whatsapp_enabled' },
   pushEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'push_enabled' },
   inAppEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'in_app_enabled' },
 

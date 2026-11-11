@@ -22,6 +22,7 @@ import {
   CCardBody,
   CCol,
   CContainer,
+  CFormCheck,
   CFormInput,
   CFormLabel,
   CFormFeedback,
@@ -261,6 +262,8 @@ const ClientRegistration = () => {
 
   // OTP step state
   const [otpSent, setOtpSent] = useState(false)
+  const [otpChannel, setOtpChannel] = useState('sms')
+  const [otpSentBy, setOtpSentBy] = useState('sms')
   const [otpCode, setOtpCode] = useState('')
   const [otpBusy, setOtpBusy] = useState(false)
   const [otpError, setOtpError] = useState('')
@@ -340,10 +343,12 @@ const ClientRegistration = () => {
     setOtpError('')
     setOtpBusy(true)
     try {
-      await api.requestPublicOtp(token, {
+      const res = await api.requestPublicOtp(token, {
         phone: form.phone.trim(),
         name: `${form.firstName} ${form.lastName}`.trim() || undefined,
+        channel: otpChannel,
       })
+      setOtpSentBy(res?.channel || otpChannel)
       setOtpSent(true)
       setCooldown(60)
     } catch (err) {
@@ -695,8 +700,21 @@ const ClientRegistration = () => {
             <>
               <p>
                 We need to confirm {form.phone || 'your phone number'}. We will send a one-time code
-                by SMS to that number.
+                by {otpChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to that number.
               </p>
+              {link?.whatsappAvailable && (
+                <div className="mb-3">
+                  <CFormCheck inline type="radio" name="reg-otp-channel" id="reg-otp-sms" label="SMS"
+                    checked={otpChannel === 'sms'} onChange={() => setOtpChannel('sms')} />
+                  <CFormCheck inline type="radio" name="reg-otp-channel" id="reg-otp-whatsapp" label="WhatsApp"
+                    checked={otpChannel === 'whatsapp'} onChange={() => setOtpChannel('whatsapp')} />
+                </div>
+              )}
+              {otpSent && (
+                <div className="text-body-secondary small mb-2">
+                  Code sent by {otpSentBy === 'whatsapp' ? 'WhatsApp' : 'SMS'}.
+                </div>
+              )}
               <CRow className="g-3 align-items-end">
                 <CCol md={4}>
                   <CButton color="primary" variant="outline" onClick={requestOtp} disabled={otpBusy || cooldown > 0}>
