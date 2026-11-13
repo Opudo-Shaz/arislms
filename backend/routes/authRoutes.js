@@ -17,6 +17,11 @@ const router = express.Router();
  *           example:
  *             email: ethan@example.com
  *             password: password12345
+ *             channel: whatsapp
+ *       description: >
+ *         `channel` (sms | whatsapp | email) is optional and only used when OTP-on-login is
+ *         enabled, to resend the code on a different channel. By default the code goes by SMS
+ *         (when a real SMS provider is configured), else WhatsApp (when enabled), else email.
  *     responses:
  *       200:
  *         description: Login successful, returns JWT token

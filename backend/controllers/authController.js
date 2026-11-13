@@ -7,7 +7,7 @@ const logger = require('../config/logger');
 
 const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, channel } = req.body;
     const userAgent = req.headers['user-agent'];
 
     if (!email || !password) {
@@ -15,7 +15,9 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const result = await authService.login(email, password, userAgent);
+    const result = await authService.login(email, password, userAgent, {
+      channel: ['sms', 'whatsapp', 'email'].includes(channel) ? channel : null,
+    });
 
     // OTP-gated login: password verified but a one-time code is still required.
     if (result && result.otpRequired) {
@@ -23,6 +25,9 @@ const loginUser = async (req, res) => {
       return res.json({
         otpRequired: true,
         otpToken: result.otpToken,
+        otpLength: result.otpLength,
+        otpChannel: result.otpChannel,
+        otpAlternative: result.otpAlternative,
         message: 'A verification code has been sent. Please enter it to continue.',
       });
     }

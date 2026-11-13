@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import {
   CAlert,
@@ -10,6 +10,7 @@ import {
   CContainer,
   CForm,
   CFormInput,
+  CFormLabel,
   CInputGroup,
   CInputGroupText,
   CRow,
@@ -23,6 +24,17 @@ import arislmsLogo from '../../../assets/brand/arislms_logo_dark.png'
 import { useAuth } from '../../../context/AuthContext'
 import { ApiError } from '../../../api'
 import { forgotPassword } from '../../../api/authApi'
+import OtpCodeInput from '../../portal/OtpCodeInput'
+
+// Client-side pause between resends (the backend doesn't enforce one for staff).
+const OTP_RESEND_SECONDS = 30
+// Backend default for `auth.otp.length`; the login response carries the configured value.
+const DEFAULT_OTP_LENGTH = 6
+
+const CHANNEL_LABELS = { sms: 'SMS', whatsapp: 'WhatsApp', email: 'email' }
+const channelLabel = (channel) => CHANNEL_LABELS[channel] ?? channel
+
+const formatCountdown = (seconds) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 
 const Login = () => {
   const { login, verifyOtp, isAuthenticated } = useAuth()
@@ -61,6 +73,18 @@ const Login = () => {
   const [otpToken, setOtpToken] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const otpRequired = Boolean(otpToken)
+  const [otpLength, setOtpLength] = useState(DEFAULT_OTP_LENGTH)
+  const [otpChannel, setOtpChannel] = useState(null) // 'sms' | 'whatsapp' | 'email' | null
+  const [otpAlternative, setOtpAlternative] = useState(null) // channel offered if the code never arrives
+  const [notice, setNotice] = useState('')
+  const [otpKey, setOtpKey] = useState(0) // remounts the digit boxes to refocus the first one
+  const [resendIn, setResendIn] = useState(0)
+
+  useEffect(() => {
+    if (resendIn <= 0) return undefined
+    const t = setTimeout(() => setResendIn((s) => s - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendIn])
 
   const handleForgotPassword = async () => {
     const { isConfirmed } = await Swal.fire({
@@ -110,8 +134,10 @@ const Login = () => {
       const result = await login(email.trim(), password)
       // Backend requires a one-time code — switch to the OTP step instead of redirecting.
       if (result?.otpRequired) {
-        setOtpToken(result.otpToken)
+        applyChallenge(result)
         setOtpCode('')
+        setNotice('')
+        setResendIn(OTP_RESEND_SECONDS)
         return
       }
       // Clear any stale session data before redirecting
@@ -132,12 +158,13 @@ const Login = () => {
     }
   }
 
-  const handleVerifyOtp = async (event) => {
-    event.preventDefault()
+  const submitOtp = async (code) => {
+    if (submitting) return
     setError('')
+    setNotice('')
     setSubmitting(true)
     try {
-      await verifyOtp({ otpToken, code: otpCode.trim() })
+      await verifyOtp({ otpToken, code })
       sessionStorage.clear()
       navigate(from, { replace: true, state: undefined })
     } catch (err) {
@@ -146,24 +173,51 @@ const Login = () => {
         setError('Your verification session has expired. Please sign in again.')
         setOtpToken('')
         setOtpCode('')
-      } else if (err instanceof ApiError && err.status === 0) {
-        setError('Cannot reach the server. Please try again.')
       } else {
-        setError(err.message || 'Verification failed. Please try again.')
+        setError(
+          err instanceof ApiError && err.status === 0
+            ? 'Cannot reach the server. Please try again.'
+            : err.message || 'Verification failed. Please try again.',
+        )
+        setOtpCode('')
+        setOtpKey((k) => k + 1)
       }
     } finally {
       setSubmitting(false)
     }
   }
 
-  const handleResendOtp = async () => {
+  const handleVerifyOtp = (event) => {
+    event.preventDefault()
+    if (otpCode.length === otpLength) submitOtp(otpCode)
+  }
+
+  // Submit as soon as the last digit lands (typed, pasted or autofilled).
+  const handleOtpChange = (next) => {
+    setOtpCode(next)
+    if (next.length === otpLength) submitOtp(next)
+  }
+
+  const applyChallenge = (result) => {
+    setOtpToken(result.otpToken)
+    setOtpLength(result.otpLength || DEFAULT_OTP_LENGTH)
+    setOtpChannel(result.otpChannel || null)
+    setOtpAlternative(result.otpAlternative || null)
+  }
+
+  // `channel` is set when the user asks for the code on a different channel.
+  const handleResendOtp = async (channel) => {
     setError('')
+    setNotice('')
     setSubmitting(true)
     try {
-      const result = await login(email.trim(), password)
+      const result = await login(email.trim(), password, channel || otpChannel)
       if (result?.otpRequired) {
-        setOtpToken(result.otpToken)
+        applyChallenge(result)
         setOtpCode('')
+        setOtpKey((k) => k + 1)
+        setNotice(channel ? `A new code has been sent by ${channelLabel(result.otpChannel)}.` : 'A new code has been sent.')
+        setResendIn(OTP_RESEND_SECONDS)
       }
     } catch (err) {
       setError(err.message || 'Could not resend the code. Please try again.')
@@ -174,109 +228,132 @@ const Login = () => {
 
   const handleBackToLogin = () => {
     setError('')
+    setNotice('')
+    setResendIn(0)
     setOtpToken('')
     setOtpCode('')
     setPassword('')
   }
 
+  const alert = error ? (
+    <CAlert color="danger" className="py-2 portal-alert" dismissible onClose={() => setError('')}>
+      {error}
+    </CAlert>
+  ) : null
+
   return (
-    <div className="login-page-bg min-vh-100 d-flex flex-row align-items-center">
-      <CContainer>
+    <div className="login-page-bg portal-login min-vh-100 d-flex flex-row align-items-center">
+      <CContainer className="px-3">
         <CRow className="justify-content-center">
-          <CCol md={8}>
-            <CCardGroup className="d-flex flex-column flex-md-row">
-              <CCard className="p-4 order-last order-md-first">
+          <CCol md={10} lg={8}>
+            <CCardGroup className="d-flex portal-card-group">
+              <CCard className="portal-form-panel" data-coreui-theme="dark">
                 <CCardBody>
                   {otpRequired ? (
                     <CForm onSubmit={handleVerifyOtp}>
-                      <h1>Verify code</h1>
-                      <p className="text-body-secondary">
-                        Enter the verification code we just sent you to finish signing in.
+                      <h1 className="portal-heading">Enter your code</h1>
+                      <p className="portal-subtext">
+                        We sent {otpLength === 8 ? 'an' : 'a'} {otpLength}-digit code{' '}
+                        {otpChannel === 'email' ? (
+                          <>
+                            to <strong>{email.trim()}</strong>
+                          </>
+                        ) : otpChannel ? (
+                          `by ${channelLabel(otpChannel)} to the phone number on your account`
+                        ) : (
+                          <>
+                            for <strong>{email.trim()}</strong>
+                          </>
+                        )}
+                        . Enter it below to finish signing in.
                       </p>
-                      {error ? (
-                        <CAlert color="danger" className="py-2" dismissible onClose={() => setError('')}>
-                          {error}
-                        </CAlert>
-                      ) : null}
-                      <CInputGroup className="mb-4">
-                        <CInputGroupText>
-                          <CIcon icon={cilLockLocked} />
-                        </CInputGroupText>
-                        <CFormInput
-                          type="text"
-                          inputMode="numeric"
-                          autoComplete="one-time-code"
-                          placeholder="Verification code"
-                          value={otpCode}
-                          onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                          autoFocus
-                          required
-                        />
-                      </CInputGroup>
-                      <CRow className="align-items-center">
-                        <CCol xs={6}>
-                          <CButton
-                            color="primary"
-                            type="submit"
-                            className="px-4"
-                            disabled={submitting || !otpCode}
-                          >
-                            {submitting ? <CSpinner size="sm" /> : 'Verify'}
-                          </CButton>
-                        </CCol>
-                        <CCol xs={6} className="text-right">
-                          <CButton
-                            color="link"
-                            className="px-0"
-                            type="button"
-                            onClick={handleResendOtp}
-                            disabled={submitting}
-                          >
-                            Resend code
-                          </CButton>
-                        </CCol>
-                      </CRow>
-                      <CRow className="mt-2">
-                        <CCol xs={12}>
-                          <CButton
-                            color="link"
-                            className="px-0"
-                            type="button"
-                            onClick={handleBackToLogin}
-                            disabled={submitting}
-                          >
-                            Back to login
-                          </CButton>
-                        </CCol>
-                      </CRow>
+                      {alert}
+                      <div aria-live="polite" className="portal-help">
+                        {notice}
+                      </div>
+                      <OtpCodeInput
+                        key={otpKey}
+                        value={otpCode}
+                        onChange={handleOtpChange}
+                        length={otpLength}
+                        disabled={submitting}
+                        autoFocus
+                      />
+                      <CButton
+                        type="submit"
+                        className="portal-primary-btn mt-4"
+                        disabled={submitting || otpCode.length !== otpLength}
+                      >
+                        {submitting ? (
+                          <>
+                            <CSpinner size="sm" className="me-2" aria-hidden="true" />
+                            Verifying…
+                          </>
+                        ) : (
+                          'Verify and sign in'
+                        )}
+                      </CButton>
+                      <div className="portal-linkrow">
+                        <button type="button" className="portal-link" onClick={handleBackToLogin} disabled={submitting}>
+                          Back to login
+                        </button>
+                        {resendIn > 0 ? (
+                          <span className="portal-help m-0">Resend in {formatCountdown(resendIn)}</span>
+                        ) : (
+                          <span className="d-inline-flex flex-wrap gap-3">
+                            <button
+                              type="button"
+                              className="portal-link"
+                              onClick={() => handleResendOtp()}
+                              disabled={submitting}
+                            >
+                              Resend code
+                            </button>
+                            {otpAlternative ? (
+                              <button
+                                type="button"
+                                className="portal-link"
+                                onClick={() => handleResendOtp(otpAlternative)}
+                                disabled={submitting}
+                              >
+                                Try {channelLabel(otpAlternative)} instead
+                              </button>
+                            ) : null}
+                          </span>
+                        )}
+                      </div>
                     </CForm>
                   ) : (
                     <CForm onSubmit={handleSubmit}>
-                      <h1>Login</h1>
-                      <p className="text-body-secondary">Sign In to your account</p>
-                      {error ? (
-                        <CAlert color="danger" className="py-2" dismissible onClose={() => setError('')}>
-                          {error}
-                        </CAlert>
-                      ) : null}
+                      <h1 className="portal-heading">Staff sign in</h1>
+                      <p className="portal-subtext">Sign in to your account</p>
+                      {alert}
+                      <CFormLabel htmlFor="staff-email" className="portal-label">
+                        Email
+                      </CFormLabel>
                       <CInputGroup className="mb-3">
-                        <CInputGroupText>
+                        <CInputGroupText className="portal-phone-prefix">
                           <CIcon icon={cilUser} />
                         </CInputGroupText>
                         <CFormInput
+                          id="staff-email"
                           type="email"
-                          placeholder="Email"
+                          placeholder="you@company.com"
                           autoComplete="username"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           required
                         />
                       </CInputGroup>
+                      <CFormLabel htmlFor="staff-password" className="portal-label">
+                        Password
+                      </CFormLabel>
                       <CInputGroup className="mb-4">
-                        <CInputGroupText>
+                        <CInputGroupText className="portal-phone-prefix">
                           <CIcon icon={cilLockLocked} />
                         </CInputGroupText>
                         <CFormInput
+                          id="staff-password"
                           type={showPassword ? 'text' : 'password'}
                           placeholder="Password"
                           autoComplete="current-password"
@@ -285,6 +362,7 @@ const Login = () => {
                           required
                         />
                         <CInputGroupText
+                          className="portal-phone-prefix"
                           role="button"
                           title={showPassword ? 'Hide password' : 'Show password'}
                           onClick={() => setShowPassword((v) => !v)}
@@ -293,44 +371,28 @@ const Login = () => {
                           {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
                         </CInputGroupText>
                       </CInputGroup>
-                      <CRow>
-                        <CCol xs={6}>
-                          <CButton
-                            color="primary"
-                            type="submit"
-                            className="px-4"
-                            disabled={submitting}
-                          >
-                            {submitting ? <CSpinner size="sm" /> : 'Login'}
-                          </CButton>
-                        </CCol>
-                        <CCol xs={6} className="text-right">
-                          <CButton color="link" className="px-0" type="button" onClick={handleForgotPassword}>
-                            Forgot password?
-                          </CButton>
-                        </CCol>
-                      </CRow>
+                      <CButton type="submit" className="portal-primary-btn" disabled={submitting}>
+                        {submitting ? <CSpinner size="sm" /> : 'Login'}
+                      </CButton>
+                      <div className="portal-linkrow">
+                        <button type="button" className="portal-link" onClick={handleForgotPassword}>
+                          Forgot password?
+                        </button>
+                      </div>
                     </CForm>
                   )}
+                  <p className="portal-footer-link">
+                    Are you a client? <Link to="/portal/login">Client sign in</Link>
+                  </p>
                 </CCardBody>
               </CCard>
-              <CCard className="text-white bg-primary py-5 login-brand-card order-first order-md-last">
-                <CCardBody className="text-center">
-                  <div>
-                    <img
-                      src={arislmsLogo}
-                      alt="ARIS LMS Logo"
-                      style={{ maxWidth: '100%', height: 'auto', marginBottom: '1.5rem' }}
-                    />
-                    <p>
-                      Loan Management System administration portal. Sign in with your staff
-                      credentials to manage clients, loans, payments, and accounting.
-                    </p>
-                    <p className="small mb-0">
-                      Are you a client?{' '}
-                      <Link to="/portal/login" className="text-white fw-semibold">Sign in to the client portal</Link>
-                    </p>
-                  </div>
+              <CCard className="portal-brand-panel">
+                <CCardBody className="d-flex flex-column justify-content-center text-center">
+                  <img src={arislmsLogo} alt="ARIS LMS Logo" className="portal-brand-logo" />
+                  <p className="mb-0">
+                    Loan Management System administration portal. Sign in with your staff credentials to
+                    manage clients, loans, payments, and accounting.
+                  </p>
                 </CCardBody>
               </CCard>
             </CCardGroup>

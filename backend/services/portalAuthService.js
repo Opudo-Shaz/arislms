@@ -9,7 +9,6 @@ const { safeNotify } = require('./notification/notificationTriggers');
 const { isChannelAvailable } = require('./notification/notificationDispatcher');
 const NotificationEventType = require('../enums/notificationEventType');
 const { lastFourOfId, idLast4Matches } = require('../utils/deviceId');
-const systemConfigService = require('./systemConfigService');
 const AuditLogger = require('../utils/auditLogger');
 const { phoneMatchCandidates } = require('../utils/helpers');
 const { portalAccessDenialReason, PORTAL_ACCESS_DENIED } = require('../utils/portalAccess');
@@ -101,16 +100,16 @@ function readDeviceBoundToken(token, typ, deviceHash, expiredMessage) {
  * verification.
  *
  * @param {{phone: string, channel: 'sms'|'email'|'whatsapp'}} params
- * @returns {Promise<{otpToken: string, channel: string, ttlMinutes: number}>}
+ * @returns {Promise<{otpToken: string, channel: string, ttlMinutes: number, otpLength: number}>}
  */
 async function requestOtp({ phone, channel }, userAgent = 'unknown', { deviceHash } = {}) {
   if (!deviceHash) throw httpError('Device identification is missing. Please refresh the page and try again.', 400);
-  const ttlMinutes = await systemConfigService.getConfigValue('auth.otp.ttl_minutes', 'number', 10);
+  const { ttlMinutes, length: otpLength } = await otpService.getOtpConfig();
   const client = await findClientByPhone(phone);
 
   if (!client) {
     logger.info(`[portalAuth] OTP requested for unknown phone — generic response returned`);
-    return { otpToken: signChallenge(0, ttlMinutes, deviceHash), channel, ttlMinutes };
+    return { otpToken: signChallenge(0, ttlMinutes, deviceHash), channel, ttlMinutes, otpLength };
   }
 
   // Email needs a valid address on file and WhatsApp needs to be enabled (globally and
@@ -145,7 +144,7 @@ async function requestOtp({ phone, channel }, userAgent = 'unknown', { deviceHas
     });
   }
 
-  return { otpToken: signChallenge(client.id, ttlMinutes, deviceHash), channel, ttlMinutes };
+  return { otpToken: signChallenge(client.id, ttlMinutes, deviceHash), channel, ttlMinutes, otpLength };
 }
 
 /**

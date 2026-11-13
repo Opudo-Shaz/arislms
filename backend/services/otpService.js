@@ -298,4 +298,4 @@ async function latestIssued({ userId, clientId, target, purpose }) {
   };
 }
 
-module.exports = { generateAndSend, verify, secondsSinceLastIssued, latestIssued, OTP_OUTBOX_PRIORITY };
+module.exports = { getOtpConfig, generateAndSend, verify, secondsSinceLastIssued, latestIssued, OTP_OUTBOX_PRIORITY };

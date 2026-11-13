@@ -7,9 +7,49 @@ const logger = require('../config/logger');
 const AuditLogger = require('../utils/auditLogger');
 const otpService = require('./otpService');
 const systemConfigService = require('./systemConfigService');
+const smsService = require('./sms/SmsService');
+const notificationDispatcher = require('./notification/notificationDispatcher');
+const NotificationChannel = require('../enums/notificationChannel');
+const NotificationEventType = require('../enums/notificationEventType');
 
 /** OTP purpose scope for the login flow. */
 const OTP_PURPOSE_LOGIN = 'login';
+
+/** Default order for staff login codes: SMS, then WhatsApp, then email. */
+const LOGIN_OTP_CHANNEL_ORDER = [
+  NotificationChannel.SMS,
+  NotificationChannel.WHATSAPP,
+  NotificationChannel.EMAIL,
+];
+
+/** True when a login code could actually be delivered to this user over `channel` right now. */
+const isLoginOtpChannelUsable = async (user, channel) => {
+  const hasDestination = channel === NotificationChannel.EMAIL ? Boolean(user.email) : Boolean(user.phone);
+  if (!hasDestination) return false;
+  if (!(await notificationDispatcher.isChannelAvailable(NotificationEventType.OTP_VERIFICATION, channel))) return false;
+  // The stub SMS provider always fails, so SMS only counts with a real gateway.
+  if (channel === NotificationChannel.SMS) return smsService.isConfigured();
+  return true;
+};
+
+/**
+ * Pick the channel for a staff login code: the requested one when usable (e.g. the user
+ * chose "try WhatsApp instead"), otherwise the first usable of SMS → WhatsApp → email.
+ * `channel` is null when none is usable, which leaves routing to the template defaults.
+ * `alternative` is WhatsApp when SMS was chosen and WhatsApp could take over if the SMS never arrives.
+ */
+const resolveLoginOtpChannel = async (user, requested = null) => {
+  const usable = [];
+  for (const channel of LOGIN_OTP_CHANNEL_ORDER) {
+    if (await isLoginOtpChannelUsable(user, channel)) usable.push(channel);
+  }
+  const channel = usable.includes(requested) ? requested : usable[0] || null;
+  const alternative =
+    channel === NotificationChannel.SMS && usable.includes(NotificationChannel.WHATSAPP)
+      ? NotificationChannel.WHATSAPP
+      : null;
+  return { channel, alternative };
+};
 
 const jwtSecret = () => process.env.JWT_SECRET || 'secretkey';
 
@@ -93,7 +133,7 @@ const authenticateCredentials = async (email, password) => {
   return user;
 };
 
-const login = async (email, password, userAgent = 'unknown') => {
+const login = async (email, password, userAgent = 'unknown', { channel: requestedChannel = null } = {}) => {
   try {
     const user = await authenticateCredentials(email, password);
 
@@ -104,9 +144,15 @@ const login = async (email, password, userAgent = 'unknown') => {
     );
 
     if (otpRequired) {
-      await otpService.generateAndSend({ user, purpose: OTP_PURPOSE_LOGIN, userAgent });
+      const { channel, alternative } = await resolveLoginOtpChannel(user, requestedChannel);
+      await otpService.generateAndSend({
+        user,
+        purpose: OTP_PURPOSE_LOGIN,
+        ...(channel ? { channels: [channel] } : {}),
+        userAgent,
+      });
 
-      const ttlMinutes = await systemConfigService.getConfigValue('auth.otp.ttl_minutes', 'number', 10);
+      const { ttlMinutes, length: otpLength } = await otpService.getOtpConfig();
       const otpToken = jwt.sign(
         { id: user.id, purpose: 'otp' },
         jwtSecret(),
@@ -114,7 +160,7 @@ const login = async (email, password, userAgent = 'unknown') => {
       );
 
       logger.info(`Login for user ${user.id} (${email}) requires OTP — challenge issued`);
-      return { otpRequired: true, otpToken };
+      return { otpRequired: true, otpToken, otpLength, otpChannel: channel, otpAlternative: alternative };
     }
 
     return issueSession(user, userAgent);
@@ -168,4 +214,4 @@ const verifyLoginOtp = async (otpToken, code, userAgent = 'unknown') => {
   return issueSession(user, userAgent);
 };
 
-module.exports = { login, verifyLoginOtp };
+module.exports = { login, verifyLoginOtp, resolveLoginOtpChannel };
