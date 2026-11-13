@@ -106,6 +106,19 @@ class SmsService {
     if (providerName) await smsMessageService.recordBatches({ provider: providerName, batches });
   }
 
+  /**
+   * True when a real SMS gateway is configured (not the stub, and resolvable).
+   * Lets callers pick another channel instead of sending into a provider that always fails.
+   */
+  async isConfigured() {
+    try {
+      const provider = await this._resolveProvider();
+      return !(provider instanceof StubSmsProvider);
+    } catch {
+      return false;
+    }
+  }
+
   /** Bust the cached provider instance. Call after updating sms.* system configs. */
   resetProvider() {
     this._provider = null;

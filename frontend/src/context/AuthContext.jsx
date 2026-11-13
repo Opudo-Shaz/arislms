@@ -100,12 +100,19 @@ export const AuthProvider = ({ children }) => {
     return session
   }, [])
 
-  const login = useCallback(async (email, password) => {
-    const result = await authApi.login({ email, password })
+  const login = useCallback(async (email, password, channel) => {
+    // `channel` is only set when resending an OTP on another channel.
+    const result = await authApi.login({ email, password, ...(channel ? { channel } : {}) })
     // OTP-gated login: password accepted but a one-time code is still required.
     // Don't establish a session yet — the caller drives the OTP step.
     if (result?.otpRequired) {
-      return { otpRequired: true, otpToken: result.otpToken }
+      return {
+        otpRequired: true,
+        otpToken: result.otpToken,
+        otpLength: result.otpLength,
+        otpChannel: result.otpChannel,
+        otpAlternative: result.otpAlternative,
+      }
     }
     return applySession(result)
   }, [applySession])
