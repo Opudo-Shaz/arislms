@@ -48,13 +48,13 @@ async function requestCode({ phone, name, channel = NotificationChannel.SMS }, u
     ? NotificationChannel.WHATSAPP
     : NotificationChannel.SMS;
 
-  const { ttlMinutes } = await otpService.generateAndSend({
+  const { ttlMinutes, otpLength } = await otpService.generateAndSend({
     target: { key, phone: key, name },
     purpose: PURPOSE,
     channels: [deliveryChannel],
     userAgent,
   });
-  return { channel: deliveryChannel, ttlMinutes };
+  return { channel: deliveryChannel, ttlMinutes, otpLength };
 }
 
 /** Consume the code and return a token proving this phone number was verified. */

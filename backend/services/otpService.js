@@ -181,7 +181,7 @@ async function generateAndSend({ user, client, target, purpose, channels = null,
   });
 
   logger.info(`[otpService] OTP issued for ${subject.label} purpose=${purpose}`);
-  return { expiresAt, ttlMinutes };
+  return { expiresAt, ttlMinutes, otpLength: length };
 }
 
 /**

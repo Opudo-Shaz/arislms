@@ -41,6 +41,9 @@ import { useResolveRegistrationLink } from '../../../hooks/useClientRegistration
 import api from '../../../api/clientRegistrationLinkApi'
 import CountrySubdivisionFields from '../../../components/CountrySubdivisionFields'
 import { DEFAULT_COUNTRY, DEFAULT_POSTAL_CODE } from '../../../constants/countries'
+import OtpChannelPicker from '../../portal/OtpChannelPicker'
+import OtpCodeEntry from '../../portal/OtpCodeEntry'
+import { DEFAULT_OTP_LENGTH, OTP_RESEND_SECONDS } from '../../../utils/otp'
 import arislmsLogoDefault from '../../../assets/brand/arislms_logo_fit.png'
 import arislmsLogoDark from '../../../assets/brand/arislms_logo_dark.png'
 
@@ -265,6 +268,8 @@ const ClientRegistration = () => {
   const [otpChannel, setOtpChannel] = useState('sms')
   const [otpSentBy, setOtpSentBy] = useState('sms')
   const [otpCode, setOtpCode] = useState('')
+  const [otpLength, setOtpLength] = useState(DEFAULT_OTP_LENGTH)
+  const [otpKey, setOtpKey] = useState(0) // remounts the digit boxes to refocus the first one
   const [otpBusy, setOtpBusy] = useState(false)
   const [otpError, setOtpError] = useState('')
   const [cooldown, setCooldown] = useState(0)
@@ -285,6 +290,12 @@ const ClientRegistration = () => {
 
   const setValue = (key, value) => {
     setForm((f) => ({ ...f, [key]: value }))
+    if (key === 'phone') {
+      // A code sent to the previous number is no use for the new one.
+      setOtpSent(false)
+      setOtpCode('')
+      setOtpError('')
+    }
     setFieldErrors((errs) => {
       if (!errs[key]) return errs
       const next = { ...errs }
@@ -331,7 +342,12 @@ const ClientRegistration = () => {
     setFieldErrors(errs)
     if (Object.keys(errs).length) return
     setFormError('')
-    setStepIndex((i) => Math.min(i + 1, steps.length - 1))
+    const nextIndex = Math.min(stepIndex + 1, steps.length - 1)
+    setStepIndex(nextIndex)
+    // Without WhatsApp there is no channel to choose, so send the SMS as the step opens.
+    if (steps[nextIndex].id === 'verify' && !link?.whatsappAvailable && !phoneVerified && !otpSent) {
+      requestOtp('sms')
+    }
   }
 
   const goBack = () => {
@@ -339,18 +355,22 @@ const ClientRegistration = () => {
     setStepIndex((i) => Math.max(i - 1, 0))
   }
 
-  const requestOtp = async () => {
+  const requestOtp = async (channel = otpChannel) => {
     setOtpError('')
     setOtpBusy(true)
     try {
       const res = await api.requestPublicOtp(token, {
         phone: form.phone.trim(),
         name: `${form.firstName} ${form.lastName}`.trim() || undefined,
-        channel: otpChannel,
+        channel,
       })
-      setOtpSentBy(res?.channel || otpChannel)
+      setOtpChannel(channel)
+      setOtpSentBy(res?.channel || channel)
+      if (res?.otpLength) setOtpLength(res.otpLength)
+      setOtpCode('')
+      setOtpKey((k) => k + 1)
       setOtpSent(true)
-      setCooldown(60)
+      setCooldown(OTP_RESEND_SECONDS)
     } catch (err) {
       setOtpError(err.data?.errors?.[0]?.message || err.message || 'Could not send the code.')
     } finally {
@@ -358,11 +378,11 @@ const ClientRegistration = () => {
     }
   }
 
-  const verifyOtp = async () => {
+  const verifyOtp = async (code) => {
     setOtpError('')
     setOtpBusy(true)
     try {
-      const res = await api.verifyPublicOtp(token, { phone: form.phone.trim(), code: otpCode.trim() })
+      const res = await api.verifyPublicOtp(token, { phone: form.phone.trim(), code: code.trim() })
       setVerification({ token: res.verificationToken, phone: form.phone.trim() })
       setOtpCode('')
       setFieldErrors((errs) => {
@@ -372,9 +392,20 @@ const ClientRegistration = () => {
       })
     } catch (err) {
       setOtpError(err.data?.errors?.[0]?.message || err.message || 'Could not verify the code.')
+      setOtpCode('')
+      setOtpKey((k) => k + 1)
     } finally {
       setOtpBusy(false)
     }
+  }
+
+  // The phone number is entered on the first step, so changing it means going back there.
+  const changeNumber = () => {
+    setOtpSent(false)
+    setOtpCode('')
+    setOtpError('')
+    setCooldown(0)
+    setStepIndex(Math.max(0, steps.findIndex((s) => s.fields.includes('phone'))))
   }
 
   const buildPayload = () => ({
@@ -698,45 +729,71 @@ const ClientRegistration = () => {
             </CAlert>
           ) : (
             <>
-              <p>
-                We need to confirm {form.phone || 'your phone number'}. We will send a one-time code
-                by {otpChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to that number.
-              </p>
-              {link?.whatsappAvailable && (
-                <div className="mb-3">
-                  <CFormCheck inline type="radio" name="reg-otp-channel" id="reg-otp-sms" label="SMS"
-                    checked={otpChannel === 'sms'} onChange={() => setOtpChannel('sms')} />
-                  <CFormCheck inline type="radio" name="reg-otp-channel" id="reg-otp-whatsapp" label="WhatsApp"
-                    checked={otpChannel === 'whatsapp'} onChange={() => setOtpChannel('whatsapp')} />
-                </div>
-              )}
-              {otpSent && (
-                <div className="text-body-secondary small mb-2">
-                  Code sent by {otpSentBy === 'whatsapp' ? 'WhatsApp' : 'SMS'}.
-                </div>
-              )}
-              <CRow className="g-3 align-items-end">
-                <CCol md={4}>
-                  <CButton color="primary" variant="outline" onClick={requestOtp} disabled={otpBusy || cooldown > 0}>
-                    {otpBusy && !otpSent && <CSpinner size="sm" className="me-2" />}
-                    {otpSent ? (cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code') : 'Send code'}
+            <div className="portal-otp-surface" data-coreui-theme="dark">
+              {otpSent ? (
+                <OtpCodeEntry
+                  title="Enter your code"
+                  titleAs="h2"
+                  description={`We sent a ${otpLength}-digit code by ${otpSentBy === 'whatsapp' ? 'WhatsApp' : 'SMS'} to ${form.phone}.`}
+                  error={otpError}
+                  onDismissError={() => setOtpError('')}
+                  code={otpCode}
+                  onCodeChange={setOtpCode}
+                  codeKey={otpKey}
+                  length={otpLength}
+                  submitting={otpBusy}
+                  onSubmit={verifyOtp}
+                  submitLabel="Verify phone"
+                  resendIn={cooldown}
+                  onResend={() => requestOtp(otpSentBy)}
+                  alternative={
+                    link?.whatsappAvailable
+                      ? {
+                          label: `Try ${otpSentBy === 'whatsapp' ? 'SMS' : 'WhatsApp'} instead`,
+                          onClick: () => requestOtp(otpSentBy === 'whatsapp' ? 'sms' : 'whatsapp'),
+                        }
+                      : undefined
+                  }
+                  backLabel="Wrong number?"
+                  onBack={changeNumber}
+                />
+              ) : (
+                <>
+                  <h2 className="portal-heading">Verify your phone</h2>
+                  <p className="portal-subtext">
+                    We need to confirm {form.phone || 'your phone number'}. We&apos;ll send you a one-time code.
+                  </p>
+                  {otpError ? (
+                    <CAlert color="danger" className="py-2 portal-alert" dismissible onClose={() => setOtpError('')}>
+                      {otpError}
+                    </CAlert>
+                  ) : null}
+                  {link?.whatsappAvailable && (
+                    <OtpChannelPicker
+                      id="reg-otp-channel"
+                      options={[
+                        { value: 'sms', label: 'SMS' },
+                        { value: 'whatsapp', label: 'WhatsApp' },
+                      ]}
+                      value={otpChannel}
+                      onChange={setOtpChannel}
+                    />
+                  )}
+                  <CButton className="portal-primary-btn mt-3" onClick={() => requestOtp()} disabled={otpBusy || cooldown > 0}>
+                    {otpBusy ? (
+                      <>
+                        <CSpinner size="sm" className="me-2" aria-hidden="true" />
+                        Sending…
+                      </>
+                    ) : cooldown > 0 ? (
+                      `Resend in ${cooldown}s`
+                    ) : (
+                      'Send code'
+                    )}
                   </CButton>
-                </CCol>
-              </CRow>
-              {otpSent && (
-                <CRow className="g-3 align-items-end mt-1">
-                  <Field label="Verification code" md={4}>
-                    <CFormInput value={otpCode} onChange={(e) => setOtpCode(e.target.value)} placeholder="Enter the code" inputMode="numeric" maxLength={10} />
-                  </Field>
-                  <CCol md={4}>
-                    <CButton color="primary" onClick={verifyOtp} disabled={otpBusy || otpCode.trim().length < 4}>
-                      {otpBusy && <CSpinner size="sm" className="me-2" />}
-                      Verify
-                    </CButton>
-                  </CCol>
-                </CRow>
+                </>
               )}
-              {otpError && <CAlert color="danger" className="mt-3 mb-0">{otpError}</CAlert>}
+            </div>
               {fe('phoneVerification') && (
                 <div className="text-danger small mt-3">{fe('phoneVerification')}</div>
               )}

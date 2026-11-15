@@ -34,7 +34,9 @@ import arislmsLogo from '../../assets/brand/arislms_logo_dark.png'
 import { PORTAL_NOTICE_KEY, useClientAuth } from '../../context/ClientAuthContext'
 import { PORTAL_ACCESS_DENIED } from '../../api/portalHttp'
 import { formatInternational, formatLocal, isValidLocal, toE164, toLocalDigits } from '../../utils/kenyanPhone'
-import OtpCodeInput from './OtpCodeInput'
+import OtpChannelPicker from './OtpChannelPicker'
+import OtpCodeEntry from './OtpCodeEntry'
+import { DEFAULT_OTP_LENGTH, DEFAULT_OTP_TTL_MINUTES, OTP_RESEND_SECONDS } from '../../utils/otp'
 
 /** Sign-out reason left by ClientAuthContext when access was withdrawn mid-session. */
 const takeStoredNotice = () => {
@@ -53,13 +55,6 @@ const CHANNELS = [
   { value: 'email', label: 'Email' },
 ]
 const CHANNEL_STORAGE_KEY = 'portal.lastOtpChannel'
-// Backend default for `auth.otp.length`; replaced by the real value from the first response.
-const DEFAULT_CODE_LENGTH = 6
-// Matches the backend's resend cooldown (portalAuthService RESEND_COOLDOWN_SECONDS): a resend
-// requested sooner is silently skipped server-side, so a shorter countdown would be a lie.
-const RESEND_SECONDS = 60
-// Backend default for `auth.otp.ttl_minutes`; replaced by the real value from the first response.
-const DEFAULT_OTP_TTL_MINUTES = 10
 
 const readLastChannel = () => {
   try {
@@ -77,8 +72,6 @@ const saveLastChannel = (channel) => {
     // Storage unavailable (private mode, blocked): the preference just isn't remembered.
   }
 }
-
-const formatCountdown = (seconds) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 
 const channelLabel = (value) => CHANNELS.find((c) => c.value === value)?.label ?? 'SMS'
 
@@ -120,7 +113,7 @@ const PortalLogin = () => {
   const [channel, setChannel] = useState(readLastChannel)
   const [challenge, setChallenge] = useState(null) // { otpToken, channel }
   const [ttlMinutes, setTtlMinutes] = useState(DEFAULT_OTP_TTL_MINUTES)
-  const [codeLength, setCodeLength] = useState(DEFAULT_CODE_LENGTH)
+  const [codeLength, setCodeLength] = useState(DEFAULT_OTP_LENGTH)
   const [code, setCode] = useState('')
   const [codeKey, setCodeKey] = useState(0) // remounts the digit boxes to refocus the first one
   // Set when the code was right but this device is new: { stepUpToken }
@@ -173,7 +166,7 @@ const PortalLogin = () => {
         if (result.otpLength) setCodeLength(result.otpLength)
         setCode('')
         setCodeKey((k) => k + 1)
-        setResendIn(RESEND_SECONDS)
+        setResendIn(OTP_RESEND_SECONDS)
       } catch (err) {
         setError(requestErrorMessage(err, useChannel))
       }
@@ -221,17 +214,6 @@ const PortalLogin = () => {
       }
     })
 
-  const handleVerify = (e) => {
-    e.preventDefault()
-    if (code.length === codeLength) submitCode(code)
-  }
-
-  // Submit as soon as the last digit lands (typed, pasted or autofilled).
-  const handleCodeChange = (next) => {
-    setCode(next)
-    if (next.length === codeLength && !busyRef.current) submitCode(next)
-  }
-
   const handleDeviceCheck = (e) => {
     e.preventDefault()
     return runExclusive(async () => {
@@ -250,15 +232,6 @@ const PortalLogin = () => {
         }
       }
     })
-  }
-
-  const handleChannelKeyDown = (e, index) => {
-    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]
-    if (!step) return
-    e.preventDefault()
-    const nextIndex = (index + step + CHANNELS.length) % CHANNELS.length
-    setChannel(CHANNELS[nextIndex].value)
-    e.currentTarget.parentElement.children[nextIndex]?.focus()
   }
 
   const retryWithOther = challenge?.channel === 'sms' ? 'whatsapp' : 'sms'
@@ -310,38 +283,13 @@ const PortalLogin = () => {
       </div>
 
       {phoneValid ? (
-        <div className="portal-channels">
-          <div id="portal-channel-label" className="portal-label">
-            Send my code by
-          </div>
-          <div role="radiogroup" aria-labelledby="portal-channel-label" className="portal-segmented">
-            {CHANNELS.map((c, i) => {
-              const selected = channel === c.value
-              return (
-                <button
-                  key={c.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  tabIndex={selected ? 0 : -1}
-                  className={`portal-segment ${selected ? 'is-selected' : ''}`}
-                  onClick={() => setChannel(c.value)}
-                  onKeyDown={(e) => handleChannelKeyDown(e, i)}
-                >
-                  {selected ? (
-                    <span className="portal-segment-check" aria-hidden="true">
-                      ✓
-                    </span>
-                  ) : null}
-                  {c.label}
-                </button>
-              )
-            })}
-          </div>
-          <div aria-live="polite" className="portal-help">
-            {channel === 'email' ? 'Works if a valid email is saved on your account.' : ''}
-          </div>
-        </div>
+        <OtpChannelPicker
+          id="portal-channel"
+          options={CHANNELS}
+          value={channel}
+          onChange={setChannel}
+          hint={channel === 'email' ? 'Works if a valid email is saved on your account.' : ''}
+        />
       ) : null}
 
       <CButton type="submit" className="portal-primary-btn mt-3" disabled={submitting || !phoneValid}>
@@ -410,64 +358,34 @@ const PortalLogin = () => {
         ? `We sent ${article} ${codeLength}-digit code to the email saved on the account for ${number}.`
         : `We sent ${article} ${codeLength}-digit code by ${channelLabel(challenge.channel)} to ${number}.`
     return (
-      <CForm key="verify" onSubmit={handleVerify}>
-        <h1 className="portal-heading">Enter your code</h1>
-        <p className="portal-subtext" aria-live="polite">
-          {sentTo}
-        </p>
-        {errorAlert}
-        <OtpCodeInput key={codeKey} value={code} onChange={handleCodeChange} length={codeLength} disabled={submitting} autoFocus />
-        <CButton
-          type="submit"
-          className="portal-primary-btn mt-4"
-          disabled={submitting || code.length !== codeLength}
-        >
-          {submitting ? (
-            <>
-              <CSpinner size="sm" className="me-2" aria-hidden="true" />
-              Verifying…
-            </>
-          ) : (
-            'Verify and sign in'
-          )}
-        </CButton>
-        <div className="portal-linkrow">
-          <button type="button" className="portal-link" onClick={startOver} disabled={submitting}>
-            Wrong number?
-          </button>
-          <span className="portal-linkrow-end">
-            {resendIn > 0 ? (
-              <span className="portal-help m-0" aria-live="off">
-                Resend in {formatCountdown(resendIn)}
-              </span>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="portal-link"
-                  onClick={() => sendCode(challenge.channel)}
-                  disabled={submitting}
-                >
-                  Resend code
-                </button>
-                {challenge.channel !== 'email' ? (
-                  <button
-                    type="button"
-                    className="portal-link ms-3"
-                    onClick={() => {
-                      setChannel(retryWithOther)
-                      startOver()
-                    }}
-                    disabled={submitting}
-                  >
-                    Try {channelLabel(retryWithOther)} instead
-                  </button>
-                ) : null}
-              </>
-            )}
-          </span>
-        </div>
-      </CForm>
+      <OtpCodeEntry
+        key="verify"
+        title="Enter your code"
+        description={sentTo}
+        error={error}
+        onDismissError={() => setError('')}
+        code={code}
+        onCodeChange={setCode}
+        codeKey={codeKey}
+        length={codeLength}
+        submitting={submitting}
+        onSubmit={submitCode}
+        resendIn={resendIn}
+        onResend={() => sendCode(challenge.channel)}
+        alternative={
+          challenge.channel !== 'email'
+            ? {
+                label: `Try ${channelLabel(retryWithOther)} instead`,
+                onClick: () => {
+                  setChannel(retryWithOther)
+                  startOver()
+                },
+              }
+            : undefined
+        }
+        backLabel="Wrong number?"
+        onBack={startOver}
+      />
     )
   }
 

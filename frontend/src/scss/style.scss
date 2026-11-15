@@ -56,7 +56,10 @@ body {
 
 // ── Client portal sign-in ──────────────────────────────────────────────
 // Dark form panel on the left, light-blue brand panel on the right (stacked on narrow screens).
-.portal-login {
+// `.portal-otp-surface` reuses the same form styling for one-time-code steps embedded in other
+// pages (client registration, co-signer consent) so every OTP screen looks and behaves alike.
+.portal-login,
+.portal-otp-surface {
   --portal-accent: #7cc3da;
   --portal-panel: #1b2230;
   --portal-field: #232b3b;
@@ -203,6 +206,21 @@ body {
 
   .portal-segment-check {
     color: var(--portal-accent);
+  }
+
+  .portal-segment-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-segment-detail {
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: var(--portal-muted);
   }
 
   // The only solid, high-emphasis element on the form.
@@ -411,6 +429,23 @@ body {
         height: 1rem;
       }
     }
+  }
+}
+
+// Panel chrome for the embedded variant (the portal sign-in gets this from its card instead).
+.portal-otp-surface {
+  padding: 1.5rem 1.5rem 1.25rem;
+  background-color: var(--portal-panel);
+  border: 1px solid var(--portal-border);
+  border-radius: 0.75rem;
+  color: var(--portal-text);
+
+  .portal-heading {
+    font-size: 1.4rem;
+  }
+
+  .portal-subtext {
+    margin-bottom: 1.25rem;
   }
 }
 
@@ -774,4 +809,22 @@ body {
   @media (min-width: 768px) {
     border-right: 1px solid var(--cui-border-color);
   }
+}
+
+// Notification template channel colours (form sections + list pills).
+// Dark mode uses lighter variants so they stay legible on dark surfaces.
+:root {
+  --tpl-ch-email: #321fdb;
+  --tpl-ch-sms: #2eb85c;
+  --tpl-ch-whatsapp: #25d366;
+  --tpl-ch-push: #f9b115;
+  --tpl-ch-inapp: #e55353;
+}
+
+@include color-mode(dark) {
+  --tpl-ch-email: #9c92ff;
+  --tpl-ch-sms: #4fd18b;
+  --tpl-ch-whatsapp: #5be28a;
+  --tpl-ch-push: #ffc94d;
+  --tpl-ch-inapp: #ff8080;
 }

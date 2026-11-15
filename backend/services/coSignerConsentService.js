@@ -339,7 +339,7 @@ const coSignerConsentService = {
     if (since !== null && since < RESEND_COOLDOWN_SECONDS) {
       throw httpError(`Please wait ${Math.ceil(RESEND_COOLDOWN_SECONDS - since)}s before requesting another code.`, 429);
     }
-    await otpService.generateAndSend({
+    const { ttlMinutes, otpLength } = await otpService.generateAndSend({
       client: coSigner,
       purpose,
       channels: [deliveryChannel],
@@ -348,6 +348,8 @@ const coSignerConsentService = {
     });
     return {
       channel: deliveryChannel,
+      ttlMinutes,
+      otpLength,
       sentTo: deliveryChannel === NotificationChannel.EMAIL ? maskEmail(coSigner.email) : maskPhone(coSigner.phone),
     };
   },

@@ -34,6 +34,7 @@ const { buildRecipients, safeNotify } = require('./notification/notificationTrig
 const { notifyLoanReceivers } = require('./notification/loanNotificationReceivers');
 const coSignerConsentService = require('./coSignerConsentService');
 const CoSignerConsentStatus = require('../enums/coSignerConsentStatus');
+const { assertCoSignerConsented } = require('./coSignerConsentGuard');
 const FeeTreatment = require('../enums/feeTreatment');
 const { resolvePrincipal, disclosureForLoan } = require('../utils/loanCostDisclosure');
 
@@ -362,6 +363,8 @@ const loanService = {
 
       collateral: data.collateral,
       coSignerId: data.coSignerId,
+      // Set up front so the loan stays blocked even if sending the consent request fails.
+      ...(data.coSignerId ? { coSignerConsentStatus: CoSignerConsentStatus.PENDING } : {}),
       notes: data.notes,
 
       status: loanStatus,
@@ -611,6 +614,10 @@ const loanService = {
       if (coSignerChanged && !data.coSignerId) {
         data.coSignerConsentStatus = null;
       }
+      // Never let a new co-signer inherit the previous one's consent, even if the request below fails.
+      if (coSignerChanged && data.coSignerId) {
+        data.coSignerConsentStatus = CoSignerConsentStatus.PENDING;
+      }
 
       if (data.termMonths !== undefined && Number(data.termMonths) !== Number(loan.termMonths)) {
         if (loan.repaymentSchedules?.length) {
@@ -715,15 +722,7 @@ const loanService = {
 
       // A co-signed loan needs the co-signer's recorded consent. NULL = loan predates
       // consent tracking, so it isn't blocked (staff collected consent offline).
-      if (loan.coSignerId && loan.coSignerConsentStatus !== null
-        && loan.coSignerConsentStatus !== CoSignerConsentStatus.ACCEPTED) {
-        throw Object.assign(
-          new Error(
-            `Loan cannot be approved. The co-signer has not consented yet (consent status: ${loan.coSignerConsentStatus}).`
-          ),
-          { statusCode: 409 }
-        );
-      }
+      assertCoSignerConsented(loan, 'approved', 409)
 
       // If the loan product requires collateral, at least one collateral document must be uploaded
       const product = await LoanProduct.findByPk(loan.loanProductId);
@@ -1092,15 +1091,7 @@ const loanService = {
       }
 
       // A co-signer may be added after approval, so consent is re-checked here.
-      if (loan.coSignerId && loan.coSignerConsentStatus !== null
-        && loan.coSignerConsentStatus !== CoSignerConsentStatus.ACCEPTED) {
-        throw Object.assign(
-          new Error(
-            `Loan cannot be disbursed. The co-signer has not consented yet (consent status: ${loan.coSignerConsentStatus}).`
-          ),
-          { statusCode: 422 }
-        );
-      }
+      assertCoSignerConsented(loan, 'disbursed', 422)
 
       // Enforce down payment collection before disbursement
       const downPaymentRequired = Number(loan.downPaymentRequired || 0);

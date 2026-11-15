@@ -19,6 +19,7 @@ import {
   CFormCheck,
   CFormInput,
   CFormLabel,
+  CFormSwitch,
   CFormTextarea,
   CModal,
   CModalBody,
@@ -28,12 +29,54 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilBell, cilChatBubble, cilEnvelopeClosed, cilInbox, cilSpeech } from '@coreui/icons'
 
 import {
   useCreateNotificationTemplate,
   useUpdateNotificationTemplate,
 } from '../../hooks/useNotificationTemplates'
 import { NOTIFICATION_EVENT_TYPE } from '../../constants/enums'
+
+/** Visually distinct section for one channel: coloured divider, header band, and enabled switch. */
+const ChannelSection = ({ title, icon, color, enabled, onToggle, children }) => (
+  <CCol xs={12}>
+    <div
+      className="rounded overflow-hidden mt-2"
+      style={{ border: `1px solid color-mix(in srgb, ${color} 33%, transparent)`, borderTop: `4px solid ${color}` }}
+    >
+      <div
+        className="d-flex align-items-center justify-content-between px-3 py-2"
+        style={{ backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)` }}
+      >
+        <div className="d-flex align-items-center gap-2 fw-bold fs-5" style={{ color }}>
+          <CIcon icon={icon} size="lg" />
+          {title}
+        </div>
+        <CFormSwitch
+          id={`channel-switch-${title}`}
+          size="lg"
+          label={enabled ? 'Enabled' : 'Disabled'}
+          checked={enabled}
+          onChange={onToggle}
+          className={enabled ? 'fw-semibold text-success' : 'fw-semibold text-body-secondary'}
+        />
+      </div>
+      <div className="p-3">
+        <CRow className="g-3">{children}</CRow>
+      </div>
+    </div>
+  </CCol>
+)
+
+ChannelSection.propTypes = {
+  title: PropTypes.string.isRequired,
+  icon: PropTypes.oneOfType([PropTypes.array, PropTypes.string, PropTypes.object]).isRequired,
+  color: PropTypes.string.isRequired,
+  enabled: PropTypes.bool.isRequired,
+  onToggle: PropTypes.func.isRequired,
+  children: PropTypes.node,
+}
 
 const emptyForm = {
   eventKey: '',
@@ -170,87 +213,67 @@ const NotificationTemplateForm = ({ visible, template, onClose }) => {
               <CFormTextarea rows={2} value={form.description} onChange={setField('description')} maxLength={500} />
             </CCol>
             <CCol xs={12}>
-              <CFormCheck label="Active" checked={form.isActive} onChange={setCheck('isActive')} />
-            </CCol>
-
-            {/* Email */}
-            <CCol xs={12}>
-              <hr className="my-2" />
-              <div className="d-flex align-items-center justify-content-between">
-                <CFormLabel className="mb-0 fw-semibold">Email</CFormLabel>
-                <CFormCheck label="Enabled" checked={form.emailEnabled} onChange={setCheck('emailEnabled')} />
+              <div className="d-flex align-items-center gap-2 py-2 px-1">
+                <CFormCheck
+                  id="template-active"
+                  checked={form.isActive}
+                  onChange={setCheck('isActive')}
+                  style={{ width: '1.5em', height: '1.5em', margin: 0, borderRadius: '50%', borderWidth: 2, borderColor: 'var(--tpl-ch-email)', cursor: 'pointer' }}
+                />
+                <label htmlFor="template-active" className="fw-semibold mb-0" style={{ cursor: 'pointer' }}>
+                  {form.isActive ? 'Active' : 'Inactive'}
+                </label>
               </div>
             </CCol>
-            <CCol xs={12}>
-              <CFormLabel>Subject</CFormLabel>
-              <CFormInput value={form.emailSubject} onChange={setField('emailSubject')} maxLength={255} />
-            </CCol>
-            <CCol xs={12}>
-              <CFormLabel>Body</CFormLabel>
-              <CFormTextarea rows={3} value={form.emailBody} onChange={setField('emailBody')} />
-              <div className="form-text">Supports `{'{{variable}}'}` placeholders, e.g. `{'{{clientName}}'}`.</div>
-            </CCol>
 
-            {/* SMS */}
-            <CCol xs={12}>
-              <hr className="my-2" />
-              <div className="d-flex align-items-center justify-content-between">
-                <CFormLabel className="mb-0 fw-semibold">SMS</CFormLabel>
-                <CFormCheck label="Enabled" checked={form.smsEnabled} onChange={setCheck('smsEnabled')} />
-              </div>
-            </CCol>
-            <CCol xs={12}>
-              <CFormLabel>Body</CFormLabel>
-              <CFormTextarea rows={2} value={form.smsBody} onChange={setField('smsBody')} />
-            </CCol>
+            <ChannelSection title="Email" icon={cilEnvelopeClosed} color="var(--tpl-ch-email)" enabled={form.emailEnabled} onToggle={setCheck('emailEnabled')}>
+              <CCol xs={12}>
+                <CFormLabel>Subject</CFormLabel>
+                <CFormInput value={form.emailSubject} onChange={setField('emailSubject')} maxLength={255} />
+              </CCol>
+              <CCol xs={12}>
+                <CFormLabel>Body</CFormLabel>
+                <CFormTextarea rows={3} value={form.emailBody} onChange={setField('emailBody')} />
+                <div className="form-text">Supports `{'{{variable}}'}` placeholders, e.g. `{'{{clientName}}'}`.</div>
+              </CCol>
+            </ChannelSection>
 
-            {/* WhatsApp */}
-            <CCol xs={12}>
-              <hr className="my-2" />
-              <div className="d-flex align-items-center justify-content-between">
-                <CFormLabel className="mb-0 fw-semibold">WhatsApp</CFormLabel>
-                <CFormCheck label="Enabled" checked={form.whatsappEnabled} onChange={setCheck('whatsappEnabled')} />
-              </div>
-            </CCol>
-            <CCol xs={12}>
-              <CFormLabel>Body</CFormLabel>
-              <CFormTextarea rows={2} value={form.whatsappBody} onChange={setField('whatsappBody')} />
-              <div className="form-text">Leave blank to send the SMS body. The channel must also be enabled in System Config.</div>
-            </CCol>
+            <ChannelSection title="SMS" icon={cilChatBubble} color="var(--tpl-ch-sms)" enabled={form.smsEnabled} onToggle={setCheck('smsEnabled')}>
+              <CCol xs={12}>
+                <CFormLabel>Body</CFormLabel>
+                <CFormTextarea rows={2} value={form.smsBody} onChange={setField('smsBody')} />
+              </CCol>
+            </ChannelSection>
 
-            {/* Push */}
-            <CCol xs={12}>
-              <hr className="my-2" />
-              <div className="d-flex align-items-center justify-content-between">
-                <CFormLabel className="mb-0 fw-semibold">Push</CFormLabel>
-                <CFormCheck label="Enabled" checked={form.pushEnabled} onChange={setCheck('pushEnabled')} />
-              </div>
-            </CCol>
-            <CCol xs={12}>
-              <CFormLabel>Title</CFormLabel>
-              <CFormInput value={form.pushTitle} onChange={setField('pushTitle')} maxLength={150} />
-            </CCol>
-            <CCol xs={12}>
-              <CFormLabel>Body</CFormLabel>
-              <CFormTextarea rows={2} value={form.pushBody} onChange={setField('pushBody')} />
-            </CCol>
+            <ChannelSection title="WhatsApp" icon={cilSpeech} color="var(--tpl-ch-whatsapp)" enabled={form.whatsappEnabled} onToggle={setCheck('whatsappEnabled')}>
+              <CCol xs={12}>
+                <CFormLabel>Body</CFormLabel>
+                <CFormTextarea rows={2} value={form.whatsappBody} onChange={setField('whatsappBody')} />
+                <div className="form-text">Leave blank to send the SMS body. The channel must also be enabled in System Config.</div>
+              </CCol>
+            </ChannelSection>
 
-            {/* In-App */}
-            <CCol xs={12}>
-              <hr className="my-2" />
-              <div className="d-flex align-items-center justify-content-between">
-                <CFormLabel className="mb-0 fw-semibold">In-App</CFormLabel>
-                <CFormCheck label="Enabled" checked={form.inAppEnabled} onChange={setCheck('inAppEnabled')} />
-              </div>
-            </CCol>
-            <CCol xs={12}>
-              <CFormLabel>Title</CFormLabel>
-              <CFormInput value={form.inAppTitle} onChange={setField('inAppTitle')} maxLength={150} />
-            </CCol>
-            <CCol xs={12}>
-              <CFormLabel>Body</CFormLabel>
-              <CFormTextarea rows={2} value={form.inAppBody} onChange={setField('inAppBody')} />
-            </CCol>
+            <ChannelSection title="Push" icon={cilBell} color="var(--tpl-ch-push)" enabled={form.pushEnabled} onToggle={setCheck('pushEnabled')}>
+              <CCol xs={12}>
+                <CFormLabel>Title</CFormLabel>
+                <CFormInput value={form.pushTitle} onChange={setField('pushTitle')} maxLength={150} />
+              </CCol>
+              <CCol xs={12}>
+                <CFormLabel>Body</CFormLabel>
+                <CFormTextarea rows={2} value={form.pushBody} onChange={setField('pushBody')} />
+              </CCol>
+            </ChannelSection>
+
+            <ChannelSection title="In-App" icon={cilInbox} color="var(--tpl-ch-inapp)" enabled={form.inAppEnabled} onToggle={setCheck('inAppEnabled')}>
+              <CCol xs={12}>
+                <CFormLabel>Title</CFormLabel>
+                <CFormInput value={form.inAppTitle} onChange={setField('inAppTitle')} maxLength={150} />
+              </CCol>
+              <CCol xs={12}>
+                <CFormLabel>Body</CFormLabel>
+                <CFormTextarea rows={2} value={form.inAppBody} onChange={setField('inAppBody')} />
+              </CCol>
+            </ChannelSection>
           </CRow>
         </CForm>
       </CModalBody>

@@ -17,7 +17,6 @@ import {
   CCol,
   CContainer,
   CFormCheck,
-  CFormInput,
   CFormLabel,
   CFormTextarea,
   CRow,
@@ -29,6 +28,9 @@ import { cilCheckCircle, cilWarning, cilXCircle } from '@coreui/icons'
 import arislmsLogoDefault from '../../assets/brand/arislms_logo_fit.png'
 import arislmsLogoDark from '../../assets/brand/arislms_logo_dark.png'
 import portalApi from '../../api/portalApi'
+import OtpChannelPicker from './OtpChannelPicker'
+import OtpCodeEntry from './OtpCodeEntry'
+import { DEFAULT_OTP_LENGTH, OTP_RESEND_SECONDS } from '../../utils/otp'
 import { formatCurrency, formatDateTime } from '../../utils/format'
 
 const CLOSED_MESSAGES = {
@@ -37,6 +39,9 @@ const CLOSED_MESSAGES = {
   expired: { color: 'secondary', icon: cilWarning, text: 'This request has expired. If you still want to co-sign, ask the borrower to send a new request.' },
   superseded: { color: 'secondary', icon: cilWarning, text: 'This request has been replaced. If you received a newer link, please use that one.' },
 }
+
+const CHANNEL_LABELS = { sms: 'SMS', whatsapp: 'WhatsApp', email: 'email' }
+const channelLabelFor = (channel) => CHANNEL_LABELS[channel] ?? channel
 
 const CoSignerConsent = () => {
   const { token } = useParams()
@@ -62,6 +67,9 @@ const CoSignerConsent = () => {
   const [channel, setChannel] = useState('sms')
   const [codeSentTo, setCodeSentTo] = useState(null)
   const [code, setCode] = useState('')
+  const [codeLength, setCodeLength] = useState(DEFAULT_OTP_LENGTH)
+  const [codeKey, setCodeKey] = useState(0) // remounts the digit boxes to refocus the first one
+  const [resendIn, setResendIn] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(null)
@@ -81,17 +89,35 @@ const CoSignerConsent = () => {
     }
   }, [token])
 
-  const sendCode = async () => {
+  useEffect(() => {
+    if (resendIn <= 0) return undefined
+    const t = setTimeout(() => setResendIn((s) => s - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendIn])
+
+  const sendCode = async (useChannel = channel) => {
     setError('')
     setBusy(true)
     try {
-      const res = await portalApi.sendCoSignerConsentOtp(token, channel)
+      const res = await portalApi.sendCoSignerConsentOtp(token, useChannel)
+      setChannel(res.channel || useChannel)
       setCodeSentTo(res.sentTo)
+      if (res.otpLength) setCodeLength(res.otpLength)
+      setCode('')
+      setCodeKey((k) => k + 1)
+      setResendIn(OTP_RESEND_SECONDS)
     } catch (err) {
       setError(err?.message || 'Could not send a code.')
     } finally {
       setBusy(false)
     }
+  }
+
+  const changeMethod = () => {
+    setCodeSentTo(null)
+    setCode('')
+    setError('')
+    setResendIn(0)
   }
 
   const submit = async () => {
@@ -107,10 +133,20 @@ const CoSignerConsent = () => {
     } catch (err) {
       const fieldErrors = err?.data?.errors
       setError(fieldErrors?.length ? fieldErrors.map((f) => f.message).join(' ') : err?.message || 'Could not record your response.')
+      setCode('')
+      setCodeKey((k) => k + 1)
     } finally {
       setBusy(false)
     }
   }
+
+  const channelOptions = [
+    ['sms', 'SMS'],
+    ['whatsapp', 'WhatsApp'],
+    ['email', 'Email'],
+  ]
+    .filter(([value]) => view?.otpDestinations?.[value])
+    .map(([value, label]) => ({ value, label, detail: view.otpDestinations[value] }))
 
   const loan = view?.loan
   const closed = view && view.status !== 'pending' ? CLOSED_MESSAGES[view.status] : null
@@ -165,7 +201,7 @@ const CoSignerConsent = () => {
         </CAlert>
         <div className="small text-body-secondary mb-3">This request expires {formatDateTime(view.expiresAt)}.</div>
 
-        {error ? <CAlert color="danger" className="py-2" dismissible onClose={() => setError('')}>{error}</CAlert> : null}
+        {error && !decision ? <CAlert color="danger" className="py-2" dismissible onClose={() => setError('')}>{error}</CAlert> : null}
 
         {!decision ? (
           <div className="d-flex flex-wrap gap-2">
@@ -189,57 +225,71 @@ const CoSignerConsent = () => {
               </div>
             )}
 
-            {!codeSentTo ? (
-              <>
-                <div className="small mb-2">To confirm it&apos;s you, we&apos;ll send a one-time code to your registered contact:</div>
-                <div className="d-flex flex-wrap gap-3 mb-3">
-                  {view.otpDestinations?.sms ? (
-                    <CFormCheck type="radio" name="cs-channel" id="cs-sms" label={`SMS to ${view.otpDestinations.sms}`}
-                      checked={channel === 'sms'} onChange={() => setChannel('sms')} />
+            <div className="portal-otp-surface" data-coreui-theme="dark">
+              {!codeSentTo ? (
+                <>
+                  <h2 className="portal-heading">Confirm it&apos;s you</h2>
+                  <p className="portal-subtext">We&apos;ll send a one-time code to your registered contact.</p>
+                  {error ? (
+                    <CAlert color="danger" className="py-2 portal-alert" dismissible onClose={() => setError('')}>
+                      {error}
+                    </CAlert>
                   ) : null}
-                  {view.otpDestinations?.whatsapp ? (
-                    <CFormCheck type="radio" name="cs-channel" id="cs-whatsapp" label={`WhatsApp to ${view.otpDestinations.whatsapp}`}
-                      checked={channel === 'whatsapp'} onChange={() => setChannel('whatsapp')} />
-                  ) : null}
-                  {view.otpDestinations?.email ? (
-                    <CFormCheck type="radio" name="cs-channel" id="cs-email" label={`Email to ${view.otpDestinations.email}`}
-                      checked={channel === 'email'} onChange={() => setChannel('email')} />
-                  ) : null}
-                </div>
-                <div className="d-flex flex-wrap gap-2">
-                  <CButton color="primary" onClick={sendCode} disabled={busy || (decision === 'accept' && !agreed)}>
-                    {busy ? <CSpinner size="sm" /> : 'Send code'}
-                  </CButton>
-                  <CButton color="secondary" variant="ghost" onClick={() => { setDecision(null); setAgreed(false) }} disabled={busy}>
-                    Back
-                  </CButton>
-                </div>
-              </>
-            ) : (
-              <>
-                <CFormLabel htmlFor="cs-code">Enter the code sent to {codeSentTo}</CFormLabel>
-                <CFormInput
-                  id="cs-code"
-                  className="mb-3"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={10}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                  autoFocus
-                />
-                <div className="d-flex flex-wrap gap-2">
+                  <OtpChannelPicker
+                    id="cs-channel"
+                    label="Send my code by"
+                    options={channelOptions}
+                    value={channel}
+                    onChange={setChannel}
+                  />
                   <CButton
-                    color={decision === 'accept' ? 'success' : 'danger'}
-                    onClick={submit}
-                    disabled={busy || code.length < 4}
+                    className="portal-primary-btn mt-3"
+                    onClick={() => sendCode()}
+                    disabled={busy || !channelOptions.length || (decision === 'accept' && !agreed)}
                   >
-                    {busy ? <CSpinner size="sm" /> : decision === 'accept' ? 'Confirm — I agree to co-sign' : 'Confirm decline'}
+                    {busy ? (
+                      <>
+                        <CSpinner size="sm" className="me-2" aria-hidden="true" />
+                        Sending…
+                      </>
+                    ) : (
+                      'Send code'
+                    )}
                   </CButton>
-                  <CButton color="link" className="px-0" onClick={sendCode} disabled={busy}>Resend code</CButton>
-                </div>
-              </>
-            )}
+                  <div className="portal-linkrow">
+                    <button
+                      type="button"
+                      className="portal-link"
+                      onClick={() => { setDecision(null); setAgreed(false); setError('') }}
+                      disabled={busy}
+                    >
+                      Back
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <OtpCodeEntry
+                  title="Enter your code"
+                  titleAs="h2"
+                  description={`We sent a ${codeLength}-digit code by ${channelLabelFor(channel)} to ${codeSentTo}.`}
+                  error={error}
+                  onDismissError={() => setError('')}
+                  code={code}
+                  onCodeChange={setCode}
+                  codeKey={codeKey}
+                  length={codeLength}
+                  submitting={busy}
+                  autoSubmit={false}
+                  onSubmit={submit}
+                  submitLabel={decision === 'accept' ? 'Confirm — I agree to co-sign' : 'Confirm decline'}
+                  submittingLabel="Recording…"
+                  resendIn={resendIn}
+                  onResend={() => sendCode(channel)}
+                  backLabel="Change method"
+                  onBack={changeMethod}
+                />
+              )}
+            </div>
           </>
         )}
       </>

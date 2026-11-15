@@ -10,8 +10,9 @@
  */
 
 import React, { useMemo, useState } from 'react'
+import PropTypes from 'prop-types'
 import { Navigate } from 'react-router-dom'
-import { CBadge, CButton, CCard, CCardBody, CCardHeader, CFormInput } from '@coreui/react'
+import { CAlert, CButton, CCard, CCardBody, CCardHeader, CFormInput } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilPencil, cilPlus, cilReload, cilTrash } from '@coreui/icons'
 
@@ -19,18 +20,71 @@ import DataTable from '../../components/DataTable'
 import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
 import NotificationTemplateForm from './NotificationTemplateForm'
-import { useNotificationTemplates, useDeleteNotificationTemplate } from '../../hooks/useNotificationTemplates'
+import {
+  useNotificationTemplates,
+  useDeleteNotificationTemplate,
+  useUpdateNotificationTemplate,
+} from '../../hooks/useNotificationTemplates'
 import { useAuth } from '../../context/AuthContext'
 
 const ACTIVE_ENUM = { colors: { true: 'success', false: 'secondary' }, labels: { true: 'Active', false: 'Inactive' } }
 
+// Colours match the channel sections in NotificationTemplateForm.
 const CHANNEL_BADGES = [
-  { key: 'emailEnabled', label: 'Email' },
-  { key: 'smsEnabled', label: 'SMS' },
-  { key: 'whatsappEnabled', label: 'WhatsApp' },
-  { key: 'pushEnabled', label: 'Push' },
-  { key: 'inAppEnabled', label: 'In-App' },
+  { key: 'emailEnabled', label: 'Email', color: 'var(--tpl-ch-email)', defaultOn: true },
+  { key: 'smsEnabled', label: 'SMS', color: 'var(--tpl-ch-sms)', defaultOn: true },
+  { key: 'whatsappEnabled', label: 'WhatsApp', color: 'var(--tpl-ch-whatsapp)', defaultOn: false },
+  { key: 'pushEnabled', label: 'Push', color: 'var(--tpl-ch-push)', defaultOn: true },
+  { key: 'inAppEnabled', label: 'In-App', color: 'var(--tpl-ch-inapp)', defaultOn: true },
 ]
+
+const isChannelOn = (row, { key, defaultOn }) => (defaultOn ? row[key] !== false : row[key] === true)
+
+const TEMPLATE_FIELDS = [
+  'description', 'emailSubject', 'emailBody', 'smsBody', 'whatsappBody', 'pushTitle', 'pushBody',
+  'inAppTitle', 'inAppBody', 'emailEnabled', 'smsEnabled', 'whatsappEnabled', 'pushEnabled',
+  'inAppEnabled', 'isActive',
+]
+
+/** Soft pill that toggles one channel; looks like the audit-trail action badges. */
+const ChannelPill = ({ label, color, on, pending, onToggle }) => (
+  <button
+    type="button"
+    disabled={pending}
+    onClick={(e) => {
+      e.stopPropagation()
+      onToggle()
+    }}
+    title={`${label}: ${on ? 'enabled' : 'disabled'} — click to ${on ? 'disable' : 'enable'}`}
+    className="badge rounded-pill fw-medium px-2 py-1 d-inline-flex align-items-center gap-1"
+    style={{
+      cursor: pending ? 'wait' : 'pointer',
+      opacity: pending ? 0.6 : 1,
+      color: on ? color : 'var(--cui-secondary-color)',
+      backgroundColor: on ? `color-mix(in srgb, ${color} 12%, transparent)` : 'var(--cui-tertiary-bg)',
+      border: `1px solid ${on ? `color-mix(in srgb, ${color} 33%, transparent)` : 'var(--cui-border-color)'}`,
+      textDecoration: on ? 'none' : 'line-through',
+    }}
+  >
+    <span
+      style={{
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        backgroundColor: on ? color : 'var(--cui-secondary-color)',
+      }}
+    />
+    {label}
+  </button>
+)
+
+ChannelPill.propTypes = {
+  label: PropTypes.string.isRequired,
+  color: PropTypes.string.isRequired,
+  on: PropTypes.bool.isRequired,
+  pending: PropTypes.bool,
+  onToggle: PropTypes.func.isRequired,
+}
 
 const NotificationTemplatesList = () => {
   const { hasPermission } = useAuth()
@@ -38,6 +92,26 @@ const NotificationTemplatesList = () => {
 
   const { data: templates = [], isLoading, error, refetch, isFetching } = useNotificationTemplates()
   const deleteMutation = useDeleteNotificationTemplate()
+  const updateMutation = useUpdateNotificationTemplate()
+  const [toggleError, setToggleError] = useState(null)
+
+  // Send the full set of fields: the update schema applies defaults to omitted ones.
+  const toggleChannel = async (row, key, next) => {
+    setToggleError(null)
+    const payload = Object.fromEntries(TEMPLATE_FIELDS.map((f) => [f, row[f] ?? null]))
+    payload.emailEnabled = row.emailEnabled !== false
+    payload.smsEnabled = row.smsEnabled !== false
+    payload.whatsappEnabled = row.whatsappEnabled === true
+    payload.pushEnabled = row.pushEnabled !== false
+    payload.inAppEnabled = row.inAppEnabled !== false
+    payload.isActive = row.isActive !== false
+    payload[key] = next
+    try {
+      await updateMutation.mutateAsync({ id: row.id, payload })
+    } catch (err) {
+      setToggleError(err)
+    }
+  }
 
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -70,11 +144,19 @@ const NotificationTemplatesList = () => {
       label: 'Channels',
       render: (row) => (
         <div className="d-flex flex-wrap gap-1">
-          {CHANNEL_BADGES.map(({ key, label }) => (
-            <CBadge key={key} color={row[key] !== false ? 'info' : 'secondary'}>
-              {label}
-            </CBadge>
-          ))}
+          {CHANNEL_BADGES.map((ch) => {
+            const on = isChannelOn(row, ch)
+            return (
+              <ChannelPill
+                key={ch.key}
+                label={ch.label}
+                color={ch.color}
+                on={on}
+                pending={updateMutation.isPending && updateMutation.variables?.id === row.id}
+                onToggle={() => toggleChannel(row, ch.key, !on)}
+              />
+            )
+          })}
         </div>
       ),
     },
@@ -90,7 +172,7 @@ const NotificationTemplatesList = () => {
     label: '',
     className: 'text-end',
     render: (row) => (
-      <div className="d-flex gap-2 justify-content-end">
+      <div className="d-flex gap-2 justify-content-end" onClick={(e) => e.stopPropagation()}>
         <CButton color="light" size="sm" title="Edit" onClick={() => openEdit(row)}>
           <CIcon icon={cilPencil} />
         </CButton>
@@ -142,11 +224,18 @@ const NotificationTemplatesList = () => {
           />
         </div>
 
+        {toggleError && (
+          <CAlert color="danger" dismissible onClose={() => setToggleError(null)}>
+            {toggleError.message || 'Failed to update channel.'}
+          </CAlert>
+        )}
+
         <DataTable
           columns={columns}
           rows={filtered}
           loading={isLoading}
           error={error}
+          onRowClick={openEdit}
           emptyMessage="No notification templates match your search."
         />
       </CCardBody>

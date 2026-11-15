@@ -24,17 +24,14 @@ import arislmsLogo from '../../../assets/brand/arislms_logo_dark.png'
 import { useAuth } from '../../../context/AuthContext'
 import { ApiError } from '../../../api'
 import { forgotPassword } from '../../../api/authApi'
-import OtpCodeInput from '../../portal/OtpCodeInput'
+import OtpCodeEntry from '../../portal/OtpCodeEntry'
+import { DEFAULT_OTP_LENGTH } from '../../../utils/otp'
 
 // Client-side pause between resends (the backend doesn't enforce one for staff).
 const OTP_RESEND_SECONDS = 30
-// Backend default for `auth.otp.length`; the login response carries the configured value.
-const DEFAULT_OTP_LENGTH = 6
 
 const CHANNEL_LABELS = { sms: 'SMS', whatsapp: 'WhatsApp', email: 'email' }
 const channelLabel = (channel) => CHANNEL_LABELS[channel] ?? channel
-
-const formatCountdown = (seconds) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 
 const Login = () => {
   const { login, verifyOtp, isAuthenticated } = useAuth()
@@ -187,17 +184,6 @@ const Login = () => {
     }
   }
 
-  const handleVerifyOtp = (event) => {
-    event.preventDefault()
-    if (otpCode.length === otpLength) submitOtp(otpCode)
-  }
-
-  // Submit as soon as the last digit lands (typed, pasted or autofilled).
-  const handleOtpChange = (next) => {
-    setOtpCode(next)
-    if (next.length === otpLength) submitOtp(next)
-  }
-
   const applyChallenge = (result) => {
     setOtpToken(result.otpToken)
     setOtpLength(result.otpLength || DEFAULT_OTP_LENGTH)
@@ -250,79 +236,47 @@ const Login = () => {
               <CCard className="portal-form-panel" data-coreui-theme="dark">
                 <CCardBody>
                   {otpRequired ? (
-                    <CForm onSubmit={handleVerifyOtp}>
-                      <h1 className="portal-heading">Enter your code</h1>
-                      <p className="portal-subtext">
-                        We sent {otpLength === 8 ? 'an' : 'a'} {otpLength}-digit code{' '}
-                        {otpChannel === 'email' ? (
-                          <>
-                            to <strong>{email.trim()}</strong>
-                          </>
-                        ) : otpChannel ? (
-                          `by ${channelLabel(otpChannel)} to the phone number on your account`
-                        ) : (
-                          <>
-                            for <strong>{email.trim()}</strong>
-                          </>
-                        )}
-                        . Enter it below to finish signing in.
-                      </p>
-                      {alert}
-                      <div aria-live="polite" className="portal-help">
-                        {notice}
-                      </div>
-                      <OtpCodeInput
-                        key={otpKey}
-                        value={otpCode}
-                        onChange={handleOtpChange}
-                        length={otpLength}
-                        disabled={submitting}
-                        autoFocus
-                      />
-                      <CButton
-                        type="submit"
-                        className="portal-primary-btn mt-4"
-                        disabled={submitting || otpCode.length !== otpLength}
-                      >
-                        {submitting ? (
-                          <>
-                            <CSpinner size="sm" className="me-2" aria-hidden="true" />
-                            Verifying…
-                          </>
-                        ) : (
-                          'Verify and sign in'
-                        )}
-                      </CButton>
-                      <div className="portal-linkrow">
-                        <button type="button" className="portal-link" onClick={handleBackToLogin} disabled={submitting}>
-                          Back to login
-                        </button>
-                        {resendIn > 0 ? (
-                          <span className="portal-help m-0">Resend in {formatCountdown(resendIn)}</span>
-                        ) : (
-                          <span className="d-inline-flex flex-wrap gap-3">
-                            <button
-                              type="button"
-                              className="portal-link"
-                              onClick={() => handleResendOtp()}
-                              disabled={submitting}
-                            >
-                              Resend code
-                            </button>
-                            {otpAlternative ? (
-                              <button
-                                type="button"
-                                className="portal-link"
-                                onClick={() => handleResendOtp(otpAlternative)}
-                                disabled={submitting}
-                              >
-                                Try {channelLabel(otpAlternative)} instead
-                              </button>
-                            ) : null}
-                          </span>
-                        )}
-                      </div>
-                    </CForm>
+                    <OtpCodeEntry
+                      title="Enter your code"
+                      description={
+                        <>
+                          We sent {otpLength === 8 ? 'an' : 'a'} {otpLength}-digit code{' '}
+                          {otpChannel === 'email' ? (
+                            <>
+                              to <strong>{email.trim()}</strong>
+                            </>
+                          ) : otpChannel ? (
+                            `by ${channelLabel(otpChannel)} to the phone number on your account`
+                          ) : (
+                            <>
+                              for <strong>{email.trim()}</strong>
+                            </>
+                          )}
+                          . Enter it below to finish signing in.
+                        </>
+                      }
+                      error={error}
+                      onDismissError={() => setError('')}
+                      notice={notice}
+                      code={otpCode}
+                      onCodeChange={setOtpCode}
+                      codeKey={otpKey}
+                      length={otpLength}
+                      submitting={submitting}
+                      onSubmit={submitOtp}
+                      resendIn={resendIn}
+                      onResend={() => handleResendOtp()}
+                      alternative={
+                        otpAlternative
+                          ? {
+                              label: `Try ${channelLabel(otpAlternative)} instead`,
+                              onClick: () => handleResendOtp(otpAlternative),
+                            }
+                          : undefined
+                      }
+                      backLabel="Back to login"
+                      onBack={handleBackToLogin}
+                    />
                   ) : (
                     <CForm onSubmit={handleSubmit}>
                       <h1 className="portal-heading">Staff sign in</h1>
